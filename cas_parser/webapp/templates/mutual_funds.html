@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - MF Master</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --card-bg: #fff;
+            --border: #e2e5ea;
+            --text-primary: #1a1d23;
+            --text-secondary: #6b7280;
+            --accent: #4f46e5;
+            --accent-light: #eef2ff;
+            --green: #059669;
+            --green-light: #ecfdf5;
+            --amber: #d97706;
+            --amber-light: #fffbeb;
+        }
+        body { background: var(--bg); color: var(--text-primary); }
+
+        /* Header */
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 0;
+        }
+        .page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+        .page-header p { color: var(--text-secondary); margin: 0; font-size: 0.875rem; }
+
+        /* Stats row */
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+        .stat-card .label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+        }
+
+        /* Table */
+        .funds-table {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .funds-table table { margin: 0; }
+        .funds-table thead th {
+            background: #f9fafb;
+            border-bottom: 2px solid var(--border);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            padding: 0.6rem 0.75rem;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        .funds-table thead th:hover { color: var(--accent); }
+        .funds-table thead th .bi { font-size: 0.6rem; }
+        .funds-table tbody td {
+            padding: 0.6rem 0.75rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f0f1f3;
+            font-size: 0.85rem;
+        }
+        .funds-table tbody tr:hover { background: #fafbfc; }
+        .funds-table tbody tr:last-child td { border-bottom: none; }
+
+        /* AMC group header */
+        .amc-header td {
+            background: #f3f4f6 !important;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.4rem 0.75rem !important;
+        }
+
+        /* Fund name cell */
+        .fund-name-display {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+        .fund-name-original {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 1px;
+        }
+        .fund-name-cell { min-width: 280px; }
+
+        /* Inline edit */
+        .editable-name {
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        .editable-name:hover {
+            background: var(--accent-light);
+            border-color: #c7d2fe;
+        }
+        .edit-input-wrap {
+            display: none;
+            align-items: center;
+            gap: 4px;
+        }
+        .edit-input-wrap.active { display: flex; }
+        .edit-input-wrap input {
+            font-size: 0.85rem;
+            padding: 2px 8px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            outline: none;
+            width: 100%;
+            background: #fff;
+        }
+        .edit-input-wrap .btn-sm { padding: 1px 6px; font-size: 0.75rem; }
+
+        /* Badges */
+        .badge-mapped { background: var(--green-light); color: var(--green); font-weight: 600; font-size: 0.7rem; }
+        .badge-unmapped { background: var(--amber-light); color: var(--amber); font-weight: 600; font-size: 0.7rem; }
+        .badge-alloc { background: #f0f9ff; color: #0369a1; font-size: 0.65rem; font-weight: 500; }
+        .badge-no-alloc { background: #f3f4f6; color: #9ca3af; font-size: 0.65rem; }
+
+        /* ISIN code */
+        .isin-code { font-family: 'SF Mono', 'Consolas', monospace; font-size: 0.75rem; color: var(--text-secondary); }
+        .amfi-code { font-family: 'SF Mono', 'Consolas', monospace; font-size: 0.75rem; font-weight: 600; }
+
+        /* NAV display */
+        .nav-value { font-weight: 600; font-size: 0.85rem; }
+        .nav-date { font-size: 0.7rem; color: var(--text-secondary); }
+
+        /* Action buttons */
+        .action-btn {
+            width: 28px; height: 28px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px; border: 1px solid var(--border);
+            background: #fff; color: var(--text-secondary);
+            font-size: 0.8rem; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .action-btn:hover { background: var(--accent-light); color: var(--accent); border-color: #c7d2fe; }
+
+        /* Search results in modal */
+        .search-results { max-height: 300px; overflow-y: auto; }
+        .search-result-item { cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #eee; }
+        .search-result-item:hover { background-color: #f8f9fa; }
+
+        /* Toast notification */
+        .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+        .toast-msg {
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        }
+        .toast-msg.success { background: var(--green); }
+        .toast-msg.error { background: #dc2626; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+        /* Empty state */
+        .empty-state { padding: 4rem 2rem; text-align: center; color: var(--text-secondary); }
+        .empty-state i { font-size: 3rem; opacity: 0.3; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .funds-table { overflow-x: auto; }
+            .funds-table table { min-width: 800px; }
+        }
+
+        /* Spinner */
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Review alert banner */
+        .review-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 10px;
+            padding: 0.75rem 1.25rem;
+            display: none;
+        }
+        .review-alert .count { font-weight: 700; font-size: 1.1rem; color: #92400e; }
+
+        /* Market cap section in modal */
+        .mcap-section {
+            border-top: 1px dashed var(--border);
+            padding-top: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .mcap-section.hidden { display: none; }
+        .mcap-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+        .badge-mcap { font-size: 0.6rem; font-weight: 500; }
+        .badge-mcap.large { background: #dbeafe; color: #1e40af; }
+        .badge-mcap.mid { background: #e0e7ff; color: #3730a3; }
+        .badge-mcap.small { background: #ede9fe; color: #5b21b6; }
+
+        /* Fund category & geography badges */
+        .badge-cat { font-size: 0.65rem; font-weight: 600; }
+        .badge-cat.equity { background: #dbeafe; color: #1d4ed8; }
+        .badge-cat.debt { background: #dcfce7; color: #15803d; }
+        .badge-cat.hybrid { background: #f3e8ff; color: #7c3aed; }
+        .badge-cat.gold_commodity { background: #fef3c7; color: #b45309; }
+        .badge-geo { font-size: 0.6rem; font-weight: 500; }
+        .badge-geo.india { background: #fff7ed; color: #c2410c; }
+        .badge-geo.international { background: #ecfeff; color: #0e7490; }
+        /* Inline classification selects */
+        .classify-select {
+            font-size: 0.75rem;
+            padding: 1px 4px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            max-width: 110px;
+        }
+        .classify-select:focus { border-color: var(--accent); outline: none; }
+
+        /* Review status in table */
+        .review-stale { color: #92400e; font-size: 0.65rem; }
+        .review-ok { color: var(--green); font-size: 0.65rem; }
+        .accept-btn {
+            width: 28px; height: 28px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px; border: 1px solid #fbbf24;
+            background: #fffbeb; color: #92400e;
+            font-size: 0.8rem; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .accept-btn:hover { background: #fef3c7; border-color: #f59e0b; }
+        .accept-btn.ok { border-color: #86efac; background: #ecfdf5; color: var(--green); cursor: default; }
+
+        /* Holdings & Sectors modal */
+        .hs-section { margin-bottom: 1.5rem; }
+        .hs-section h6 { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.75rem; }
+        .hs-row {
+            display: flex; gap: 0.5rem; align-items: center;
+            margin-bottom: 0.4rem;
+        }
+        .hs-row input[type="text"] {
+            flex: 1; font-size: 0.8rem; padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border); border-radius: 6px;
+        }
+        .hs-row input[type="number"] {
+            width: 80px; font-size: 0.8rem; padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border); border-radius: 6px; text-align: right;
+        }
+        .hs-row select {
+            flex: 1; font-size: 0.8rem; padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border); border-radius: 6px;
+        }
+        .hs-row .hs-remove {
+            width: 24px; height: 24px; border: none; background: none;
+            color: #ef4444; cursor: pointer; font-size: 0.9rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 4px;
+        }
+        .hs-row .hs-remove:hover { background: #fef2f2; }
+        .hs-add-btn {
+            border: 1px dashed var(--border); background: none;
+            color: var(--text-secondary); font-size: 0.75rem;
+            padding: 0.3rem 0.75rem; border-radius: 6px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .hs-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .paste-area {
+            display: none; margin-top: 0.5rem;
+        }
+        .paste-area textarea {
+            width: 100%; height: 100px; font-size: 0.8rem;
+            border: 1px solid var(--border); border-radius: 6px;
+            padding: 0.5rem; font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        .hs-total {
+            font-size: 0.75rem; color: var(--text-secondary);
+            margin-top: 0.25rem; font-weight: 600;
+        }
+        .hs-total.warn { color: var(--amber); }
+        .badge-holdings {
+            font-size: 0.6rem; font-weight: 500;
+            background: var(--amber-light); color: var(--amber);
+            padding: 0.1rem 0.4rem; border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="page-header">
+        <div class="container-fluid px-4">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <a href="/" class="text-decoration-none text-secondary" style="font-size:0.85rem;">
+                            <i class="bi bi-arrow-left"></i> Dashboard
+                        </a>
+                    </div>
+                    <h1><i class="bi bi-bank2"></i> Mutual Fund Master</h1>
+                    <p>Manage fund names, AMFI mappings, and asset allocations</p>
+                </div>
+                <button class="btn btn-primary btn-sm" id="refreshNavBtn" onclick="refreshAllNAV()">
+                    <i class="bi bi-arrow-clockwise" id="refreshIcon"></i> Refresh NAV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid px-4 py-3">
+
+        <!-- Review Alert Banner -->
+        <div class="review-alert mb-3" id="reviewAlert">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <i class="bi bi-clock-history" style="color:#92400e;"></i>
+                    <span class="count" id="reviewCount">0</span>
+                    <span style="color:#78350f;font-size:0.85rem;"> fund(s) need allocation review</span>
+                    <span style="color:#92400e;font-size:0.75rem;" class="ms-1">-- last reviewed 30+ days ago</span>
+                </div>
+                <button class="btn btn-sm btn-warning" onclick="document.getElementById('statusFilter').value='needs-review'; displayFunds();">
+                    Show Funds
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="value" id="totalFunds">-</div>
+                    <div class="label">Total Funds</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="value text-success" id="mappedFunds">-</div>
+                    <div class="label">Mapped</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="value" style="color:var(--amber)" id="unmappedFunds">-</div>
+                    <div class="label">Unmapped</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="value" style="color:var(--accent)" id="withNav">-</div>
+                    <div class="label">With NAV</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar d-flex align-items-center gap-3 mb-3 flex-wrap">
+            <div style="min-width:160px;">
+                <select class="form-select form-select-sm" id="statusFilter">
+                    <option value="">All Funds</option>
+                    <option value="unmapped">Unmapped Only</option>
+                    <option value="mapped">Mapped Only</option>
+                    <option value="no-alloc">No Allocation</option>
+                    <option value="no-category">No Category</option>
+                    <option value="needs-review">Needs Review</option>
+                </select>
+            </div>
+            <div class="flex-grow-1" style="max-width:360px;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchFilter" placeholder="Search by name, AMC, or ISIN...">
+                </div>
+            </div>
+            <div class="ms-auto text-secondary" style="font-size:0.8rem;">
+                <span id="resultCount">-</span> funds shown
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="funds-table" id="fundsTable">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th class="fund-name-cell" data-sort="name">Fund Name <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="isin">ISIN <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="amfi">AMFI <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="nav" class="text-end">NAV <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="alloc">Allocation / Cap <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="category">Category / Geo <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="status">Status <i class="bi bi-chevron-expand"></i></th>
+                        <th data-sort="review">Reviewed <i class="bi bi-chevron-expand"></i></th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="fundsBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Mapping Modal -->
+    <div class="modal fade" id="mapModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Map to AMFI Scheme</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Your Fund:</label>
+                        <div class="alert alert-secondary py-2" id="currentFundInfo"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Search AMFI Schemes:</label>
+                        <input type="text" class="form-control" id="amfiSearch" placeholder="Type scheme name or code...">
+                        <small class="text-muted">Type at least 3 characters to search</small>
+                    </div>
+                    <div id="amfiSearchResults" class="search-results border rounded" style="display:none;"></div>
+                    <div class="mt-3" id="selectedAmfi" style="display:none;">
+                        <label class="form-label">Selected AMFI Scheme:</label>
+                        <div class="alert alert-success py-2">
+                            <strong>Code:</strong> <span id="selectedCode" class="amfi-code"></span><br>
+                            <strong>Name:</strong> <span id="selectedName"></span><br>
+                            <strong>NAV:</strong> <span id="selectedNav"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="confirmMapBtn" disabled onclick="confirmMapping()">
+                        Confirm Mapping
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit ISIN Modal -->
+    <div class="modal fade" id="isinModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit ISIN</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3 py-2">
+                        <small><i class="bi bi-info-circle"></i> Correct ISINs that were incorrectly parsed from PDF. Must be 12 characters starting with INF.</small>
+                    </div>
+                    <div class="mb-3"><strong id="isinFundName">-</strong></div>
+                    <input type="hidden" id="isinFundId">
+                    <div class="mb-3">
+                        <label class="form-label">Current ISIN</label>
+                        <input type="text" class="form-control form-control-sm font-monospace" id="currentIsin" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New ISIN <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm font-monospace" id="newIsin" maxlength="12" placeholder="INFxxxxxxxxx" oninput="validateIsin()">
+                    </div>
+                    <div id="isinError" class="alert alert-danger py-2" style="display:none;"><small>Invalid ISIN format</small></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="saveIsinBtn" onclick="saveIsin()" disabled>Save ISIN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Allocation Modal -->
+    <div class="modal fade" id="allocModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pie-chart"></i> Asset Allocation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3 py-2">
+                        <small>Define what percentage of this fund is allocated to each asset class. Total must equal 100%.</small>
+                    </div>
+                    <div class="mb-3"><strong id="allocFundName">-</strong></div>
+                    <input type="hidden" id="allocFundId">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Equity %</label>
+                            <input type="number" class="form-control form-control-sm" id="allocEquity" min="0" max="100" step="0.1" value="0" onchange="updateAllocTotal()" oninput="updateAllocTotal()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Debt %</label>
+                            <input type="number" class="form-control form-control-sm" id="allocDebt" min="0" max="100" step="0.1" value="0" onchange="updateAllocTotal()" oninput="updateAllocTotal()">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Commodity %</label>
+                            <input type="number" class="form-control form-control-sm" id="allocCommodity" min="0" max="100" step="0.1" value="0" onchange="updateAllocTotal()" oninput="updateAllocTotal()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Cash %</label>
+                            <input type="number" class="form-control form-control-sm" id="allocCash" min="0" max="100" step="0.1" value="0" onchange="updateAllocTotal()" oninput="updateAllocTotal()">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Others %</label>
+                            <input type="number" class="form-control form-control-sm" id="allocOthers" min="0" max="100" step="0.1" value="0" onchange="updateAllocTotal()" oninput="updateAllocTotal()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" style="font-size:0.8rem;">Total</label>
+                            <div class="form-control form-control-sm bg-light" id="allocTotal">0%</div>
+                        </div>
+                    </div>
+                    <div id="allocError" class="alert alert-danger py-2" style="display:none;"><small>Total must equal 100%</small></div>
+
+                    <!-- Market Cap Section (only visible when equity > 0) -->
+                    <div class="mcap-section hidden" id="mcapSection">
+                        <div class="mcap-label mb-2"><i class="bi bi-graph-up-arrow"></i> Equity Market Cap Split</div>
+                        <div class="alert alert-light py-1 mb-2" style="font-size:0.75rem;">
+                            Split the equity portion across Large, Mid, and Small cap. Must total 100%.
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-4">
+                                <label class="form-label" style="font-size:0.75rem;">Large Cap %</label>
+                                <input type="number" class="form-control form-control-sm" id="allocLargeCap" min="0" max="100" step="0.1" value="0" oninput="updateCapTotal()">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label" style="font-size:0.75rem;">Mid Cap %</label>
+                                <input type="number" class="form-control form-control-sm" id="allocMidCap" min="0" max="100" step="0.1" value="0" oninput="updateCapTotal()">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label" style="font-size:0.75rem;">Small Cap %</label>
+                                <input type="number" class="form-control form-control-sm" id="allocSmallCap" min="0" max="100" step="0.1" value="0" oninput="updateCapTotal()">
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-size:0.75rem;color:var(--text-secondary);">Cap Total:</span>
+                            <span id="capTotal" style="font-size:0.8rem;font-weight:600;">0%</span>
+                        </div>
+                        <div id="capError" class="alert alert-danger py-1 mt-1" style="display:none;font-size:0.75rem;">Market cap split must total 100%</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="saveAllocBtn" onclick="saveAllocation()">Save Allocation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holdings & Sectors Modal -->
+    <div class="modal fade" id="holdingsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title" style="font-size:1rem;"><i class="bi bi-bar-chart-steps"></i> Holdings & Sectors</h5>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+                    <div id="hsLoading" class="text-center py-3" style="display:none;">
+                        <i class="bi bi-arrow-repeat spin"></i> Loading...
+                    </div>
+                    <input type="hidden" id="hsFundId">
+
+                    <!-- Stock Holdings Section -->
+                    <div class="hs-section">
+                        <h6><i class="bi bi-graph-up"></i> Stock Holdings</h6>
+                        <div id="holdingsRows"></div>
+                        <div class="d-flex gap-2 align-items-center mt-2">
+                            <button class="hs-add-btn" onclick="addHoldingRow()"><i class="bi bi-plus"></i> Add Stock</button>
+                            <button class="hs-add-btn" onclick="togglePaste()"><i class="bi bi-clipboard"></i> Paste bulk text</button>
+                        </div>
+                        <div class="paste-area" id="pasteArea">
+                            <textarea id="pasteText" placeholder="Paste lines like:&#10;HDFC Bank&#9;8.5&#10;Infosys&#9;6.2&#10;(tab, comma, or space-separated)"></textarea>
+                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="parsePastedText()">Parse</button>
+                        </div>
+                        <div class="hs-total" id="holdingsTotal">Total: 0%</div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Sector Distribution Section -->
+                    <div class="hs-section">
+                        <h6><i class="bi bi-pie-chart-fill"></i> Sector Distribution</h6>
+                        <div id="sectorsRows"></div>
+                        <div class="d-flex gap-2 align-items-center mt-2">
+                            <button class="hs-add-btn" onclick="addSectorRow()"><i class="bi bi-plus"></i> Add Sector</button>
+                        </div>
+                        <div class="hs-total" id="sectorsTotal">Total: 0%</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveHoldingsSectors()">Save Holdings & Sectors</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allFunds = [];
+        let currentMappingFund = null;
+        let selectedAmfiScheme = null;
+        let sortCol = 'name';
+        let sortAsc = true;
+
+        // ==================== Data Loading ====================
+
+        let reviewFundIds = new Set();
+
+        async function loadData() {
+            try {
+                const [statsRes, fundsRes, reviewRes] = await Promise.all([
+                    fetch('/api/mutual-funds/stats'),
+                    fetch('/api/mutual-funds'),
+                    fetch('/api/mutual-funds/review-alerts')
+                ]);
+
+                const stats = await statsRes.json();
+                allFunds = await fundsRes.json();
+                const reviewData = await reviewRes.json();
+
+                document.getElementById('totalFunds').textContent = stats.total;
+                document.getElementById('mappedFunds').textContent = stats.mapped;
+                document.getElementById('unmappedFunds').textContent = stats.unmapped;
+                document.getElementById('withNav').textContent = stats.with_nav;
+
+                // Review alerts
+                reviewFundIds = new Set(reviewData.funds.map(f => f.id));
+                const alertEl = document.getElementById('reviewAlert');
+                if (reviewData.count > 0) {
+                    document.getElementById('reviewCount').textContent = reviewData.count;
+                    alertEl.style.display = 'block';
+                } else {
+                    alertEl.style.display = 'none';
+                }
+
+                displayFunds();
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        // ==================== Display ====================
+
+        function getFundDisplayName(f) {
+            return f.display_name || f.amfi_scheme_name || f.scheme_name || '';
+        }
+
+        function displayFunds() {
+            const tbody = document.getElementById('fundsBody');
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+
+            let filtered = allFunds;
+
+            if (statusFilter === 'mapped') {
+                filtered = filtered.filter(f => f.amfi_code);
+            } else if (statusFilter === 'unmapped') {
+                filtered = filtered.filter(f => !f.amfi_code);
+            } else if (statusFilter === 'no-alloc') {
+                filtered = filtered.filter(f => {
+                    const sum = (f.equity_pct||0) + (f.debt_pct||0) + (f.commodity_pct||0) + (f.cash_pct||0) + (f.others_pct||0);
+                    return sum === 0;
+                });
+            } else if (statusFilter === 'no-category') {
+                filtered = filtered.filter(f => !f.fund_category);
+            } else if (statusFilter === 'needs-review') {
+                filtered = filtered.filter(f => reviewFundIds.has(f.id));
+            }
+
+            if (searchFilter) {
+                filtered = filtered.filter(f =>
+                    getFundDisplayName(f).toLowerCase().includes(searchFilter) ||
+                    (f.scheme_name || '').toLowerCase().includes(searchFilter) ||
+                    (f.amc || '').toLowerCase().includes(searchFilter) ||
+                    (f.isin || '').toLowerCase().includes(searchFilter)
+                );
+            }
+
+            // Sort
+            filtered.sort((a, b) => {
+                let valA, valB;
+                switch (sortCol) {
+                    case 'name': valA = getFundDisplayName(a).toLowerCase(); valB = getFundDisplayName(b).toLowerCase(); break;
+                    case 'isin': valA = (a.isin||''); valB = (b.isin||''); break;
+                    case 'amfi': valA = (a.amfi_code||''); valB = (b.amfi_code||''); break;
+                    case 'nav': valA = a.current_nav||0; valB = b.current_nav||0; break;
+                    case 'status': valA = a.amfi_code?1:0; valB = b.amfi_code?1:0; break;
+                    case 'alloc':
+                        valA = (a.equity_pct||0)+(a.debt_pct||0)+(a.commodity_pct||0)+(a.cash_pct||0)+(a.others_pct||0);
+                        valB = (b.equity_pct||0)+(b.debt_pct||0)+(b.commodity_pct||0)+(b.cash_pct||0)+(b.others_pct||0);
+                        break;
+                    case 'category':
+                        valA = (a.fund_category||'') + (a.geography||'');
+                        valB = (b.fund_category||'') + (b.geography||'');
+                        break;
+                    case 'review':
+                        valA = a.allocation_reviewed_at || '';
+                        valB = b.allocation_reviewed_at || '';
+                        break;
+                    default: valA = (a.amc||'').toLowerCase() + getFundDisplayName(a).toLowerCase(); valB = (b.amc||'').toLowerCase() + getFundDisplayName(b).toLowerCase();
+                }
+                if (valA < valB) return sortAsc ? -1 : 1;
+                if (valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            document.getElementById('resultCount').textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class="bi bi-inbox"></i><p class="mt-2">No mutual funds found</p></div></td></tr>`;
+                return;
+            }
+
+            // Group by AMC
+            const grouped = {};
+            filtered.forEach(f => {
+                const amc = f.amc || 'Other';
+                if (!grouped[amc]) grouped[amc] = [];
+                grouped[amc].push(f);
+            });
+
+            let html = '';
+            const sortedAmcs = Object.keys(grouped).sort();
+
+            sortedAmcs.forEach(amc => {
+                html += `<tr class="amc-header"><td colspan="9"><i class="bi bi-building"></i> ${escHtml(amc)} (${grouped[amc].length})</td></tr>`;
+                grouped[amc].forEach(f => {
+                    html += renderFundRow(f);
+                });
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function escHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function renderFundRow(f) {
+            const displayName = getFundDisplayName(f);
+            const isMapped = f.amfi_code && f.amfi_code.trim() !== '';
+            const statusBadge = isMapped
+                ? '<span class="badge badge-mapped">Mapped</span>'
+                : '<span class="badge badge-unmapped">Unmapped</span>';
+
+            // Show original name if display_name differs
+            const originalName = f.scheme_name || '';
+            const showOriginal = f.display_name && f.display_name !== f.scheme_name;
+
+            const navHtml = f.current_nav
+                ? `<span class="nav-value">${f.current_nav.toFixed(4)}</span><br><span class="nav-date">${f.nav_date || ''}</span>`
+                : '<span class="text-muted" style="font-size:0.8rem;">--</span>';
+
+            // Allocation + market cap
+            const allocSum = (f.equity_pct||0) + (f.debt_pct||0) + (f.commodity_pct||0) + (f.cash_pct||0) + (f.others_pct||0);
+            let allocHtml;
+            if (allocSum > 0) {
+                const parts = [];
+                if (f.equity_pct) parts.push(`E:${f.equity_pct}%`);
+                if (f.debt_pct) parts.push(`D:${f.debt_pct}%`);
+                if (f.commodity_pct) parts.push(`C:${f.commodity_pct}%`);
+                if (f.cash_pct) parts.push(`$:${f.cash_pct}%`);
+                if (f.others_pct) parts.push(`O:${f.others_pct}%`);
+                allocHtml = `<span class="badge badge-alloc">${parts.join(' ')}</span>`;
+
+                // Market cap badges (only if equity > 0 and cap defined)
+                const capSum = (f.large_cap_pct||0) + (f.mid_cap_pct||0) + (f.small_cap_pct||0);
+                if (f.equity_pct > 0 && capSum >= 1) {
+                    allocHtml += '<br>';
+                    if (f.large_cap_pct) allocHtml += `<span class="badge badge-mcap large">L:${f.large_cap_pct}%</span> `;
+                    if (f.mid_cap_pct) allocHtml += `<span class="badge badge-mcap mid">M:${f.mid_cap_pct}%</span> `;
+                    if (f.small_cap_pct) allocHtml += `<span class="badge badge-mcap small">S:${f.small_cap_pct}%</span>`;
+                }
+            } else {
+                allocHtml = '<span class="badge badge-no-alloc">Not set</span>';
+            }
+
+            // Holdings / Sectors badges
+            if (f.holdings_count > 0 || f.sectors_count > 0) {
+                allocHtml += '<br>';
+                if (f.holdings_count > 0) allocHtml += `<span class="badge badge-holdings">${f.holdings_count} stocks</span> `;
+                if (f.sectors_count > 0) allocHtml += `<span class="badge badge-holdings">${f.sectors_count} sectors</span>`;
+            }
+
+            // Category / Geography
+            const catLabels = {equity: 'Equity', debt: 'Debt', hybrid: 'Hybrid', gold_commodity: 'Gold/Commodity'};
+            const geoLabels = {india: 'India', international: 'Intl'};
+            const catVal = f.fund_category || '';
+            const geoVal = f.geography || '';
+            let classifyHtml = '';
+            if (catVal) {
+                classifyHtml += `<span class="badge badge-cat ${catVal}">${catLabels[catVal]}</span> `;
+            }
+            if (geoVal) {
+                classifyHtml += `<span class="badge badge-geo ${geoVal}">${geoLabels[geoVal]}</span>`;
+            }
+            if (!catVal && !geoVal) {
+                classifyHtml = '<span class="text-muted" style="font-size:0.75rem;">--</span>';
+            }
+
+            // Review status
+            const needsReview = reviewFundIds.has(f.id);
+            let reviewHtml;
+            if (allocSum < 1) {
+                reviewHtml = '<span class="text-muted" style="font-size:0.65rem;">--</span>';
+            } else if (needsReview) {
+                const reviewDate = f.allocation_reviewed_at ? formatShortDate(f.allocation_reviewed_at) : 'Never';
+                reviewHtml = `<span class="review-stale"><i class="bi bi-exclamation-triangle-fill"></i> ${reviewDate}</span>`;
+            } else {
+                reviewHtml = `<span class="review-ok"><i class="bi bi-check-circle-fill"></i> ${formatShortDate(f.allocation_reviewed_at)}</span>`;
+            }
+
+            return `
+            <tr data-fund-id="${f.id}">
+                <td class="fund-name-cell">
+                    <div class="editable-name" id="name-display-${f.id}" onclick="startEdit(${f.id})" title="Click to edit name">
+                        <span class="fund-name-display">${escHtml(displayName)}</span>
+                        <i class="bi bi-pencil-fill" style="font-size:0.6rem;color:#c7d2fe;margin-left:4px;"></i>
+                    </div>
+                    <div class="edit-input-wrap" id="name-edit-${f.id}">
+                        <input type="text" value="${escHtml(displayName)}" onkeydown="handleEditKey(event, ${f.id})" id="name-input-${f.id}">
+                        <button class="btn btn-sm btn-primary" onclick="saveName(${f.id})" title="Save"><i class="bi bi-check"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cancelEdit(${f.id})" title="Cancel"><i class="bi bi-x"></i></button>
+                    </div>
+                    ${showOriginal ? `<div class="fund-name-original" title="Original PDF name">PDF: ${escHtml(originalName)}</div>` : ''}
+                </td>
+                <td><span class="isin-code">${f.isin || '-'}</span></td>
+                <td>${isMapped ? `<span class="amfi-code">${f.amfi_code}</span>` : '<span class="text-muted">--</span>'}</td>
+                <td class="text-end">${navHtml}</td>
+                <td>${allocHtml}</td>
+                <td class="classify-cell" onclick="toggleClassifyEdit(event, ${f.id})" style="cursor:pointer;" title="Click to edit">
+                    <div id="classify-display-${f.id}">${classifyHtml}</div>
+                    <div id="classify-edit-${f.id}" style="display:none;" onclick="event.stopPropagation();">
+                        <select class="classify-select mb-1" onchange="saveClassification(${f.id})" id="cat-select-${f.id}">
+                            <option value="">-- Category --</option>
+                            <option value="equity" ${catVal==='equity'?'selected':''}>Equity</option>
+                            <option value="debt" ${catVal==='debt'?'selected':''}>Debt</option>
+                            <option value="hybrid" ${catVal==='hybrid'?'selected':''}>Hybrid</option>
+                            <option value="gold_commodity" ${catVal==='gold_commodity'?'selected':''}>Gold/Commodity</option>
+                        </select><br>
+                        <select class="classify-select" onchange="saveClassification(${f.id})" id="geo-select-${f.id}">
+                            <option value="">-- Geography --</option>
+                            <option value="india" ${geoVal==='india'?'selected':''}>India</option>
+                            <option value="international" ${geoVal==='international'?'selected':''}>International</option>
+                        </select>
+                    </div>
+                </td>
+                <td>${statusBadge}</td>
+                <td class="text-center">${reviewHtml}</td>
+                <td class="text-center">
+                    <div class="d-flex gap-1 justify-content-center">
+                        <button class="action-btn" onclick="openIsinModal(${f.id})" title="Edit ISIN"><i class="bi bi-hash"></i></button>
+                        <button class="action-btn" onclick="openMapModal(${f.id})" title="Map to AMFI"><i class="bi bi-link-45deg"></i></button>
+                        <button class="action-btn" onclick="openAllocModal(${f.id})" title="Asset Allocation"><i class="bi bi-pie-chart"></i></button>
+                        <button class="action-btn" onclick="openHoldingsModal(${f.id})" title="Holdings & Sectors"><i class="bi bi-bar-chart-steps"></i></button>
+                        ${needsReview ? `<button class="accept-btn" onclick="acceptReview(${f.id})" title="Accept current allocation"><i class="bi bi-check2"></i></button>` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        }
+
+        // ==================== Inline Name Editing ====================
+
+        function startEdit(fundId) {
+            // Close any other open edits
+            document.querySelectorAll('.edit-input-wrap.active').forEach(el => {
+                el.classList.remove('active');
+                el.previousElementSibling.style.display = '';
+            });
+
+            const display = document.getElementById(`name-display-${fundId}`);
+            const edit = document.getElementById(`name-edit-${fundId}`);
+            const input = document.getElementById(`name-input-${fundId}`);
+
+            display.style.display = 'none';
+            edit.classList.add('active');
+            input.focus();
+            input.select();
+        }
+
+        function cancelEdit(fundId) {
+            const display = document.getElementById(`name-display-${fundId}`);
+            const edit = document.getElementById(`name-edit-${fundId}`);
+
+            display.style.display = '';
+            edit.classList.remove('active');
+
+            // Reset to current value
+            const fund = allFunds.find(f => f.id === fundId);
+            if (fund) {
+                document.getElementById(`name-input-${fundId}`).value = getFundDisplayName(fund);
+            }
+        }
+
+        function handleEditKey(e, fundId) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveName(fundId);
+            } else if (e.key === 'Escape') {
+                cancelEdit(fundId);
+            }
+        }
+
+        async function saveName(fundId) {
+            const input = document.getElementById(`name-input-${fundId}`);
+            const newName = input.value.trim();
+
+            if (!newName) {
+                toast('Name cannot be empty', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/name`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ display_name: newName })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    // Update local data
+                    const fund = allFunds.find(f => f.id === fundId);
+                    if (fund) fund.display_name = newName;
+                    displayFunds();
+                    toast('Fund name updated');
+                } else {
+                    toast(result.error || 'Failed to update name', 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Classification Inline Edit ====================
+
+        function toggleClassifyEdit(event, fundId) {
+            // Close any other open classify edits
+            document.querySelectorAll('[id^="classify-edit-"]').forEach(el => {
+                const id = el.id.replace('classify-edit-', '');
+                if (parseInt(id) !== fundId) {
+                    el.style.display = 'none';
+                    document.getElementById(`classify-display-${id}`).style.display = '';
+                }
+            });
+
+            const display = document.getElementById(`classify-display-${fundId}`);
+            const edit = document.getElementById(`classify-edit-${fundId}`);
+
+            if (edit.style.display === 'none') {
+                display.style.display = 'none';
+                edit.style.display = '';
+            } else {
+                display.style.display = '';
+                edit.style.display = 'none';
+            }
+        }
+
+        async function saveClassification(fundId) {
+            const catVal = document.getElementById(`cat-select-${fundId}`).value || null;
+            const geoVal = document.getElementById(`geo-select-${fundId}`).value || null;
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/classification`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fund_category: catVal, geography: geoVal })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    const fund = allFunds.find(f => f.id === fundId);
+                    if (fund) {
+                        fund.fund_category = catVal;
+                        fund.geography = geoVal;
+                    }
+                    displayFunds();
+                    toast('Classification updated');
+                } else {
+                    toast(result.error || 'Failed to update', 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Toast Notification ====================
+
+        function toast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast-msg ${type}`;
+            el.textContent = msg;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // ==================== Sorting ====================
+
+        document.querySelectorAll('[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.dataset.sort;
+                if (sortCol === col) {
+                    sortAsc = !sortAsc;
+                } else {
+                    sortCol = col;
+                    sortAsc = true;
+                }
+                displayFunds();
+            });
+        });
+
+        // ==================== AMFI Mapping ====================
+
+        function openMapModal(fundId) {
+            currentMappingFund = allFunds.find(f => f.id === fundId);
+            if (!currentMappingFund) return;
+
+            const displayName = getFundDisplayName(currentMappingFund);
+            document.getElementById('currentFundInfo').innerHTML = `
+                <strong>${escHtml(displayName)}</strong><br>
+                <small>ISIN: ${currentMappingFund.isin || '-'} | AMC: ${currentMappingFund.amc || '-'}</small>
+            `;
+
+            document.getElementById('amfiSearch').value = '';
+            document.getElementById('amfiSearchResults').style.display = 'none';
+            document.getElementById('selectedAmfi').style.display = 'none';
+            document.getElementById('confirmMapBtn').disabled = true;
+            selectedAmfiScheme = null;
+
+            const modal = new bootstrap.Modal(document.getElementById('mapModal'));
+            modal.show();
+
+            setTimeout(() => {
+                const searchInput = document.getElementById('amfiSearch');
+                const keywords = (currentMappingFund.scheme_name || '')
+                    .replace(/[-()]/g, ' ')
+                    .split(' ')
+                    .filter(w => w.length > 3)
+                    .slice(0, 3)
+                    .join(' ');
+                searchInput.value = keywords;
+                searchInput.focus();
+                if (keywords.length >= 3) searchAmfi(keywords);
+            }, 300);
+        }
+
+        let searchTimeout;
+        document.getElementById('amfiSearch').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            if (query.length < 3) {
+                document.getElementById('amfiSearchResults').style.display = 'none';
+                return;
+            }
+            searchTimeout = setTimeout(() => searchAmfi(query), 300);
+        });
+
+        async function searchAmfi(query) {
+            try {
+                const res = await fetch(`/api/amfi/search?q=${encodeURIComponent(query)}`);
+                const results = await res.json();
+                const container = document.getElementById('amfiSearchResults');
+
+                if (results.length === 0) {
+                    container.innerHTML = '<div class="p-3 text-muted">No schemes found</div>';
+                } else {
+                    container.innerHTML = results.map(r => `
+                        <div class="search-result-item" onclick='selectAmfiScheme(${JSON.stringify(r).replace(/'/g, "\\'")})'>
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <span class="amfi-code">${r.scheme_code}</span>
+                                    <small class="text-muted ms-2">${r.amc}</small>
+                                </div>
+                                <small class="text-success">NAV: ${r.nav.toFixed(4)}</small>
+                            </div>
+                            <small>${r.scheme_name}</small>
+                        </div>
+                    `).join('');
+                }
+                container.style.display = 'block';
+            } catch (error) {
+                console.error('Search failed:', error);
+            }
+        }
+
+        function selectAmfiScheme(scheme) {
+            selectedAmfiScheme = scheme;
+            document.getElementById('selectedCode').textContent = scheme.scheme_code;
+            document.getElementById('selectedName').textContent = scheme.scheme_name;
+            document.getElementById('selectedNav').textContent = scheme.nav.toFixed(4);
+            document.getElementById('selectedAmfi').style.display = 'block';
+            document.getElementById('amfiSearchResults').style.display = 'none';
+            document.getElementById('confirmMapBtn').disabled = false;
+        }
+
+        async function confirmMapping() {
+            if (!currentMappingFund || !selectedAmfiScheme) return;
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${currentMappingFund.id}/map`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amfi_code: selectedAmfiScheme.scheme_code,
+                        amfi_scheme_name: selectedAmfiScheme.scheme_name
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('mapModal')).hide();
+                    await loadData();
+                    toast('AMFI mapping saved');
+                } else {
+                    toast('Failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== NAV Refresh ====================
+
+        async function refreshAllNAV() {
+            const btn = document.getElementById('refreshNavBtn');
+            const icon = document.getElementById('refreshIcon');
+
+            btn.disabled = true;
+            icon.classList.add('spin');
+
+            try {
+                const res = await fetch('/api/nav/refresh', { method: 'POST' });
+                const result = await res.json();
+
+                if (result.success) {
+                    await loadData();
+                    toast(result.message || `Updated NAV for ${result.updated} funds`);
+                } else {
+                    toast('Error: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                toast('Failed to refresh NAV: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                icon.classList.remove('spin');
+            }
+        }
+
+        // ==================== Asset Allocation ====================
+
+        function openAllocModal(fundId) {
+            const fund = allFunds.find(f => f.id === fundId);
+            if (!fund) return;
+
+            document.getElementById('allocFundId').value = fundId;
+            document.getElementById('allocFundName').textContent = getFundDisplayName(fund);
+
+            document.getElementById('allocEquity').value = fund.equity_pct || 0;
+            document.getElementById('allocDebt').value = fund.debt_pct || 0;
+            document.getElementById('allocCommodity').value = fund.commodity_pct || 0;
+            document.getElementById('allocCash').value = fund.cash_pct || 0;
+            document.getElementById('allocOthers').value = fund.others_pct || 0;
+
+            // Market cap
+            document.getElementById('allocLargeCap').value = fund.large_cap_pct || 0;
+            document.getElementById('allocMidCap').value = fund.mid_cap_pct || 0;
+            document.getElementById('allocSmallCap').value = fund.small_cap_pct || 0;
+
+            updateAllocTotal();
+            updateCapTotal();
+            toggleMcapSection();
+
+            new bootstrap.Modal(document.getElementById('allocModal')).show();
+        }
+
+        function toggleMcapSection() {
+            const equity = parseFloat(document.getElementById('allocEquity').value) || 0;
+            const section = document.getElementById('mcapSection');
+            if (equity > 0) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+                // Zero out cap fields when equity is 0
+                document.getElementById('allocLargeCap').value = 0;
+                document.getElementById('allocMidCap').value = 0;
+                document.getElementById('allocSmallCap').value = 0;
+            }
+        }
+
+        function updateCapTotal() {
+            const large = parseFloat(document.getElementById('allocLargeCap').value) || 0;
+            const mid = parseFloat(document.getElementById('allocMidCap').value) || 0;
+            const small = parseFloat(document.getElementById('allocSmallCap').value) || 0;
+
+            const total = large + mid + small;
+            const totalEl = document.getElementById('capTotal');
+            const errorEl = document.getElementById('capError');
+
+            totalEl.textContent = total.toFixed(1) + '%';
+
+            if (total === 0 || Math.abs(total - 100) < 0.05) {
+                totalEl.style.color = 'var(--green)';
+                errorEl.style.display = 'none';
+            } else {
+                totalEl.style.color = '#dc2626';
+                errorEl.style.display = 'block';
+            }
+            validateAllocSave();
+        }
+
+        function updateAllocTotal() {
+            const equity = parseFloat(document.getElementById('allocEquity').value) || 0;
+            const debt = parseFloat(document.getElementById('allocDebt').value) || 0;
+            const commodity = parseFloat(document.getElementById('allocCommodity').value) || 0;
+            const cash = parseFloat(document.getElementById('allocCash').value) || 0;
+            const others = parseFloat(document.getElementById('allocOthers').value) || 0;
+
+            const total = equity + debt + commodity + cash + others;
+            const totalEl = document.getElementById('allocTotal');
+            const errorEl = document.getElementById('allocError');
+
+            totalEl.textContent = total.toFixed(1) + '%';
+
+            if (Math.abs(total - 100) < 0.05) {
+                totalEl.classList.remove('text-danger');
+                totalEl.classList.add('text-success');
+                errorEl.style.display = 'none';
+            } else {
+                totalEl.classList.remove('text-success');
+                totalEl.classList.add('text-danger');
+                errorEl.style.display = 'block';
+            }
+
+            toggleMcapSection();
+            validateAllocSave();
+        }
+
+        function validateAllocSave() {
+            const equity = parseFloat(document.getElementById('allocEquity').value) || 0;
+            const total = equity + (parseFloat(document.getElementById('allocDebt').value)||0) +
+                         (parseFloat(document.getElementById('allocCommodity').value)||0) +
+                         (parseFloat(document.getElementById('allocCash').value)||0) +
+                         (parseFloat(document.getElementById('allocOthers').value)||0);
+
+            const saveBtn = document.getElementById('saveAllocBtn');
+            const allocOk = Math.abs(total - 100) < 0.05;
+
+            // Check cap total if equity > 0
+            let capOk = true;
+            if (equity > 0) {
+                const capTotal = (parseFloat(document.getElementById('allocLargeCap').value)||0) +
+                                 (parseFloat(document.getElementById('allocMidCap').value)||0) +
+                                 (parseFloat(document.getElementById('allocSmallCap').value)||0);
+                // Cap is optional (0 is ok) but if partially filled must sum to 100
+                capOk = capTotal === 0 || Math.abs(capTotal - 100) < 0.05;
+            }
+
+            saveBtn.disabled = !(allocOk && capOk);
+        }
+
+        async function saveAllocation() {
+            const fundId = document.getElementById('allocFundId').value;
+
+            const data = {
+                equity_pct: parseFloat(document.getElementById('allocEquity').value) || 0,
+                debt_pct: parseFloat(document.getElementById('allocDebt').value) || 0,
+                commodity_pct: parseFloat(document.getElementById('allocCommodity').value) || 0,
+                cash_pct: parseFloat(document.getElementById('allocCash').value) || 0,
+                others_pct: parseFloat(document.getElementById('allocOthers').value) || 0,
+                large_cap_pct: parseFloat(document.getElementById('allocLargeCap').value) || 0,
+                mid_cap_pct: parseFloat(document.getElementById('allocMidCap').value) || 0,
+                small_cap_pct: parseFloat(document.getElementById('allocSmallCap').value) || 0
+            };
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/allocation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('allocModal')).hide();
+                    await loadData();
+                    toast('Asset allocation saved');
+                } else {
+                    toast('Failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== ISIN Edit ====================
+
+        function openIsinModal(fundId) {
+            const fund = allFunds.find(f => f.id === fundId);
+            if (!fund) return;
+
+            document.getElementById('isinFundId').value = fundId;
+            document.getElementById('isinFundName').textContent = getFundDisplayName(fund);
+            document.getElementById('currentIsin').value = fund.isin || '';
+            document.getElementById('newIsin').value = '';
+            document.getElementById('isinError').style.display = 'none';
+            document.getElementById('saveIsinBtn').disabled = true;
+
+            new bootstrap.Modal(document.getElementById('isinModal')).show();
+        }
+
+        function validateIsin() {
+            const newIsin = document.getElementById('newIsin').value.trim().toUpperCase();
+            const errorEl = document.getElementById('isinError');
+            const saveBtn = document.getElementById('saveIsinBtn');
+
+            document.getElementById('newIsin').value = newIsin;
+
+            const isValid = newIsin.length === 12 && /^INF[A-Z0-9]{9}$/.test(newIsin);
+
+            if (newIsin.length > 0 && !isValid) {
+                errorEl.style.display = 'block';
+                saveBtn.disabled = true;
+            } else if (isValid) {
+                errorEl.style.display = 'none';
+                saveBtn.disabled = false;
+            } else {
+                errorEl.style.display = 'none';
+                saveBtn.disabled = true;
+            }
+        }
+
+        async function saveIsin() {
+            const fundId = document.getElementById('isinFundId').value;
+            const newIsin = document.getElementById('newIsin').value.trim().toUpperCase();
+
+            if (!newIsin || newIsin.length !== 12 || !newIsin.startsWith('INF')) {
+                toast('Please enter a valid ISIN', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/update-isin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isin: newIsin })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('isinModal')).hide();
+                    await loadData();
+                    toast('ISIN updated');
+                } else {
+                    toast('Failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Review / Accept ====================
+
+        async function acceptReview(fundId) {
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/review`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadData();
+                    toast('Allocation confirmed');
+                } else {
+                    toast(result.error || 'Failed', 'error');
+                }
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        function formatShortDate(dateStr) {
+            if (!dateStr) return 'Never';
+            const d = new Date(dateStr);
+            if (isNaN(d)) return dateStr;
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return `${d.getDate()} ${months[d.getMonth()]}`;
+        }
+
+        // ==================== Holdings & Sectors ====================
+
+        const VALID_SECTORS = [
+            'Financial Services', 'Information Technology', 'Healthcare', 'FMCG',
+            'Automobile', 'Energy', 'Metals & Mining', 'Real Estate', 'Telecom',
+            'Capital Goods', 'Consumer Discretionary', 'Utilities', 'Construction',
+            'Chemicals', 'Textiles', 'Media & Entertainment', 'Others'
+        ];
+
+        async function openHoldingsModal(fundId) {
+            document.getElementById('hsFundId').value = fundId;
+            document.getElementById('holdingsRows').innerHTML = '';
+            document.getElementById('sectorsRows').innerHTML = '';
+            document.getElementById('holdingsTotal').textContent = 'Total: 0%';
+            document.getElementById('sectorsTotal').textContent = 'Total: 0%';
+            document.getElementById('sectorsTotal').className = 'hs-total';
+            document.getElementById('pasteArea').style.display = 'none';
+            document.getElementById('hsLoading').style.display = '';
+
+            new bootstrap.Modal(document.getElementById('holdingsModal')).show();
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/detail`);
+                const fund = await res.json();
+                document.getElementById('hsLoading').style.display = 'none';
+
+                (fund.holdings || []).forEach(h => addHoldingRow(h.stock_name, h.weight_pct));
+                (fund.sectors || []).forEach(s => addSectorRow(s.sector_name, s.weight_pct));
+                updateHoldingsTotal();
+                updateSectorsTotal();
+            } catch (err) {
+                document.getElementById('hsLoading').style.display = 'none';
+                showToast('Failed to load fund detail', 'error');
+            }
+        }
+
+        function addHoldingRow(name = '', weight = '') {
+            const container = document.getElementById('holdingsRows');
+            const row = document.createElement('div');
+            row.className = 'hs-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Stock name" value="${escHtml(String(name))}" class="hs-stock-name">
+                <input type="number" placeholder="%" value="${weight}" min="0" max="100" step="0.1" class="hs-stock-weight" oninput="updateHoldingsTotal()">
+                <button class="hs-remove" onclick="this.parentElement.remove(); updateHoldingsTotal();" title="Remove"><i class="bi bi-x-lg"></i></button>
+            `;
+            container.appendChild(row);
+            if (!name) row.querySelector('.hs-stock-name').focus();
+        }
+
+        function addSectorRow(name = '', weight = '') {
+            const container = document.getElementById('sectorsRows');
+            const row = document.createElement('div');
+            row.className = 'hs-row';
+            const options = VALID_SECTORS.map(s =>
+                `<option value="${s}" ${s === name ? 'selected' : ''}>${s}</option>`
+            ).join('');
+            row.innerHTML = `
+                <select class="hs-sector-name">
+                    <option value="">-- Select sector --</option>
+                    ${options}
+                </select>
+                <input type="number" placeholder="%" value="${weight}" min="0" max="100" step="0.1" class="hs-sector-weight" oninput="updateSectorsTotal()">
+                <button class="hs-remove" onclick="this.parentElement.remove(); updateSectorsTotal();" title="Remove"><i class="bi bi-x-lg"></i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        function updateHoldingsTotal() {
+            let total = 0;
+            document.querySelectorAll('.hs-stock-weight').forEach(inp => {
+                total += parseFloat(inp.value) || 0;
+            });
+            document.getElementById('holdingsTotal').textContent = `Total: ${total.toFixed(1)}%`;
+        }
+
+        function updateSectorsTotal() {
+            let total = 0;
+            document.querySelectorAll('.hs-sector-weight').forEach(inp => {
+                total += parseFloat(inp.value) || 0;
+            });
+            const el = document.getElementById('sectorsTotal');
+            el.textContent = `Total: ${total.toFixed(1)}%`;
+            el.className = (total > 0 && Math.abs(total - 100) > 5) ? 'hs-total warn' : 'hs-total';
+        }
+
+        function togglePaste() {
+            const area = document.getElementById('pasteArea');
+            area.style.display = area.style.display === 'none' ? 'block' : 'none';
+            if (area.style.display === 'block') {
+                document.getElementById('pasteText').value = '';
+                document.getElementById('pasteText').focus();
+            }
+        }
+
+        function parsePastedText() {
+            const text = document.getElementById('pasteText').value.trim();
+            if (!text) return;
+
+            const lines = text.split('\n');
+            let count = 0;
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                // Try tab first, then comma, then last space-separated number
+                let name = '', weight = '';
+                if (trimmed.includes('\t')) {
+                    const parts = trimmed.split('\t');
+                    name = parts[0].trim();
+                    weight = parseFloat(parts[parts.length - 1]) || '';
+                } else if (trimmed.includes(',')) {
+                    const parts = trimmed.split(',');
+                    name = parts[0].trim();
+                    weight = parseFloat(parts[parts.length - 1]) || '';
+                } else {
+                    // Last token as number
+                    const match = trimmed.match(/^(.+?)\s+([\d.]+)\s*%?\s*$/);
+                    if (match) {
+                        name = match[1].trim();
+                        weight = parseFloat(match[2]) || '';
+                    } else {
+                        name = trimmed;
+                    }
+                }
+
+                if (name) {
+                    addHoldingRow(name, weight);
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                document.getElementById('pasteArea').style.display = 'none';
+                document.getElementById('pasteText').value = '';
+                updateHoldingsTotal();
+                showToast(`Parsed ${count} holdings`, 'success');
+            }
+        }
+
+        async function saveHoldingsSectors() {
+            const fundId = document.getElementById('hsFundId').value;
+
+            // Collect holdings
+            const holdings = [];
+            document.querySelectorAll('#holdingsRows .hs-row').forEach(row => {
+                const name = row.querySelector('.hs-stock-name').value.trim();
+                const weight = parseFloat(row.querySelector('.hs-stock-weight').value);
+                if (name && weight > 0) {
+                    holdings.push({ stock_name: name, weight_pct: weight });
+                }
+            });
+
+            // Collect sectors
+            const sectors = [];
+            document.querySelectorAll('#sectorsRows .hs-row').forEach(row => {
+                const name = row.querySelector('.hs-sector-name').value;
+                const weight = parseFloat(row.querySelector('.hs-sector-weight').value);
+                if (name && weight > 0) {
+                    sectors.push({ sector_name: name, weight_pct: weight });
+                }
+            });
+
+            try {
+                // Save holdings
+                const hRes = await fetch(`/api/mutual-funds/${fundId}/holdings`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ holdings })
+                });
+                const hData = await hRes.json();
+                if (!hRes.ok) {
+                    showToast(hData.error || 'Failed to save holdings', 'error');
+                    return;
+                }
+
+                // Save sectors
+                const sRes = await fetch(`/api/mutual-funds/${fundId}/sectors`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sectors })
+                });
+                const sData = await sRes.json();
+                if (!sRes.ok) {
+                    showToast(sData.error || 'Failed to save sectors', 'error');
+                    return;
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('holdingsModal')).hide();
+                showToast(`Saved ${hData.count || 0} holdings, ${sData.count || 0} sectors`, 'success');
+                loadData();
+            } catch (err) {
+                showToast('Error saving holdings & sectors', 'error');
+            }
+        }
+
+        // ==================== Event Listeners ====================
+
+        document.getElementById('statusFilter').addEventListener('change', displayFunds);
+        document.getElementById('searchFilter').addEventListener('input', displayFunds);
+
+        // Close inline edit when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.edit-input-wrap') && !e.target.closest('.editable-name')) {
+                document.querySelectorAll('.edit-input-wrap.active').forEach(el => {
+                    const fundId = el.id.replace('name-edit-', '');
+                    cancelEdit(parseInt(fundId));
+                });
+            }
+            // Close classify dropdowns when clicking outside
+            if (!e.target.closest('.classify-cell')) {
+                document.querySelectorAll('[id^="classify-edit-"]').forEach(el => {
+                    el.style.display = 'none';
+                    const id = el.id.replace('classify-edit-', '');
+                    const display = document.getElementById(`classify-display-${id}`);
+                    if (display) display.style.display = '';
+                });
+            }
+        });
+
+        // Init
+        loadData();
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

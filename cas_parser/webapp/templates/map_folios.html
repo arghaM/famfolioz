@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Map Portfolios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .folio-card {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .folio-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .folio-card.selected {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        .folio-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <a href="/" class="text-white text-decoration-none">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <h1 class="mt-3"><i class="bi bi-link-45deg"></i> Map Portfolios</h1>
+            <p class="mb-0">Assign unmapped portfolios to an investor</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="bi bi-check-circle-fill"></i>
+            <h3 class="mt-3">All portfolios are mapped!</h3>
+            <p class="text-muted">There are no unmapped portfolios.</p>
+            <a href="/" class="btn btn-primary mt-3">
+                <i class="bi bi-speedometer2"></i> Go to Dashboard
+            </a>
+        </div>
+
+        <!-- Mapping Section -->
+        <div id="mappingSection">
+            <div class="row">
+                <!-- Unmapped Folios -->
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-folder2-open"></i> Unmapped Portfolios
+                                <span class="badge bg-warning text-dark" id="folioCount">0</span>
+                            </h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" id="selectAllBtn">Select All</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">Deselect All</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="foliosGrid">
+                                <!-- Folio cards will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mapping Form -->
+                <div class="col-md-4">
+                    <div class="card shadow-sm sticky-top" style="top: 20px;">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0"><i class="bi bi-person-plus"></i> Assign to Investor</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">
+                                <span id="selectedCount">0</span> portfolios selected
+                            </p>
+
+                            <div class="mb-3">
+                                <label class="form-label">Choose Investor</label>
+                                <select class="form-select" id="investorSelect">
+                                    <option value="">-- Select Existing Investor --</option>
+                                </select>
+                            </div>
+
+                            <div class="text-center text-muted my-3">- OR -</div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Create New Investor</label>
+                                <input type="text" class="form-control mb-2" id="newName" placeholder="Name">
+                                <input type="text" class="form-control mb-2" id="newPan" placeholder="PAN (optional)">
+                                <input type="email" class="form-control mb-2" id="newEmail" placeholder="Email (optional)">
+                                <input type="text" class="form-control" id="newMobile" placeholder="Mobile (optional)">
+                            </div>
+
+                            <button class="btn btn-primary w-100" id="mapBtn" disabled>
+                                <i class="bi bi-link"></i> Map Selected Portfolios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let unmappedFolios = [];
+        let selectedFolios = new Set();
+
+        async function loadData() {
+            try {
+                // Load unmapped folios
+                const foliosRes = await fetch('/api/unmapped-folios');
+                unmappedFolios = await foliosRes.json();
+
+                // Load existing investors
+                const investorsRes = await fetch('/api/investors');
+                const investors = await investorsRes.json();
+
+                // Check if no unmapped folios
+                if (unmappedFolios.length === 0) {
+                    document.getElementById('mappingSection').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('folioCount').textContent = unmappedFolios.length;
+
+                // Populate investors dropdown
+                const select = document.getElementById('investorSelect');
+                select.innerHTML = '<option value="">-- Select Existing Investor --</option>' +
+                    investors.map(i => `<option value="${i.id}">${i.name} (${i.pan || 'No PAN'})</option>`).join('');
+
+                displayFolios();
+
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        function displayFolios() {
+            const grid = document.getElementById('foliosGrid');
+
+            grid.innerHTML = unmappedFolios.map(f => `
+                <div class="col-12 mb-2">
+                    <div class="card folio-card position-relative ${selectedFolios.has(f.id) ? 'selected' : ''}"
+                         onclick="toggleFolio(${f.id})">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${truncate(f.scheme_name, 50)}</strong><br>
+                                    <small class="text-muted">
+                                        <code>${f.folio_number}</code> | ${f.amc || '-'}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-success">${formatCurrency(f.current_value || 0)}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleFolio(id) {
+            if (selectedFolios.has(id)) {
+                selectedFolios.delete(id);
+            } else {
+                selectedFolios.add(id);
+            }
+            updateSelection();
+            displayFolios();
+        }
+
+        function updateSelection() {
+            document.getElementById('selectedCount').textContent = selectedFolios.size;
+            document.getElementById('mapBtn').disabled = selectedFolios.size === 0;
+        }
+
+        // Select all / deselect all
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            unmappedFolios.forEach(f => selectedFolios.add(f.id));
+            updateSelection();
+            displayFolios();
+        });
+
+        document.getElementById('deselectAllBtn').addEventListener('click', () => {
+            selectedFolios.clear();
+            updateSelection();
+            displayFolios();
+        });
+
+        // Map button
+        document.getElementById('mapBtn').addEventListener('click', async () => {
+            const investorId = document.getElementById('investorSelect').value;
+            const newName = document.getElementById('newName').value;
+            const newPan = document.getElementById('newPan').value;
+            const newEmail = document.getElementById('newEmail').value;
+            const newMobile = document.getElementById('newMobile').value;
+
+            if (!investorId && !newName) {
+                alert('Please select an existing investor or enter a name for a new investor.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/map-folios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        investor_id: investorId || null,
+                        investor_name: newName,
+                        pan: newPan,
+                        email: newEmail,
+                        mobile: newMobile,
+                        folio_ids: Array.from(selectedFolios)
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Successfully mapped ${result.mapped_count} portfolios!`);
+                    window.location.href = `/investor/${result.investor_id}`;
+                } else {
+                    throw new Error(result.error || 'Mapping failed');
+                }
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        function truncate(str, len) {
+            if (!str) return '-';
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        }
+
+        // Load data
+        loadData();
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

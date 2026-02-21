@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .upload-card {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .upload-card:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        .upload-card.dragover {
+            border-color: #667eea;
+            background-color: #e8eaff;
+        }
+        .results-section {
+            display: none;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+        .summary-card h2 {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .holdings-table th {
+            background-color: #667eea;
+            color: white;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #667eea;
+        }
+        .nav-pills .nav-link {
+            color: #667eea;
+        }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .badge-purchase { background-color: #28a745; }
+        .badge-sip { background-color: #17a2b8; }
+        .badge-redemption { background-color: #dc3545; }
+        .badge-switch_in { background-color: #6f42c1; }
+        .badge-switch_out { background-color: #fd7e14; }
+        .badge-dividend_reinvestment { background-color: #20c997; }
+        .badge-stamp_duty { background-color: #6c757d; }
+        .badge-stt { background-color: #6c757d; }
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        mark {
+            background-color: #fff3cd;
+            padding: 0.1em 0.2em;
+            border-radius: 3px;
+        }
+        .input-group-text {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        #holdingsSearch:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Parsing your CAS PDF...</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <h1><i class="bi bi-file-earmark-pdf"></i> CAS PDF Parser</h1>
+            <p class="mb-0">Upload your CDSL Consolidated Account Statement to view your mutual fund portfolio</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Upload Section -->
+        <div class="row justify-content-center" id="uploadSection">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="upload-card mb-4" id="dropZone">
+                                <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: #667eea;"></i>
+                                <h4 class="mt-3">Drop your CAS PDF here</h4>
+                                <p class="text-muted">or click to browse</p>
+                                <input type="file" id="fileInput" name="file" accept=".pdf" class="d-none">
+                                <p id="fileName" class="text-primary fw-bold mt-2"></p>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="password" class="form-label">
+                                    <i class="bi bi-lock"></i> PDF Password
+                                </label>
+                                <input type="password" class="form-control" id="password" name="password"
+                                       placeholder="Enter your PAN or password">
+                                <div class="form-text">Usually your PAN number in uppercase</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100" id="parseBtn" disabled>
+                                <i class="bi bi-play-circle"></i> Parse CAS
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div class="row justify-content-center mt-3" id="errorSection" style="display: none;">
+            <div class="col-md-8">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <span id="errorMessage"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <!-- Back Button -->
+            <div class="mb-4">
+                <button class="btn btn-outline-secondary" id="backBtn">
+                    <i class="bi bi-arrow-left"></i> Parse Another File
+                </button>
+            </div>
+
+            <!-- Investor Info -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-person-circle"></i> Investor Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Name:</strong>
+                            <p id="investorName" class="mb-0"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>PAN:</strong>
+                            <p id="investorPan" class="mb-0"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Email:</strong>
+                            <p id="investorEmail" class="mb-0"></p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Mobile:</strong>
+                            <p id="investorMobile" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="summary-card">
+                        <p class="mb-1">Total Portfolio Value</p>
+                        <h2 id="totalValue">-</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <p class="mb-1">Total Holdings</p>
+                        <h2 id="totalHoldings">-</h2>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="summary-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <p class="mb-1">Total Transactions</p>
+                        <h2 id="totalTransactions">-</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-pills mb-4" id="dataTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="holdings-tab" data-bs-toggle="pill"
+                            data-bs-target="#holdings" type="button" role="tab">
+                        <i class="bi bi-briefcase"></i> Holdings
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="transactions-tab" data-bs-toggle="pill"
+                            data-bs-target="#transactions" type="button" role="tab">
+                        <i class="bi bi-list-ul"></i> Transactions
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="validation-tab" data-bs-toggle="pill"
+                            data-bs-target="#validation" type="button" role="tab">
+                        <i class="bi bi-check-circle"></i> Validation
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Holdings Tab -->
+                <div class="tab-pane fade show active" id="holdings" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <!-- Search Bar -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" id="holdingsSearch"
+                                               placeholder="Search by scheme name, folio, ISIN, or AMC...">
+                                        <button class="btn btn-outline-secondary" type="button" id="clearHoldingsSearch">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">Search matches from start or anywhere in the text</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="holdingsAmcFilter">
+                                        <option value="">All AMCs</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <span class="text-muted">Showing <span id="holdingsCount">0</span> holdings</span>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover holdings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Scheme Name</th>
+                                            <th>Folio</th>
+                                            <th>ISIN</th>
+                                            <th class="text-end">Units</th>
+                                            <th class="text-end">NAV</th>
+                                            <th class="text-end">Current Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="holdingsTableBody">
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-dark">
+                                            <td colspan="5" class="text-end"><strong>Total (filtered)</strong></td>
+                                            <td class="text-end"><strong id="holdingsTotal">-</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Tab -->
+                <div class="tab-pane fade" id="transactions" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <!-- Filter -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="txTypeFilter">
+                                        <option value="">All Transaction Types</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="txFolioFilter">
+                                        <option value="">All Folios</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control" id="txSearch" placeholder="Search...">
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Scheme</th>
+                                            <th>Folio</th>
+                                            <th class="text-end">Amount</th>
+                                            <th class="text-end">Units</th>
+                                            <th class="text-end">NAV</th>
+                                            <th class="text-end">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transactionsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-muted mt-2">
+                                Showing <span id="txCount">0</span> transactions
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Tab -->
+                <div class="tab-pane fade" id="validation" role="tabpanel">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div id="validationStatus" class="alert mb-4">
+                            </div>
+                            <div id="validationErrors"></div>
+                            <div id="validationWarnings"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted py-4 mt-5">
+        <p>CAS PDF Parser - Built with Flask & Bootstrap</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Data storage
+        let parsedData = null;
+        let allTransactions = [];
+        let allHoldings = [];
+
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const uploadForm = document.getElementById('uploadForm');
+        const parseBtn = document.getElementById('parseBtn');
+        const uploadSection = document.getElementById('uploadSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorSection = document.getElementById('errorSection');
+        const errorMessage = document.getElementById('errorMessage');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const backBtn = document.getElementById('backBtn');
+
+        // Drag and drop
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileName();
+            }
+        });
+
+        fileInput.addEventListener('change', updateFileName);
+
+        function updateFileName() {
+            if (fileInput.files.length) {
+                fileName.textContent = fileInput.files[0].name;
+                parseBtn.disabled = false;
+            }
+        }
+
+        // Form submission
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(uploadForm);
+
+            loadingOverlay.style.display = 'flex';
+            errorSection.style.display = 'none';
+
+            try {
+                const response = await fetch('/parse', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                parsedData = data;
+                displayResults(data);
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorSection.style.display = 'block';
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        // Back button
+        backBtn.addEventListener('click', () => {
+            resultsSection.style.display = 'none';
+            uploadSection.style.display = 'block';
+            fileInput.value = '';
+            fileName.textContent = '';
+            parseBtn.disabled = true;
+        });
+
+        // Display results
+        function displayResults(data) {
+            uploadSection.style.display = 'none';
+            resultsSection.style.display = 'block';
+
+            // Investor details
+            document.getElementById('investorName').textContent = data.investor.name || '-';
+            document.getElementById('investorPan').textContent = data.investor.pan || '-';
+            document.getElementById('investorEmail').textContent = data.investor.email || '-';
+            document.getElementById('investorMobile').textContent = data.investor.mobile || '-';
+
+            // Summary
+            const totalValue = parseFloat(data.summary.total_value) || 0;
+            document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+            document.getElementById('totalHoldings').textContent = data.summary.total_holdings;
+            document.getElementById('totalTransactions').textContent = data.summary.total_transactions;
+
+            // Holdings table
+            allHoldings = data.holdings;
+            populateHoldingsFilters(data.holdings);
+            displayHoldings(data.holdings);
+
+            // Transactions
+            allTransactions = data.transactions;
+            populateFilters(data.transactions);
+            displayTransactions(data.transactions);
+
+            // Validation
+            displayValidation(data.validation);
+        }
+
+        function displayHoldings(holdings) {
+            const tbody = document.getElementById('holdingsTableBody');
+            tbody.innerHTML = '';
+
+            let total = 0;
+
+            holdings.forEach(h => {
+                const value = parseFloat(h.current_value) || 0;
+                total += value;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td title="${h.scheme_name}">${highlightMatch(h.scheme_name, document.getElementById('holdingsSearch').value, 50)}</td>
+                    <td><code>${h.folio}</code></td>
+                    <td><code>${h.isin}</code></td>
+                    <td class="text-end">${parseFloat(h.units).toFixed(3)}</td>
+                    <td class="text-end">${parseFloat(h.nav).toFixed(4)}</td>
+                    <td class="text-end fw-bold">${formatCurrency(value)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('holdingsTotal').textContent = formatCurrency(total);
+            document.getElementById('holdingsCount').textContent = holdings.length;
+        }
+
+        function populateHoldingsFilters(holdings) {
+            const amcFilter = document.getElementById('holdingsAmcFilter');
+
+            // Get unique AMCs
+            const amcs = [...new Set(holdings.map(h => h.amc).filter(a => a))].sort();
+
+            amcFilter.innerHTML = '<option value="">All AMCs</option>';
+            amcs.forEach(amc => {
+                amcFilter.innerHTML += `<option value="${amc}">${amc}</option>`;
+            });
+        }
+
+        // Holdings search and filter
+        document.getElementById('holdingsSearch').addEventListener('input', filterHoldings);
+        document.getElementById('holdingsAmcFilter').addEventListener('change', filterHoldings);
+        document.getElementById('clearHoldingsSearch').addEventListener('click', () => {
+            document.getElementById('holdingsSearch').value = '';
+            filterHoldings();
+        });
+
+        function filterHoldings() {
+            const search = document.getElementById('holdingsSearch').value.toLowerCase().trim();
+            const amcFilter = document.getElementById('holdingsAmcFilter').value;
+
+            let filtered = allHoldings;
+
+            // Filter by AMC
+            if (amcFilter) {
+                filtered = filtered.filter(h => h.amc === amcFilter);
+            }
+
+            // Filter by search term - supports partial match from start or anywhere
+            if (search) {
+                filtered = filtered.filter(h => {
+                    const schemeName = (h.scheme_name || '').toLowerCase();
+                    const folio = (h.folio || '').toLowerCase();
+                    const isin = (h.isin || '').toLowerCase();
+                    const amc = (h.amc || '').toLowerCase();
+
+                    // Check if search term matches from start or anywhere (partial match)
+                    return schemeName.includes(search) ||
+                           folio.includes(search) ||
+                           isin.includes(search) ||
+                           amc.includes(search) ||
+                           // Also check if any word starts with the search term
+                           schemeName.split(/\s+/).some(word => word.startsWith(search)) ||
+                           amc.split(/\s+/).some(word => word.startsWith(search));
+                });
+            }
+
+            displayHoldings(filtered);
+        }
+
+        function highlightMatch(text, search, maxLength) {
+            if (!text) return '-';
+            if (!search) return truncate(text, maxLength);
+
+            const lowerText = text.toLowerCase();
+            const lowerSearch = search.toLowerCase().trim();
+
+            if (!lowerSearch) return truncate(text, maxLength);
+
+            const index = lowerText.indexOf(lowerSearch);
+            if (index === -1) return truncate(text, maxLength);
+
+            // Truncate but try to keep the match visible
+            let displayText = text;
+            if (text.length > maxLength) {
+                if (index > maxLength - 10) {
+                    // Match is towards the end, show from near the match
+                    const start = Math.max(0, index - 20);
+                    displayText = '...' + text.substring(start, start + maxLength - 3);
+                } else {
+                    displayText = text.substring(0, maxLength) + '...';
+                }
+            }
+
+            // Highlight the match
+            const displayLower = displayText.toLowerCase();
+            const matchIndex = displayLower.indexOf(lowerSearch);
+            if (matchIndex !== -1) {
+                return displayText.substring(0, matchIndex) +
+                       '<mark>' + displayText.substring(matchIndex, matchIndex + search.length) + '</mark>' +
+                       displayText.substring(matchIndex + search.length);
+            }
+
+            return displayText;
+        }
+
+        function displayTransactions(transactions) {
+            const tbody = document.getElementById('transactionsTableBody');
+            tbody.innerHTML = '';
+
+            transactions.slice(0, 500).forEach(t => {
+                const units = parseFloat(t.units) || 0;
+                const amount = parseFloat(t.amount) || 0;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${t.date}</td>
+                    <td><span class="badge badge-${t.type}">${t.type}</span></td>
+                    <td title="${t.scheme_name}">${truncate(t.scheme_name, 30)}</td>
+                    <td><code>${t.folio}</code></td>
+                    <td class="text-end ${amount < 0 ? 'negative' : ''}">${amount ? formatCurrency(amount) : '-'}</td>
+                    <td class="text-end ${units < 0 ? 'negative' : 'positive'}">${units.toFixed(3)}</td>
+                    <td class="text-end">${t.nav ? parseFloat(t.nav).toFixed(4) : '-'}</td>
+                    <td class="text-end">${parseFloat(t.balance_units).toFixed(3)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('txCount').textContent = transactions.length;
+        }
+
+        function populateFilters(transactions) {
+            const typeFilter = document.getElementById('txTypeFilter');
+            const folioFilter = document.getElementById('txFolioFilter');
+
+            const types = [...new Set(transactions.map(t => t.type))].sort();
+            const folios = [...new Set(transactions.map(t => t.folio))].sort();
+
+            typeFilter.innerHTML = '<option value="">All Transaction Types</option>';
+            types.forEach(type => {
+                typeFilter.innerHTML += `<option value="${type}">${type}</option>`;
+            });
+
+            folioFilter.innerHTML = '<option value="">All Folios</option>';
+            folios.forEach(folio => {
+                folioFilter.innerHTML += `<option value="${folio}">${folio}</option>`;
+            });
+        }
+
+        // Filters
+        document.getElementById('txTypeFilter').addEventListener('change', filterTransactions);
+        document.getElementById('txFolioFilter').addEventListener('change', filterTransactions);
+        document.getElementById('txSearch').addEventListener('input', filterTransactions);
+
+        function filterTransactions() {
+            const typeFilter = document.getElementById('txTypeFilter').value;
+            const folioFilter = document.getElementById('txFolioFilter').value;
+            const search = document.getElementById('txSearch').value.toLowerCase();
+
+            let filtered = allTransactions;
+
+            if (typeFilter) {
+                filtered = filtered.filter(t => t.type === typeFilter);
+            }
+            if (folioFilter) {
+                filtered = filtered.filter(t => t.folio === folioFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(t =>
+                    t.scheme_name.toLowerCase().includes(search) ||
+                    t.description.toLowerCase().includes(search)
+                );
+            }
+
+            displayTransactions(filtered);
+        }
+
+        function displayValidation(validation) {
+            const statusDiv = document.getElementById('validationStatus');
+            const errorsDiv = document.getElementById('validationErrors');
+            const warningsDiv = document.getElementById('validationWarnings');
+
+            if (validation.is_valid) {
+                statusDiv.className = 'alert alert-success';
+                statusDiv.innerHTML = '<i class="bi bi-check-circle-fill"></i> Validation Passed';
+            } else {
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.innerHTML = '<i class="bi bi-x-circle-fill"></i> Validation Failed';
+            }
+
+            errorsDiv.innerHTML = '';
+            if (validation.errors.length > 0) {
+                errorsDiv.innerHTML = '<h6 class="text-danger">Errors:</h6><ul class="text-danger">' +
+                    validation.errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+            }
+
+            warningsDiv.innerHTML = '';
+            if (validation.warnings.length > 0) {
+                warningsDiv.innerHTML = '<h6 class="text-warning">Warnings:</h6><ul class="text-warning">' +
+                    validation.warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+            }
+        }
+
+        // Utility functions
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 2
+            }).format(value);
+        }
+
+        function truncate(str, length) {
+            if (!str) return '-';
+            return str.length > length ? str.substring(0, length) + '...' : str;
+        }
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

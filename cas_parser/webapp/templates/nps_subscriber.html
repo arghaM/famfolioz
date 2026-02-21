@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - NPS {{ subscriber.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            border-radius: 10px;
+            padding: 1.5rem;
+            color: white;
+        }
+        .summary-card.value { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .summary-card.contribution { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .summary-card.gain { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .summary-card h2 { font-size: 1.8rem; font-weight: bold; }
+        .scheme-card {
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .scheme-card:hover { transform: translateY(-2px); }
+        .scheme-E { border-color: #28a745; }
+        .scheme-C { border-color: #007bff; }
+        .scheme-G { border-color: #ffc107; }
+        .scheme-A { border-color: #6c757d; }
+        .value-positive { color: #28a745; }
+        .value-negative { color: #dc3545; }
+        .allocation-bar {
+            height: 30px;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+        }
+        .allocation-bar .segment-E { background: #28a745; }
+        .allocation-bar .segment-C { background: #007bff; }
+        .allocation-bar .segment-G { background: #ffc107; }
+        .allocation-bar .segment-A { background: #6c757d; }
+
+        /* Transaction table styles */
+        #transactionsTable tr {
+            border-left: 3px solid transparent;
+        }
+        #transactionsTable tr:hover {
+            border-left-color: #0d6efd;
+            background-color: #f8f9fa;
+        }
+        #txSummaryCards .card {
+            transition: transform 0.2s;
+        }
+        #txSummaryCards .card:hover {
+            transform: translateY(-2px);
+        }
+        .table thead th {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .form-select-sm {
+            font-size: 0.875rem;
+        }
+        /* Note button styles */
+        .note-btn {
+            border: none;
+            background: transparent;
+            transition: all 0.2s;
+        }
+        .note-btn.has-note {
+            color: #ffc107;
+        }
+        .note-btn.has-note:hover {
+            color: #e0a800;
+            transform: scale(1.2);
+        }
+        .note-btn.no-note {
+            color: #ced4da;
+        }
+        .note-btn.no-note:hover {
+            color: #6c757d;
+            transform: scale(1.2);
+        }
+        .note-btn i {
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <a href="/nps" class="text-white text-decoration-none">
+                <i class="bi bi-arrow-left"></i> Back to NPS Accounts
+            </a>
+            <h1 class="mt-3"><i class="bi bi-shield-check"></i> {{ subscriber.name }}</h1>
+            <p class="mb-0">
+                PRAN: <strong>{{ subscriber.pran }}</strong>
+                {% if subscriber.pan %} | PAN: <strong>{{ subscriber.pan }}</strong>{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="summary-card value">
+                    <p class="mb-1">Current Value</p>
+                    <h2 id="totalValue">-</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-card contribution">
+                    <p class="mb-1">Total Contribution</p>
+                    <h2 id="totalContribution">-</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-card gain">
+                    <p class="mb-1">Gain/Loss</p>
+                    <h2 id="totalGain">-</h2>
+                    <small id="gainPct">-</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset Allocation -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Asset Allocation</h5>
+            </div>
+            <div class="card-body">
+                <div class="allocation-bar mb-3" id="allocationBar">
+                    <!-- Segments will be loaded here -->
+                </div>
+                <div class="row text-center" id="allocationLegend">
+                    <!-- Legend will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-pills mb-4" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#schemes">
+                    <i class="bi bi-collection"></i> Schemes
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#transactions">
+                    <i class="bi bi-list-ul"></i> Transactions
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#contributions">
+                    <i class="bi bi-graph-up"></i> Contributions
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Schemes Tab -->
+            <div class="tab-pane fade show active" id="schemes">
+                <div class="row" id="schemesList">
+                    <!-- Schemes will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Transactions Tab -->
+            <div class="tab-pane fade" id="transactions">
+                <!-- Transaction Summary Cards -->
+                <div class="row mb-4" id="txSummaryCards">
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted">Total Transactions</small>
+                                <h4 class="mb-0" id="txTotalCount">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted">Contributions</small>
+                                <h4 class="mb-0 text-success" id="txContribCount">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted">Scheme Changes</small>
+                                <h4 class="mb-0 text-info" id="txSchemeChangeCount">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-light">
+                            <div class="card-body text-center py-2">
+                                <small class="text-muted">Date Range</small>
+                                <h6 class="mb-0" id="txDateRange">-</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="card mb-3">
+                    <div class="card-body py-2">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <label class="form-label mb-0 small"><i class="bi bi-funnel"></i> Filter:</label>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" id="filterTxType" onchange="filterTransactions()">
+                                    <option value="">All Types</option>
+                                    <option value="contribution">Contribution</option>
+                                    <option value="billing">Billing/Regular</option>
+                                    <option value="scheme_change">Scheme Change</option>
+                                    <option value="redemption">Redemption</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" id="filterScheme" onchange="filterTransactions()">
+                                    <option value="">All Schemes</option>
+                                    <option value="E">Scheme E (Equity)</option>
+                                    <option value="C">Scheme C (Corporate)</option>
+                                    <option value="G">Scheme G (Govt Sec)</option>
+                                    <option value="A">Scheme A (Alternate)</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-select form-select-sm" id="filterContrib" onchange="filterTransactions()">
+                                    <option value="">All Contributors</option>
+                                    <option value="employee">Employee</option>
+                                    <option value="employer">Employer</option>
+                                    <option value="voluntary">Voluntary</option>
+                                </select>
+                            </div>
+                            <div class="col-auto ms-auto">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                                    <i class="bi bi-x-circle"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 100px;">Date</th>
+                                        <th style="width: 120px;">Type</th>
+                                        <th>Description</th>
+                                        <th style="width: 90px;">Scheme</th>
+                                        <th style="width: 80px;">Tier</th>
+                                        <th class="text-end" style="width: 120px;">Amount</th>
+                                        <th class="text-end" style="width: 100px;">Units</th>
+                                        <th class="text-end" style="width: 80px;">NAV</th>
+                                        <th style="width: 50px;" class="text-center">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTable">
+                                    <!-- Transactions will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white text-center py-2">
+                        <small class="text-muted" id="txFilterStatus">Showing all transactions</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributions Tab -->
+            <div class="tab-pane fade" id="contributions">
+                <div class="row" id="contributionsBreakdown">
+                    <!-- Contribution breakdown will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes Modal -->
+    <div class="modal fade" id="notesModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-sticky"></i> Transaction Notes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="noteTxId">
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="noteText" rows="4"
+                                  placeholder="Add your notes about this transaction..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-danger" onclick="clearNote()">
+                        <i class="bi bi-trash"></i> Clear
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNote()">
+                        <i class="bi bi-check"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const subscriberId = {{ subscriber.id }};
+        let summary = null;
+        let schemes = [];
+        let transactions = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSummary();
+            loadSchemes();
+            loadTransactions();
+        });
+
+        async function loadSummary() {
+            try {
+                const res = await fetch(`/api/nps/subscribers/${subscriberId}/summary`);
+                summary = await res.json();
+                displaySummary();
+            } catch (error) {
+                console.error('Failed to load summary:', error);
+            }
+        }
+
+        async function loadSchemes() {
+            try {
+                const res = await fetch(`/api/nps/subscribers/${subscriberId}/schemes`);
+                schemes = await res.json();
+                displaySchemes();
+            } catch (error) {
+                console.error('Failed to load schemes:', error);
+            }
+        }
+
+        async function loadTransactions() {
+            try {
+                const res = await fetch(`/api/nps/subscribers/${subscriberId}/transactions`);
+                transactions = await res.json();
+                displayTransactions();
+            } catch (error) {
+                console.error('Failed to load transactions:', error);
+            }
+        }
+
+        function displaySummary() {
+            if (!summary) return;
+
+            document.getElementById('totalValue').textContent = formatCurrency(summary.total_value);
+            document.getElementById('totalContribution').textContent = formatCurrency(summary.total_contribution);
+
+            const gain = summary.gain_loss;
+            const gainPct = summary.gain_loss_pct;
+            document.getElementById('totalGain').textContent = formatCurrency(gain);
+            document.getElementById('gainPct').textContent = `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(2)}%`;
+
+            // Update gain card color
+            const gainCard = document.querySelector('.summary-card.gain');
+            if (gain < 0) {
+                gainCard.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            }
+
+            // Display allocation
+            displayAllocation();
+
+            // Display contribution breakdown
+            displayContributions();
+        }
+
+        function displayAllocation() {
+            if (!summary || !summary.scheme_allocation) return;
+
+            const alloc = summary.scheme_allocation;
+            const bar = document.getElementById('allocationBar');
+            const legend = document.getElementById('allocationLegend');
+
+            const schemeTypes = ['E', 'C', 'G', 'A'];
+            const schemeNames = {
+                'E': 'Equity',
+                'C': 'Corporate Bonds',
+                'G': 'Government Securities',
+                'A': 'Alternate Assets'
+            };
+
+            let barHtml = '';
+            let legendHtml = '';
+
+            for (const type of schemeTypes) {
+                const key = `I_${type}`;  // Tier I
+                const data = alloc[key];
+                if (data && data.pct > 0) {
+                    barHtml += `<div class="segment-${type}" style="width: ${data.pct}%;" title="${schemeNames[type]}: ${data.pct}%"></div>`;
+                    legendHtml += `
+                        <div class="col-3">
+                            <span class="badge bg-${getSchemeColor(type)} me-1">${type}</span>
+                            <strong>${data.pct.toFixed(1)}%</strong>
+                            <br><small class="text-muted">${schemeNames[type]}</small>
+                        </div>
+                    `;
+                }
+            }
+
+            bar.innerHTML = barHtml || '<div class="bg-secondary" style="width: 100%;">No data</div>';
+            legend.innerHTML = legendHtml;
+        }
+
+        function displayContributions() {
+            if (!summary || !summary.contribution_breakdown) return;
+
+            const contrib = summary.contribution_breakdown;
+            const container = document.getElementById('contributionsBreakdown');
+
+            const types = {
+                'employee': { label: 'Employee', icon: 'bi-person', color: 'primary' },
+                'employer': { label: 'Employer', icon: 'bi-building', color: 'success' },
+                'voluntary': { label: 'Voluntary', icon: 'bi-heart', color: 'info' }
+            };
+
+            let html = '';
+            for (const [type, info] of Object.entries(types)) {
+                const value = contrib[type] || 0;
+                html += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="bi ${info.icon} text-${info.color}" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">${info.label}</h6>
+                                <h4 class="mb-0">${formatCurrency(value)}</h4>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function displaySchemes() {
+            const container = document.getElementById('schemesList');
+
+            if (schemes.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted py-4">No schemes found</div>';
+                return;
+            }
+
+            container.innerHTML = schemes.map(scheme => {
+                const type = scheme.scheme_type;
+                return `
+                    <div class="col-md-6 mb-3">
+                        <div class="card scheme-card scheme-${type}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">${scheme.scheme_name}</h6>
+                                        <small class="text-muted">${scheme.pfm_name} | Tier ${scheme.tier}</small>
+                                    </div>
+                                    <span class="badge bg-${getSchemeColor(type)}">Scheme ${type}</span>
+                                </div>
+                                <hr>
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <small class="text-muted">Units</small>
+                                        <p class="mb-0 fw-bold">${parseFloat(scheme.units).toFixed(4)}</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">NAV</small>
+                                        <p class="mb-0 fw-bold">${parseFloat(scheme.nav).toFixed(4)}</p>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Value</small>
+                                        <p class="mb-0 fw-bold text-success">${formatCurrency(scheme.current_value)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        let filteredTransactions = [];
+
+        function parseTransactionType(description, amount) {
+            if (!description) return { type: 'other', label: 'Other', icon: 'bi-circle', color: 'secondary' };
+
+            const desc = description.toUpperCase();
+
+            // Check for scheme change/switch
+            if (desc.includes('SCHEME CHANGE') || desc.includes('SWITCH') || desc.includes('REBALANCING')) {
+                return { type: 'scheme_change', label: 'Scheme Change', icon: 'bi-arrow-left-right', color: 'info' };
+            }
+
+            // Check for redemption/withdrawal
+            if (desc.includes('REDEMPTION') || desc.includes('WITHDRAWAL') || desc.includes('EXIT')) {
+                return { type: 'redemption', label: 'Redemption', icon: 'bi-box-arrow-up', color: 'danger' };
+            }
+
+            // Check for billing/regular contribution
+            if (desc.includes('BILLING') || desc.includes('REGULAR')) {
+                return { type: 'billing', label: 'Regular', icon: 'bi-calendar-check', color: 'primary' };
+            }
+
+            // Check for contribution/purchase
+            if (desc.includes('CONTRIBUTION') || desc.includes('PURCHASE') || desc.includes('CREDIT') || amount > 0) {
+                return { type: 'contribution', label: 'Contribution', icon: 'bi-plus-circle', color: 'success' };
+            }
+
+            return { type: 'other', label: 'Other', icon: 'bi-circle', color: 'secondary' };
+        }
+
+        function formatDescription(description) {
+            if (!description) return '-';
+            // Clean up and format the description - show full text
+            let desc = description.trim();
+            // Capitalize first letter of each word
+            desc = desc.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+            return desc;
+        }
+
+        function displayTransactions() {
+            filteredTransactions = [...transactions];
+            updateTransactionStats();
+            renderTransactions();
+        }
+
+        function updateTransactionStats() {
+            const total = filteredTransactions.length;
+            let contribCount = 0;
+            let schemeChangeCount = 0;
+            let minDate = null;
+            let maxDate = null;
+
+            filteredTransactions.forEach(tx => {
+                const txType = parseTransactionType(tx.description, tx.amount);
+                if (txType.type === 'contribution' || txType.type === 'billing') contribCount++;
+                if (txType.type === 'scheme_change') schemeChangeCount++;
+
+                const txDate = new Date(tx.tx_date);
+                if (!minDate || txDate < minDate) minDate = txDate;
+                if (!maxDate || txDate > maxDate) maxDate = txDate;
+            });
+
+            document.getElementById('txTotalCount').textContent = total;
+            document.getElementById('txContribCount').textContent = contribCount;
+            document.getElementById('txSchemeChangeCount').textContent = schemeChangeCount;
+
+            if (minDate && maxDate) {
+                const formatOpts = { month: 'short', year: '2-digit' };
+                document.getElementById('txDateRange').textContent =
+                    `${minDate.toLocaleDateString('en-IN', formatOpts)} - ${maxDate.toLocaleDateString('en-IN', formatOpts)}`;
+            }
+        }
+
+        function filterTransactions() {
+            const typeFilter = document.getElementById('filterTxType').value;
+            const schemeFilter = document.getElementById('filterScheme').value;
+            const contribFilter = document.getElementById('filterContrib').value;
+
+            filteredTransactions = transactions.filter(tx => {
+                const txType = parseTransactionType(tx.description, tx.amount);
+
+                if (typeFilter && txType.type !== typeFilter) return false;
+                if (schemeFilter && tx.scheme_type !== schemeFilter) return false;
+                if (contribFilter && tx.contribution_type !== contribFilter) return false;
+
+                return true;
+            });
+
+            updateTransactionStats();
+            renderTransactions();
+
+            // Update filter status
+            const statusEl = document.getElementById('txFilterStatus');
+            if (typeFilter || schemeFilter || contribFilter) {
+                statusEl.textContent = `Showing ${filteredTransactions.length} of ${transactions.length} transactions`;
+            } else {
+                statusEl.textContent = 'Showing all transactions';
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filterTxType').value = '';
+            document.getElementById('filterScheme').value = '';
+            document.getElementById('filterContrib').value = '';
+            filterTransactions();
+        }
+
+        function renderTransactions() {
+            const tbody = document.getElementById('transactionsTable');
+
+            if (filteredTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No transactions found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredTransactions.map(tx => {
+                const txType = parseTransactionType(tx.description, tx.amount);
+                const tier = tx.tier || 'I';
+                const units = parseFloat(tx.units);
+                const isNegativeUnits = units < 0;
+                const hasNotes = tx.notes && tx.notes.trim().length > 0;
+
+                return `
+                <tr>
+                    <td>
+                        <span class="fw-medium">${formatTxDate(tx.tx_date)}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-${txType.color}">
+                            <i class="bi ${txType.icon}"></i> ${txType.label}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="text-dark">${formatDescription(tx.description)}</span>
+                        <br>
+                        <small class="text-muted">
+                            <span class="badge bg-${getContribColor(tx.contribution_type)} bg-opacity-25 text-${getContribColor(tx.contribution_type)}">${tx.contribution_type}</span>
+                        </small>
+                    </td>
+                    <td>
+                        <span class="badge bg-${getSchemeColor(tx.scheme_type)}">Scheme ${tx.scheme_type}</span>
+                        <br>
+                        <small class="text-muted">${tx.pfm_name || '-'}</small>
+                    </td>
+                    <td>
+                        <span class="badge ${tier === 'I' ? 'bg-dark' : 'bg-secondary'}">Tier ${tier}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-medium ${tx.amount > 0 ? 'text-success' : 'text-danger'}">${formatCurrency(tx.amount)}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="${isNegativeUnits ? 'text-danger' : ''}">${units.toFixed(4)}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="text-muted">${parseFloat(tx.nav).toFixed(4)}</span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm p-1 note-btn ${hasNotes ? 'has-note' : 'no-note'}"
+                                onclick="openNotesModal(${tx.id}, '${escapeHtml(tx.notes || '')}')"
+                                title="${hasNotes ? 'View/Edit Notes' : 'Add Notes'}">
+                            <i class="bi ${hasNotes ? 'bi-sticky-fill' : 'bi-sticky'}"></i>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+        }
+
+        function formatTxDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function getSchemeColor(type) {
+            const colors = { 'E': 'success', 'C': 'primary', 'G': 'warning', 'A': 'secondary' };
+            return colors[type] || 'secondary';
+        }
+
+        function getContribColor(type) {
+            const colors = { 'employee': 'primary', 'employer': 'success', 'voluntary': 'info' };
+            return colors[type] || 'secondary';
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(value || 0);
+        }
+
+        // Notes Modal Functions
+        let notesModal;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
+        });
+
+        function openNotesModal(txId, notes) {
+            document.getElementById('noteTxId').value = txId;
+            // Unescape the notes
+            const unescaped = notes.replace(/\\n/g, '\n').replace(/\\'/g, "'");
+            document.getElementById('noteText').value = unescaped;
+            notesModal.show();
+        }
+
+        async function saveNote() {
+            const txId = document.getElementById('noteTxId').value;
+            const notes = document.getElementById('noteText').value;
+
+            try {
+                const res = await fetch(`/api/nps/transactions/${txId}/notes`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    // Update the transaction in local array
+                    const tx = transactions.find(t => t.id == txId);
+                    if (tx) tx.notes = notes;
+
+                    // Also update in filtered array
+                    const filteredTx = filteredTransactions.find(t => t.id == txId);
+                    if (filteredTx) filteredTx.notes = notes;
+
+                    // Re-render transactions
+                    renderTransactions();
+                    notesModal.hide();
+                } else {
+                    alert('Failed to save note');
+                }
+            } catch (error) {
+                console.error('Failed to save note:', error);
+                alert('Failed to save note');
+            }
+        }
+
+        function clearNote() {
+            document.getElementById('noteText').value = '';
+        }
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

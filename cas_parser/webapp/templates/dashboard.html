@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Family Portfolio Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .investor-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+        }
+        .investor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .portfolio-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #dee2e6;
+        }
+        .alert-unmapped {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+        }
+        .alert-nps-unmapped {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+        }
+        .nav-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        body.mask-amounts .mask-amount {
+            filter: blur(8px);
+            user-select: none;
+        }
+        .value-breakdown {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        .value-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .value-item small {
+            font-size: 0.75rem;
+        }
+        .badge-mf { background-color: #667eea; }
+        .badge-nps { background-color: #11998e; }
+        .asset-bar {
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            display: flex;
+            margin-top: 0.5rem;
+        }
+        .asset-bar .mf-segment { background: #667eea; }
+        .asset-bar .nps-segment { background: #11998e; }
+        .badge-fd { background-color: #fd7e14; }
+        .alert-alloc-review {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #78350f;
+            border: none;
+        }
+        .alert-fd-maturing {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            color: #333;
+            border: none;
+        }
+        .alert-fd-matured {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+            border: none;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .fd-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+        .fd-item:last-child { border-bottom: none; }
+        .fd-maturity-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="nav-header">
+                <div>
+                    <h1><i class="bi bi-house-heart"></i> Famfolio</h1>
+                    <p class="mb-0">Family Portfolio Manager - MF, NPS, FD & more</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-outline-light me-2" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
+                        <i class="bi bi-eye" id="maskIcon"></i>
+                    </button>
+                    <a href="/settings" class="btn btn-outline-light me-2">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                    <a href="/mutual-funds" class="btn btn-outline-light me-2">
+                        <i class="bi bi-bank"></i> MF Master
+                    </a>
+                    <div class="dropdown me-2">
+                        <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-cloud-arrow-up"></i> Upload
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/upload"><i class="bi bi-file-earmark-pdf"></i> CAS PDF (Mutual Funds)</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="openNpsUpload()"><i class="bi bi-shield-check"></i> NPS Statement</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="openFdUpload()"><i class="bi bi-safe"></i> FD Statement (CSV)</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Transaction Conflicts Alert -->
+        <div id="conflictsAlert" class="alert alert-warning mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong id="conflictCount">0</strong> transaction conflicts need to be resolved
+                </div>
+                <a href="/resolve-conflicts" class="btn btn-dark btn-sm">
+                    <i class="bi bi-check2-square"></i> Resolve Now
+                </a>
+            </div>
+        </div>
+
+        <!-- Unmapped Folios Alert -->
+        <div id="unmappedAlert" class="alert alert-unmapped mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong id="unmappedCount">0</strong> mutual fund portfolios need to be mapped to an investor
+                </div>
+                <a href="/map-folios" class="btn btn-light btn-sm">
+                    <i class="bi bi-link"></i> Map Folios
+                </a>
+            </div>
+        </div>
+
+        <!-- Unmapped NPS Alert -->
+        <div id="unmappedNpsAlert" class="alert alert-nps-unmapped mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-shield-check"></i>
+                    <strong id="unmappedNpsCount">0</strong> NPS accounts need to be mapped to an investor
+                </div>
+                <button class="btn btn-light btn-sm" onclick="openNpsMappingModal()">
+                    <i class="bi bi-link"></i> Map NPS
+                </button>
+            </div>
+        </div>
+
+        <!-- FD Maturing Soon Alert -->
+        <div id="fdMaturingAlert" class="alert alert-fd-maturing mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-clock-history"></i>
+                    <strong id="fdMaturingCount">0</strong> FD(s) maturing in next 30 days
+                </div>
+                <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturingModal">
+                    <i class="bi bi-eye"></i> View Details
+                </button>
+            </div>
+        </div>
+
+        <!-- FD Matured Alert (flashing) -->
+        <div id="fdMaturedAlert" class="alert alert-fd-matured mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-exclamation-circle"></i>
+                    <strong id="fdMaturedCount">0</strong> FD(s) have matured - Action Required!
+                </div>
+                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturedModal">
+                    <i class="bi bi-check2-circle"></i> Mark Received
+                </button>
+            </div>
+        </div>
+
+        <!-- Allocation Review Alert -->
+        <div id="allocReviewAlert" class="alert alert-alloc-review mb-3" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-clock-history"></i>
+                    <strong id="allocReviewCount">0</strong> fund allocation(s) need review (30+ days since last check)
+                </div>
+                <a href="/mutual-funds" class="btn btn-dark btn-sm">
+                    <i class="bi bi-pie-chart"></i> Review Now
+                </a>
+            </div>
+        </div>
+
+        <!-- Portfolio Summary -->
+        <div class="row mb-4" id="summaryCards">
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <small class="text-muted text-uppercase">Total Portfolio</small>
+                        <h3 class="mb-0 mask-amount" id="totalPortfolioValue">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <small class="text-muted text-uppercase"><i class="bi bi-bank"></i> Mutual Funds</small>
+                        <h3 class="mb-0 mask-amount text-primary" id="totalMfValue">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <small class="text-muted text-uppercase"><i class="bi bi-shield-check"></i> NPS</small>
+                        <h3 class="mb-0 mask-amount" id="totalNpsValue" style="color: #11998e;">-</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-white border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <small class="text-muted text-uppercase"><i class="bi bi-safe"></i> Fixed Deposits</small>
+                        <h3 class="mb-0 mask-amount" id="totalFdValue" style="color: #fd7e14;">-</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investors Grid -->
+        <div id="investorsSection">
+            <h4 class="mb-4"><i class="bi bi-people"></i> Investors</h4>
+            <div class="row" id="investorsGrid">
+                <!-- Investor cards will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="bi bi-inbox"></i>
+            <h3 class="mt-3 text-muted">No investors yet</h3>
+            <p class="text-muted">Upload a CAS PDF or NPS statement to get started</p>
+            <div class="d-flex justify-content-center gap-3 mt-3">
+                <a href="/upload" class="btn btn-primary btn-lg">
+                    <i class="bi bi-file-earmark-pdf"></i> Upload CAS PDF
+                </a>
+                <button class="btn btn-outline-success btn-lg" onclick="openNpsUpload()">
+                    <i class="bi bi-shield-check"></i> Upload NPS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NPS Upload Modal -->
+    <div class="modal fade" id="npsUploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-shield-check"></i> Upload NPS Statement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="npsUploadForm">
+                        <div class="mb-3">
+                            <label class="form-label">NPS Statement PDF</label>
+                            <input type="file" class="form-control" id="npsFile" accept=".pdf" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password (if encrypted)</label>
+                            <input type="password" class="form-control" id="npsPassword" placeholder="Leave blank if not encrypted">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Link to Investor (optional)</label>
+                            <select class="form-select" id="npsInvestorSelect">
+                                <option value="">-- Select Investor --</option>
+                            </select>
+                        </div>
+                    </form>
+                    <div id="npsUploadProgress" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                        </div>
+                        <p class="text-center mt-2">Parsing NPS statement...</p>
+                    </div>
+                    <div id="npsUploadResult" class="alert" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="npsUploadBtn" onclick="uploadNps()">
+                        <i class="bi bi-upload"></i> Upload & Parse
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NPS Mapping Modal -->
+    <div class="modal fade" id="npsMappingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-link"></i> Map NPS Accounts to Investors</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="unmappedNpsList">
+                        <!-- Unmapped NPS accounts will be shown here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FD Upload Modal -->
+    <div class="modal fade" id="fdUploadModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-safe"></i> Upload FD Statement (CSV)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step 1: Upload -->
+                    <div id="fdUploadStep1">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Select Investor</label>
+                                    <select class="form-select" id="fdInvestorSelect" required>
+                                        <option value="">-- Select Investor --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">CSV File</label>
+                                    <input type="file" class="form-control" id="fdCsvFile" accept=".csv" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info small">
+                            <strong>Expected CSV Format:</strong>
+                            <code>Account No./Nick Name, Deposit Date, ROI(%p.a), Maturity Date, Balance</code>
+                        </div>
+                        <div id="fdUploadProgress" style="display: none;" class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Parsing CSV...</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Preview -->
+                    <div id="fdUploadStep2" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <span class="badge bg-success me-2" id="fdValidCount">0 Valid</span>
+                                <span class="badge bg-danger" id="fdInvalidCount">0 Invalid</span>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="resetFdUpload()">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                        </div>
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered" id="fdPreviewTable">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Account/Name</th>
+                                        <th>Deposit Date</th>
+                                        <th>Maturity Date</th>
+                                        <th>ROI%</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fdPreviewBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="fdImportResult" class="mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="fdParseBtn" onclick="parseFdCsv()">
+                        <i class="bi bi-search"></i> Parse & Preview
+                    </button>
+                    <button type="button" class="btn btn-success" id="fdImportBtn" onclick="importFdData()" style="display: none;">
+                        <i class="bi bi-check2-circle"></i> Import Valid FDs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FD Maturing Modal -->
+    <div class="modal fade" id="fdMaturingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-clock-history"></i> FDs Maturing Soon</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="fdMaturingList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FD Matured Modal -->
+    <div class="modal fade" id="fdMaturedModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-circle"></i> Matured FDs - Action Required</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">These FDs have matured. Please confirm if you have received the money.</p>
+                    <div id="fdMaturedList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let npsUploadModal, npsMappingModal;
+        let fdUploadModal, fdMaturingModal, fdMaturedModal;
+        let investors = [];
+        let unmappedNps = [];
+        let maturingFds = [], maturedFds = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            npsUploadModal = new bootstrap.Modal(document.getElementById('npsUploadModal'));
+            npsMappingModal = new bootstrap.Modal(document.getElementById('npsMappingModal'));
+            fdUploadModal = new bootstrap.Modal(document.getElementById('fdUploadModal'));
+            fdMaturingModal = new bootstrap.Modal(document.getElementById('fdMaturingModal'));
+            fdMaturedModal = new bootstrap.Modal(document.getElementById('fdMaturedModal'));
+            loadDashboard();
+        });
+
+        // Mask amounts functionality
+        function isMaskEnabled() {
+            return localStorage.getItem('maskAmounts') === 'true';
+        }
+
+        function toggleMask() {
+            const currentState = isMaskEnabled();
+            localStorage.setItem('maskAmounts', !currentState);
+            applyMask();
+        }
+
+        function applyMask() {
+            const masked = isMaskEnabled();
+            const icon = document.getElementById('maskIcon');
+
+            if (masked) {
+                document.body.classList.add('mask-amounts');
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                document.body.classList.remove('mask-amounts');
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        applyMask();
+
+        async function loadDashboard() {
+            try {
+                // Load investors (now includes NPS data)
+                const investorsRes = await fetch('/api/investors');
+                investors = await investorsRes.json();
+
+                // Load unmapped folios
+                const unmappedRes = await fetch('/api/unmapped-folios');
+                const unmappedFolios = await unmappedRes.json();
+
+                // Show unmapped folios alert if needed
+                if (unmappedFolios.length > 0) {
+                    document.getElementById('unmappedAlert').style.display = 'block';
+                    document.getElementById('unmappedCount').textContent = unmappedFolios.length;
+                }
+
+                // Load unmapped NPS accounts
+                const unmappedNpsRes = await fetch('/api/nps/unmapped');
+                unmappedNps = await unmappedNpsRes.json();
+
+                // Show unmapped NPS alert if needed
+                if (unmappedNps.length > 0) {
+                    document.getElementById('unmappedNpsAlert').style.display = 'block';
+                    document.getElementById('unmappedNpsCount').textContent = unmappedNps.length;
+                }
+
+                // Load conflict stats
+                const conflictsRes = await fetch('/api/conflicts/stats');
+                const conflictStats = await conflictsRes.json();
+
+                if (conflictStats.pending_groups > 0) {
+                    document.getElementById('conflictsAlert').style.display = 'block';
+                    document.getElementById('conflictCount').textContent = conflictStats.pending_groups;
+                }
+
+                // Load FD maturity alerts
+                await loadFdAlerts();
+
+                // Load allocation review alerts
+                try {
+                    const reviewRes = await fetch('/api/mutual-funds/review-alerts');
+                    const reviewData = await reviewRes.json();
+                    if (reviewData.count > 0) {
+                        document.getElementById('allocReviewAlert').style.display = 'block';
+                        document.getElementById('allocReviewCount').textContent = reviewData.count;
+                    }
+                } catch (e) { /* ignore */ }
+
+                // Load FD values for each investor
+                for (const inv of investors) {
+                    try {
+                        const fdRes = await fetch(`/api/manual-assets?investor_id=${inv.id}`);
+                        const assets = await fdRes.json();
+                        const fdAssets = assets.filter(a => a.asset_type === 'fd');
+                        inv.fd_value = fdAssets.reduce((sum, fd) => sum + (fd.calculated_value || fd.fd_principal || 0), 0);
+                        inv.fd_count = fdAssets.length;
+                    } catch (e) {
+                        inv.fd_value = 0;
+                        inv.fd_count = 0;
+                    }
+                }
+
+                // Calculate totals
+                let totalMf = 0, totalNps = 0, totalFd = 0;
+                investors.forEach(inv => {
+                    totalMf += inv.mf_value || 0;
+                    totalNps += inv.nps_value || 0;
+                    totalFd += inv.fd_value || 0;
+                });
+
+                // Add unmapped NPS to total
+                unmappedNps.forEach(nps => {
+                    totalNps += nps.total_value || 0;
+                });
+
+                document.getElementById('totalPortfolioValue').textContent = formatCurrency(totalMf + totalNps + totalFd);
+                document.getElementById('totalMfValue').textContent = formatCurrency(totalMf);
+                document.getElementById('totalNpsValue').textContent = formatCurrency(totalNps);
+                document.getElementById('totalFdValue').textContent = formatCurrency(totalFd);
+
+                // Display investors
+                displayInvestors();
+
+                // Populate investor select in NPS upload modal
+                populateInvestorSelects();
+
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+        }
+
+        function displayInvestors() {
+            const grid = document.getElementById('investorsGrid');
+            const emptyState = document.getElementById('emptyState');
+            const summaryCards = document.getElementById('summaryCards');
+
+            if (investors.length === 0 && unmappedNps.length === 0) {
+                document.getElementById('investorsSection').style.display = 'none';
+                summaryCards.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            grid.innerHTML = investors.map(inv => {
+                const lastUpload = inv.last_cas_upload ? formatDate(inv.last_cas_upload) : 'Never';
+                const mfValue = inv.mf_value || 0;
+                const npsValue = inv.nps_value || 0;
+                const fdValue = inv.fd_value || 0;
+                const totalValue = mfValue + npsValue + fdValue;
+                const mfPct = totalValue > 0 ? (mfValue / totalValue * 100) : 0;
+                const npsPct = totalValue > 0 ? (npsValue / totalValue * 100) : 0;
+                const fdPct = totalValue > 0 ? (fdValue / totalValue * 100) : 0;
+
+                return `
+                <div class="col-md-4 mb-4">
+                    <div class="card investor-card h-100 shadow-sm" onclick="window.location='/investor/${inv.id}'">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title mb-1">${inv.name || 'Unknown'}</h5>
+                                    <small class="text-muted">${inv.pan || 'No PAN'}</small>
+                                </div>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    ${inv.folio_count > 0 ? `<span class="badge badge-mf">${inv.folio_count} MF</span>` : ''}
+                                    ${inv.nps_count > 0 ? `<span class="badge badge-nps">${inv.nps_count} NPS</span>` : ''}
+                                    ${inv.fd_count > 0 ? `<span class="badge badge-fd">${inv.fd_count} FD</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="portfolio-value mask-amount">
+                                ${formatCurrency(totalValue)}
+                            </div>
+                            <small class="text-muted">Total Portfolio Value</small>
+
+                            ${totalValue > 0 ? `
+                            <div class="asset-bar">
+                                ${mfPct > 0 ? `<div class="mf-segment" style="width: ${mfPct}%;" title="MF: ${formatCurrency(mfValue)}"></div>` : ''}
+                                ${npsPct > 0 ? `<div class="nps-segment" style="width: ${npsPct}%;" title="NPS: ${formatCurrency(npsValue)}"></div>` : ''}
+                                ${fdPct > 0 ? `<div style="width: ${fdPct}%; background: #fd7e14;" title="FD: ${formatCurrency(fdValue)}"></div>` : ''}
+                            </div>
+                            <div class="value-breakdown mt-2">
+                                ${mfValue > 0 ? `
+                                <div class="value-item">
+                                    <span class="badge badge-mf" style="font-size: 0.65rem;">MF</span>
+                                    <small class="text-muted mask-amount">${formatCurrency(mfValue)}</small>
+                                </div>
+                                ` : ''}
+                                ${npsValue > 0 ? `
+                                <div class="value-item">
+                                    <span class="badge badge-nps" style="font-size: 0.65rem;">NPS</span>
+                                    <small class="text-muted mask-amount">${formatCurrency(npsValue)}</small>
+                                </div>
+                                ` : ''}
+                                ${fdValue > 0 ? `
+                                <div class="value-item">
+                                    <span class="badge badge-fd" style="font-size: 0.65rem;">FD</span>
+                                    <small class="text-muted mask-amount">${formatCurrency(fdValue)}</small>
+                                </div>
+                                ` : ''}
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="card-footer bg-transparent border-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-cloud-upload"></i> ${lastUpload}
+                                </small>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar-range"></i> ${inv.statement_to_date || '-'}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function populateInvestorSelects() {
+            const selects = [
+                document.getElementById('npsInvestorSelect'),
+                document.getElementById('fdInvestorSelect')
+            ];
+
+            selects.forEach(select => {
+                if (!select) return;
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                investors.forEach(inv => {
+                    const option = document.createElement('option');
+                    option.value = inv.id;
+                    option.textContent = `${inv.name} (${inv.pan || 'No PAN'})`;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        // ==================== FD Functions ====================
+
+        async function loadFdAlerts() {
+            try {
+                // Load maturing FDs
+                const maturingRes = await fetch('/api/fd/maturing?days=30');
+                maturingFds = await maturingRes.json();
+
+                if (maturingFds.length > 0) {
+                    document.getElementById('fdMaturingAlert').style.display = 'block';
+                    document.getElementById('fdMaturingCount').textContent = maturingFds.length;
+                    renderFdMaturingList();
+                }
+
+                // Load matured FDs
+                const maturedRes = await fetch('/api/fd/matured');
+                maturedFds = await maturedRes.json();
+
+                if (maturedFds.length > 0) {
+                    document.getElementById('fdMaturedAlert').style.display = 'block';
+                    document.getElementById('fdMaturedCount').textContent = maturedFds.length;
+                    renderFdMaturedList();
+                }
+            } catch (error) {
+                console.error('Failed to load FD alerts:', error);
+            }
+        }
+
+        function renderFdMaturingList() {
+            const container = document.getElementById('fdMaturingList');
+            if (maturingFds.length === 0) {
+                container.innerHTML = '<p class="text-muted">No FDs maturing soon.</p>';
+                return;
+            }
+
+            container.innerHTML = maturingFds.map(fd => {
+                const daysLeft = Math.ceil((new Date(fd.fd_maturity_date) - new Date()) / (1000 * 60 * 60 * 24));
+                const maturityValue = fd.fd_details?.maturity_value || fd.fd_principal;
+
+                return `
+                <div class="fd-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${fd.name}</strong>
+                        <small class="text-muted d-block">${fd.investor_name} | ${fd.fd_bank_name || 'Bank'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge fd-maturity-badge ${daysLeft <= 7 ? 'bg-danger' : 'bg-warning text-dark'}">
+                            ${daysLeft} days left
+                        </span>
+                        <div class="small text-muted">Matures: ${formatDate(fd.fd_maturity_date)}</div>
+                        <div class="small"><strong>${formatCurrency(maturityValue)}</strong></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderFdMaturedList() {
+            const container = document.getElementById('fdMaturedList');
+            if (maturedFds.length === 0) {
+                container.innerHTML = '<p class="text-muted">No matured FDs pending.</p>';
+                return;
+            }
+
+            container.innerHTML = maturedFds.map(fd => {
+                const daysPast = Math.ceil((new Date() - new Date(fd.fd_maturity_date)) / (1000 * 60 * 60 * 24));
+                const maturityValue = fd.fd_details?.maturity_value || fd.fd_principal;
+
+                return `
+                <div class="fd-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${fd.name}</strong>
+                        <small class="text-muted d-block">${fd.investor_name} | ${fd.fd_bank_name || 'Bank'}</small>
+                        <small class="text-danger">Matured ${daysPast} days ago</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="mb-2"><strong>${formatCurrency(maturityValue)}</strong></div>
+                        <button class="btn btn-success btn-sm" onclick="markFdReceived(${fd.id}, true)">
+                            <i class="bi bi-check2"></i> Money Received
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="markFdReceived(${fd.id}, false)">
+                            <i class="bi bi-x"></i> Not Received
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function markFdReceived(fdId, received) {
+            try {
+                const res = await fetch(`/api/fd/${fdId}/close`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ money_received: received })
+                });
+
+                if (res.ok) {
+                    // Reload the FD alerts
+                    await loadFdAlerts();
+
+                    // If no more matured FDs, hide alert and close modal
+                    if (maturedFds.length === 0) {
+                        document.getElementById('fdMaturedAlert').style.display = 'none';
+                        fdMaturedModal.hide();
+                    }
+
+                    // Show success toast or message
+                    alert(received ? 'FD marked as received and closed.' : 'FD marked as closed (not received).');
+                } else {
+                    alert('Failed to update FD status.');
+                }
+            } catch (error) {
+                console.error('Error closing FD:', error);
+                alert('Error updating FD status.');
+            }
+        }
+
+        let fdPreviewData = [];
+
+        function openFdUpload() {
+            resetFdUpload();
+            fdUploadModal.show();
+        }
+
+        function resetFdUpload() {
+            document.getElementById('fdCsvFile').value = '';
+            document.getElementById('fdUploadStep1').style.display = 'block';
+            document.getElementById('fdUploadStep2').style.display = 'none';
+            document.getElementById('fdUploadProgress').style.display = 'none';
+            document.getElementById('fdParseBtn').style.display = 'inline-block';
+            document.getElementById('fdImportBtn').style.display = 'none';
+            document.getElementById('fdImportResult').style.display = 'none';
+            fdPreviewData = [];
+        }
+
+        async function parseFdCsv() {
+            const fileInput = document.getElementById('fdCsvFile');
+            const investorId = document.getElementById('fdInvestorSelect').value;
+
+            if (!fileInput.files.length) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            if (!investorId) {
+                alert('Please select an investor');
+                return;
+            }
+
+            document.getElementById('fdUploadProgress').style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('investor_id', investorId);
+
+            try {
+                const res = await fetch('/api/fd/upload-csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await res.json();
+                document.getElementById('fdUploadProgress').style.display = 'none';
+
+                if (!res.ok) {
+                    alert('Error: ' + result.error);
+                    return;
+                }
+
+                // Store preview data
+                fdPreviewData = result.rows;
+
+                // Update counts
+                document.getElementById('fdValidCount').textContent = result.valid_count + ' Valid';
+                document.getElementById('fdInvalidCount').textContent = result.invalid_count + ' Invalid';
+
+                // Build preview table
+                const tbody = document.getElementById('fdPreviewBody');
+                tbody.innerHTML = result.rows.map(row => {
+                    const rowClass = row.is_valid ? 'table-success' : 'table-danger';
+                    const statusHtml = row.is_valid
+                        ? '<span class="badge bg-success"><i class="bi bi-check"></i> Valid</span>'
+                        : `<span class="badge bg-danger" title="${row.errors.join(', ')}"><i class="bi bi-x"></i> ${row.errors[0]}</span>`;
+
+                    return `
+                    <tr class="${rowClass}">
+                        <td>${row.row_num}</td>
+                        <td>${row.name || '<em class="text-muted">Empty</em>'}</td>
+                        <td>${row.deposit_date || '-'}</td>
+                        <td>${row.maturity_date || '-'}</td>
+                        <td>${row.roi || '-'}%</td>
+                        <td>${row.balance ? formatCurrency(row.balance) : '-'}</td>
+                        <td>${statusHtml}</td>
+                    </tr>`;
+                }).join('');
+
+                // Show step 2
+                document.getElementById('fdUploadStep1').style.display = 'none';
+                document.getElementById('fdUploadStep2').style.display = 'block';
+                document.getElementById('fdParseBtn').style.display = 'none';
+
+                // Show import button only if there are valid rows
+                if (result.valid_count > 0) {
+                    document.getElementById('fdImportBtn').style.display = 'inline-block';
+                }
+
+            } catch (error) {
+                document.getElementById('fdUploadProgress').style.display = 'none';
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function importFdData() {
+            const investorId = document.getElementById('fdInvestorSelect').value;
+            const validRows = fdPreviewData.filter(r => r.is_valid);
+
+            if (validRows.length === 0) {
+                alert('No valid rows to import');
+                return;
+            }
+
+            document.getElementById('fdImportBtn').disabled = true;
+            document.getElementById('fdImportBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importing...';
+
+            try {
+                const res = await fetch('/api/fd/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        investor_id: investorId,
+                        rows: validRows
+                    })
+                });
+
+                const result = await res.json();
+
+                const resultDiv = document.getElementById('fdImportResult');
+                resultDiv.style.display = 'block';
+
+                if (res.ok && result.success) {
+                    resultDiv.className = 'alert alert-success';
+                    resultDiv.innerHTML = `
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Success!</strong> Imported ${result.created} FD(s).
+                        ${result.skipped > 0 ? ` Skipped ${result.skipped} duplicates.` : ''}
+                    `;
+
+                    document.getElementById('fdImportBtn').style.display = 'none';
+
+                    // Reload dashboard after delay
+                    setTimeout(() => {
+                        fdUploadModal.hide();
+                        loadDashboard();
+                    }, 1500);
+                } else {
+                    resultDiv.className = 'alert alert-danger';
+                    resultDiv.innerHTML = `<i class="bi bi-x-circle"></i> Error: ${result.error}`;
+                    document.getElementById('fdImportBtn').disabled = false;
+                    document.getElementById('fdImportBtn').innerHTML = '<i class="bi bi-check2-circle"></i> Import Valid FDs';
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('fdImportResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'alert alert-danger';
+                resultDiv.innerHTML = `<i class="bi bi-x-circle"></i> Error: ${error.message}`;
+                document.getElementById('fdImportBtn').disabled = false;
+                document.getElementById('fdImportBtn').innerHTML = '<i class="bi bi-check2-circle"></i> Import Valid FDs';
+            }
+        }
+
+        function openNpsUpload() {
+            document.getElementById('npsUploadForm').reset();
+            document.getElementById('npsUploadProgress').style.display = 'none';
+            document.getElementById('npsUploadResult').style.display = 'none';
+            document.getElementById('npsUploadBtn').disabled = false;
+            npsUploadModal.show();
+        }
+
+        async function uploadNps() {
+            const fileInput = document.getElementById('npsFile');
+            const password = document.getElementById('npsPassword').value;
+            const investorId = document.getElementById('npsInvestorSelect').value;
+
+            if (!fileInput.files.length) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            if (password) formData.append('password', password);
+            if (investorId) formData.append('investor_id', investorId);
+
+            document.getElementById('npsUploadBtn').disabled = true;
+            document.getElementById('npsUploadProgress').style.display = 'block';
+            document.getElementById('npsUploadResult').style.display = 'none';
+
+            try {
+                const res = await fetch('/api/nps/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await res.json();
+                document.getElementById('npsUploadProgress').style.display = 'none';
+
+                const resultDiv = document.getElementById('npsUploadResult');
+                if (result.success) {
+                    resultDiv.className = 'alert alert-success';
+                    resultDiv.innerHTML = `
+                        <strong>Success!</strong><br>
+                        Name: ${result.subscriber_name || '-'}<br>
+                        PRAN: ${result.pran}<br>
+                        ${result.total_value > 0 ? `<strong>Total Value: ${formatCurrency(result.total_value)}</strong><br>` : ''}
+                        Schemes: ${result.schemes_imported}<br>
+                        Transactions: ${result.transactions_imported} imported
+                    `;
+                    // Reload dashboard
+                    setTimeout(() => {
+                        npsUploadModal.hide();
+                        loadDashboard();
+                    }, 2000);
+                } else {
+                    resultDiv.className = 'alert alert-danger';
+                    resultDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
+                    document.getElementById('npsUploadBtn').disabled = false;
+                }
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                document.getElementById('npsUploadProgress').style.display = 'none';
+                const resultDiv = document.getElementById('npsUploadResult');
+                resultDiv.className = 'alert alert-danger';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                resultDiv.style.display = 'block';
+                document.getElementById('npsUploadBtn').disabled = false;
+            }
+        }
+
+        function openNpsMappingModal() {
+            const container = document.getElementById('unmappedNpsList');
+
+            if (unmappedNps.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No unmapped NPS accounts</p>';
+            } else {
+                container.innerHTML = unmappedNps.map(nps => `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">${nps.name}</h6>
+                                    <small class="text-muted">PRAN: ${nps.pran}</small>
+                                    ${nps.pan ? `<br><small class="text-muted">PAN: ${nps.pan}</small>` : ''}
+                                    <br><strong class="text-success">${formatCurrency(nps.total_value || 0)}</strong>
+                                </div>
+                                <div>
+                                    <select class="form-select form-select-sm" id="npsMap_${nps.pran}" style="width: 200px;">
+                                        <option value="">-- Select Investor --</option>
+                                        ${investors.map(inv => `
+                                            <option value="${inv.id}">${inv.name} (${inv.pan || 'No PAN'})</option>
+                                        `).join('')}
+                                    </select>
+                                    <button class="btn btn-primary btn-sm mt-2" onclick="linkNpsToInvestor('${nps.pran}')">
+                                        <i class="bi bi-link"></i> Link
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            npsMappingModal.show();
+        }
+
+        async function linkNpsToInvestor(pran) {
+            const select = document.getElementById(`npsMap_${pran}`);
+            const investorId = select.value;
+
+            if (!investorId) {
+                alert('Please select an investor');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/nps/link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pran, investor_id: parseInt(investorId) })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    npsMappingModal.hide();
+                    loadDashboard();
+                } else {
+                    alert('Failed to link NPS account');
+                }
+            } catch (error) {
+                console.error('Failed to link NPS:', error);
+                alert('Failed to link NPS account');
+            }
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

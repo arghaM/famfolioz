@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Investment Goals</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .goal-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .goal-card:hover {
+            transform: translateY(-2px);
+        }
+        .progress-thick {
+            height: 25px;
+            border-radius: 12px;
+        }
+        .progress-thick .progress-bar {
+            border-radius: 12px;
+        }
+        .allocation-bar {
+            height: 10px;
+            margin-bottom: 5px;
+        }
+        .badge-equity { background-color: #28a745; }
+        .badge-debt { background-color: #17a2b8; }
+        .badge-commodity { background-color: #ffc107; color: #000; }
+        .badge-cash { background-color: #6c757d; }
+        .badge-others { background-color: #6f42c1; }
+        .linked-folio {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .alloc-comparison {
+            display: flex;
+            gap: 20px;
+        }
+        .alloc-column {
+            flex: 1;
+        }
+        body.mask-amounts .mask-amount {
+            filter: blur(8px);
+            user-select: none;
+        }
+        /* Notes/Journal styles */
+        .note-card {
+            border-left: 3px solid #667eea;
+            margin-bottom: 1rem;
+        }
+        .note-card.type-decision { border-left-color: #ffc107; }
+        .note-card.type-milestone { border-left-color: #28a745; }
+        .note-card.type-review { border-left-color: #17a2b8; }
+        .note-card.type-thought { border-left-color: #6c757d; }
+        .mood-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .mood-optimistic { background: #d4edda; color: #155724; }
+        .mood-confident { background: #cce5ff; color: #004085; }
+        .mood-neutral { background: #e2e3e5; color: #383d41; }
+        .mood-cautious { background: #fff3cd; color: #856404; }
+        .mood-worried { background: #f8d7da; color: #721c24; }
+        .timeline-date {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        .guide-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px dashed #667eea;
+            border-radius: 12px;
+        }
+        .guide-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        .guide-step-number {
+            background: #667eea;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <a href="/investor/{{ investor.id }}" class="text-white text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Portfolio
+                    </a>
+                    <h1 class="mt-3"><i class="bi bi-flag"></i> Investment Goals</h1>
+                    <p class="mb-0">{{ investor.name }}</p>
+                </div>
+                <button class="btn btn-outline-light" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
+                    <i class="bi bi-eye" id="maskIcon"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- First-Time User Guide (collapsible) -->
+        <div class="guide-card p-4 mb-4" id="userGuide">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5><i class="bi bi-lightbulb"></i> Getting Started with Investment Goals</h5>
+                    <p class="text-muted mb-3">Goals help you organize your investments by purpose and track progress over time.</p>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="hideGuide()">
+                    <i class="bi bi-x"></i> Dismiss
+                </button>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="guide-step">
+                        <span class="guide-step-number">1</span>
+                        <div>
+                            <strong>Create a Goal</strong>
+                            <p class="text-muted small mb-0">Define goals like "Retirement", "Child Education", or "Emergency Fund". Set a target amount and date.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <span class="guide-step-number">2</span>
+                        <div>
+                            <strong>Set Target Allocation</strong>
+                            <p class="text-muted small mb-0">Define your ideal asset mix (equity, debt, etc.) based on the goal's time horizon and risk tolerance.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="guide-step">
+                        <span class="guide-step-number">3</span>
+                        <div>
+                            <strong>Link Your Investments</strong>
+                            <p class="text-muted small mb-0">Assign mutual fund folios to goals. One folio can only belong to one goal to avoid overlap.</p>
+                        </div>
+                    </div>
+                    <div class="guide-step">
+                        <span class="guide-step-number">4</span>
+                        <div>
+                            <strong>Record Your Thoughts</strong>
+                            <p class="text-muted small mb-0">Use the Notes feature to journal your investment decisions. Review how your thinking evolves over time.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Tabs -->
+        <ul class="nav nav-tabs mb-4" id="viewTabs">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" onclick="switchView('goals')">
+                    <i class="bi bi-flag"></i> Goals
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="switchView('timeline')">
+                    <i class="bi bi-journal-text"></i> Notes Timeline
+                </a>
+            </li>
+        </ul>
+
+        <!-- Add Goal Button -->
+        <div class="d-flex justify-content-end mb-4" id="goalsActions">
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                <i class="bi bi-plus-lg"></i> Create New Goal
+            </button>
+        </div>
+
+        <!-- Goals List View -->
+        <div id="goalsList">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Loading goals...</p>
+            </div>
+        </div>
+
+        <!-- Notes Timeline View (hidden by default) -->
+        <div id="timelineView" style="display: none;">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Loading notes...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Goal Modal -->
+    <div class="modal fade" id="goalModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="goalModalTitle">Create Goal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editGoalId">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Goal Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="goalName" placeholder="e.g., Retirement, Child Education">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Target Date</label>
+                            <input type="date" class="form-control" id="goalTargetDate">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Target Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" class="form-control" id="goalTargetAmount" min="0" step="1000">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Description</label>
+                            <input type="text" class="form-control" id="goalDescription" placeholder="Optional notes">
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h6><i class="bi bi-pie-chart"></i> Target Asset Allocation</h6>
+                    <p class="text-muted small">Define your ideal asset mix for this goal (must sum to 100%)</p>
+
+                    <div class="row mb-2">
+                        <div class="col">
+                            <label class="form-label small">Equity %</label>
+                            <input type="number" class="form-control" id="goalEquity" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">Debt %</label>
+                            <input type="number" class="form-control" id="goalDebt" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">Commodity %</label>
+                            <input type="number" class="form-control" id="goalCommodity" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">Cash %</label>
+                            <input type="number" class="form-control" id="goalCash" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small">Others %</label>
+                            <input type="number" class="form-control" id="goalOthers" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span id="goalAllocTotal" class="badge bg-secondary">Total: 0%</span>
+                        <span id="goalAllocError" class="text-danger small" style="display:none;">Must sum to 100%</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveGoalBtn" onclick="saveGoal()">
+                        <i class="bi bi-check-lg"></i> Save Goal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link Folios Modal -->
+    <div class="modal fade" id="linkModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-link"></i> Manage Linked Assets</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="linkGoalId">
+                    <h6 id="linkGoalName">-</h6>
+
+                    <!-- Currently Linked -->
+                    <div class="mb-4">
+                        <h6 class="text-muted"><i class="bi bi-check-circle"></i> Currently Linked</h6>
+                        <div id="linkedFolios">
+                            <p class="text-muted">No assets linked yet</p>
+                        </div>
+                    </div>
+
+                    <!-- Available to Link -->
+                    <div>
+                        <h6 class="text-muted"><i class="bi bi-plus-circle"></i> Available to Link</h6>
+                        <div id="availableFolios">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailGoalName">Goal Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Progress Section -->
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Progress</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row text-center mb-3">
+                                        <div class="col">
+                                            <h4 class="text-primary mask-amount" id="detailCurrentValue">-</h4>
+                                            <small class="text-muted">Current Value</small>
+                                        </div>
+                                        <div class="col">
+                                            <h4 class="text-secondary mask-amount" id="detailTargetAmount">-</h4>
+                                            <small class="text-muted">Target</small>
+                                        </div>
+                                        <div class="col">
+                                            <h4 id="detailProgress">-</h4>
+                                            <small class="text-muted">Progress</small>
+                                        </div>
+                                    </div>
+                                    <div class="progress progress-thick">
+                                        <div class="progress-bar" id="detailProgressBar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <p class="text-muted small mt-2" id="detailTargetDate"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Allocation Comparison -->
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-white">
+                                    <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Allocation Comparison</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alloc-comparison">
+                                        <div class="alloc-column">
+                                            <strong>Target</strong>
+                                            <div id="targetAllocBars"></div>
+                                        </div>
+                                        <div class="alloc-column">
+                                            <strong>Actual</strong>
+                                            <div id="actualAllocBars"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Linked Assets Table -->
+                    <div class="card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-briefcase"></i> Linked Assets</h6>
+                            <span class="badge bg-primary" id="detailLinkedCount">0 assets</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Scheme</th>
+                                        <th>Folio</th>
+                                        <th class="text-end">Units</th>
+                                        <th class="text-end">NAV</th>
+                                        <th class="text-end">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailLinkedTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Notes Modal -->
+    <div class="modal fade" id="notesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-journal-text"></i> Goal Notes & Journal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="notesGoalId">
+                    <h6 id="notesGoalName" class="text-muted mb-3">-</h6>
+
+                    <!-- Add New Note Form -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-white">
+                            <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Note</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Note Type</label>
+                                    <select class="form-select form-select-sm" id="newNoteType">
+                                        <option value="thought">Thought</option>
+                                        <option value="decision">Decision</option>
+                                        <option value="milestone">Milestone</option>
+                                        <option value="review">Review</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Mood (Optional)</label>
+                                    <select class="form-select form-select-sm" id="newNoteMood">
+                                        <option value="">-- Select --</option>
+                                        <option value="optimistic">Optimistic</option>
+                                        <option value="confident">Confident</option>
+                                        <option value="neutral">Neutral</option>
+                                        <option value="cautious">Cautious</option>
+                                        <option value="worried">Worried</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Title (Optional)</label>
+                                <input type="text" class="form-control form-control-sm" id="newNoteTitle" placeholder="Brief title for this note">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Content <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="newNoteContent" rows="3" placeholder="What are you thinking about this goal? Any decisions made? Market observations?"></textarea>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="saveNote()">
+                                <i class="bi bi-save"></i> Save Note
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Notes List -->
+                    <h6 class="text-muted"><i class="bi bi-clock-history"></i> Previous Notes</h6>
+                    <div id="notesList">
+                        <p class="text-muted">No notes yet</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Note Modal -->
+    <div class="modal fade" id="editNoteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editNoteId">
+                    <input type="hidden" id="editNoteGoalId">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Note Type</label>
+                            <select class="form-select form-select-sm" id="editNoteType">
+                                <option value="thought">Thought</option>
+                                <option value="decision">Decision</option>
+                                <option value="milestone">Milestone</option>
+                                <option value="review">Review</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Mood</label>
+                            <select class="form-select form-select-sm" id="editNoteMood">
+                                <option value="">-- Select --</option>
+                                <option value="optimistic">Optimistic</option>
+                                <option value="confident">Confident</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="cautious">Cautious</option>
+                                <option value="worried">Worried</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Title</label>
+                        <input type="text" class="form-control form-control-sm" id="editNoteTitle">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Content <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="editNoteContent" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateNote()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mask amounts functionality
+        function isMaskEnabled() {
+            return localStorage.getItem('maskAmounts') === 'true';
+        }
+
+        function toggleMask() {
+            const currentState = isMaskEnabled();
+            localStorage.setItem('maskAmounts', !currentState);
+            applyMask();
+        }
+
+        function applyMask() {
+            const masked = isMaskEnabled();
+            const icon = document.getElementById('maskIcon');
+
+            if (masked) {
+                document.body.classList.add('mask-amounts');
+                if (icon) icon.className = 'bi bi-eye-slash';
+            } else {
+                document.body.classList.remove('mask-amounts');
+                if (icon) icon.className = 'bi bi-eye';
+            }
+        }
+
+        // Apply mask on page load
+        applyMask();
+
+        const investorId = {{ investor.id }};
+        let allGoals = [];
+        let goalModal, linkModal, detailModal, notesModal, editNoteModal;
+        let currentView = 'goals';
+
+        // Check if user has dismissed the guide
+        function checkGuideVisibility() {
+            const dismissed = localStorage.getItem('goalsGuideDismissed');
+            if (dismissed === 'true') {
+                document.getElementById('userGuide').style.display = 'none';
+            }
+        }
+
+        function hideGuide() {
+            localStorage.setItem('goalsGuideDismissed', 'true');
+            document.getElementById('userGuide').style.display = 'none';
+        }
+
+        // Call on page load
+        checkGuideVisibility();
+
+        async function loadGoals() {
+            try {
+                const res = await fetch(`/api/investors/${investorId}/goals`);
+                allGoals = await res.json();
+                displayGoals();
+            } catch (error) {
+                console.error('Failed to load goals:', error);
+                document.getElementById('goalsList').innerHTML = `
+                    <div class="alert alert-danger">Failed to load goals: ${error.message}</div>
+                `;
+            }
+        }
+
+        function displayGoals() {
+            const container = document.getElementById('goalsList');
+
+            if (allGoals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-flag" style="font-size:4rem;color:#ccc;"></i>
+                        <h5 class="mt-3 text-muted">No Goals Yet</h5>
+                        <p class="text-muted">Create your first investment goal to start tracking progress</p>
+                        <button class="btn btn-primary" onclick="openCreateModal()">
+                            <i class="bi bi-plus-lg"></i> Create Goal
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = allGoals.map(g => renderGoalCard(g)).join('');
+        }
+
+        function renderGoalCard(goal) {
+            const progress = goal.target_amount > 0
+                ? Math.min(100, (goal.current_value / goal.target_amount * 100))
+                : 0;
+            const progressClass = progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning');
+
+            const targetDate = goal.target_date
+                ? `Target: ${goal.target_date}`
+                : '';
+
+            return `
+            <div class="card goal-card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="mb-1">${goal.name}</h5>
+                            <p class="text-muted small mb-0">${goal.description || ''} ${targetDate}</p>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openDetailModal(${goal.id})" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="openNotesModal(${goal.id})" title="Notes & Journal">
+                                <i class="bi bi-journal-text"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openLinkModal(${goal.id})" title="Manage Assets">
+                                <i class="bi bi-link"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openEditModal(${goal.id})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGoal(${goal.id})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <small class="text-muted">Current Value</small>
+                            <h4 class="text-primary mb-0 mask-amount">${formatCurrency(goal.current_value)}</h4>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Target</small>
+                            <h4 class="text-secondary mb-0 mask-amount">${formatCurrency(goal.target_amount)}</h4>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Linked Assets</small>
+                            <h4 class="mb-0">${goal.linked_count}</h4>
+                        </div>
+                    </div>
+
+                    <div class="progress progress-thick mb-2">
+                        <div class="progress-bar ${progressClass}" role="progressbar"
+                             style="width: ${progress}%"
+                             aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                            ${progress.toFixed(0)}%
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between small">
+                        <span>
+                            ${renderMiniAllocation('Target', goal.target_equity_pct, goal.target_debt_pct, goal.target_commodity_pct)}
+                        </span>
+                        <span>
+                            ${renderMiniAllocation('Actual', goal.actual_allocation_pct?.equity || 0, goal.actual_allocation_pct?.debt || 0, goal.actual_allocation_pct?.commodity || 0)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function renderMiniAllocation(label, equity, debt, commodity) {
+            if (equity === 0 && debt === 0 && commodity === 0) return '';
+            return `
+                <span class="text-muted">${label}:</span>
+                <span class="badge badge-equity">E:${equity.toFixed(0)}%</span>
+                <span class="badge badge-debt">D:${debt.toFixed(0)}%</span>
+                ${commodity > 0 ? `<span class="badge badge-commodity">C:${commodity.toFixed(0)}%</span>` : ''}
+            `;
+        }
+
+        function openCreateModal() {
+            document.getElementById('goalModalTitle').textContent = 'Create New Goal';
+            document.getElementById('editGoalId').value = '';
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalDescription').value = '';
+            document.getElementById('goalTargetAmount').value = '';
+            document.getElementById('goalTargetDate').value = '';
+            document.getElementById('goalEquity').value = 0;
+            document.getElementById('goalDebt').value = 0;
+            document.getElementById('goalCommodity').value = 0;
+            document.getElementById('goalCash').value = 0;
+            document.getElementById('goalOthers').value = 0;
+            updateGoalAllocTotal();
+
+            goalModal = new bootstrap.Modal(document.getElementById('goalModal'));
+            goalModal.show();
+        }
+
+        function openEditModal(goalId) {
+            const goal = allGoals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById('goalModalTitle').textContent = 'Edit Goal';
+            document.getElementById('editGoalId').value = goal.id;
+            document.getElementById('goalName').value = goal.name;
+            document.getElementById('goalDescription').value = goal.description || '';
+            document.getElementById('goalTargetAmount').value = goal.target_amount || '';
+            document.getElementById('goalTargetDate').value = goal.target_date || '';
+            document.getElementById('goalEquity').value = goal.target_equity_pct || 0;
+            document.getElementById('goalDebt').value = goal.target_debt_pct || 0;
+            document.getElementById('goalCommodity').value = goal.target_commodity_pct || 0;
+            document.getElementById('goalCash').value = goal.target_cash_pct || 0;
+            document.getElementById('goalOthers').value = goal.target_others_pct || 0;
+            updateGoalAllocTotal();
+
+            goalModal = new bootstrap.Modal(document.getElementById('goalModal'));
+            goalModal.show();
+        }
+
+        function updateGoalAllocTotal() {
+            const equity = parseFloat(document.getElementById('goalEquity').value) || 0;
+            const debt = parseFloat(document.getElementById('goalDebt').value) || 0;
+            const commodity = parseFloat(document.getElementById('goalCommodity').value) || 0;
+            const cash = parseFloat(document.getElementById('goalCash').value) || 0;
+            const others = parseFloat(document.getElementById('goalOthers').value) || 0;
+
+            const total = equity + debt + commodity + cash + others;
+            const totalEl = document.getElementById('goalAllocTotal');
+            const errorEl = document.getElementById('goalAllocError');
+
+            totalEl.textContent = `Total: ${total}%`;
+
+            if (total === 0 || total === 100) {
+                totalEl.classList.remove('bg-danger');
+                totalEl.classList.add('bg-secondary');
+                errorEl.style.display = 'none';
+            } else {
+                totalEl.classList.remove('bg-secondary');
+                totalEl.classList.add('bg-danger');
+                errorEl.style.display = 'inline';
+            }
+        }
+
+        async function saveGoal() {
+            const goalId = document.getElementById('editGoalId').value;
+            const name = document.getElementById('goalName').value.trim();
+
+            if (!name) {
+                alert('Goal name is required');
+                return;
+            }
+
+            const data = {
+                name: name,
+                description: document.getElementById('goalDescription').value.trim(),
+                target_amount: parseFloat(document.getElementById('goalTargetAmount').value) || 0,
+                target_date: document.getElementById('goalTargetDate').value || null,
+                target_equity_pct: parseFloat(document.getElementById('goalEquity').value) || 0,
+                target_debt_pct: parseFloat(document.getElementById('goalDebt').value) || 0,
+                target_commodity_pct: parseFloat(document.getElementById('goalCommodity').value) || 0,
+                target_cash_pct: parseFloat(document.getElementById('goalCash').value) || 0,
+                target_others_pct: parseFloat(document.getElementById('goalOthers').value) || 0
+            };
+
+            try {
+                let url, method;
+                if (goalId) {
+                    url = `/api/goals/${goalId}`;
+                    method = 'PUT';
+                } else {
+                    url = `/api/investors/${investorId}/goals`;
+                    method = 'POST';
+                }
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (result.success || result.goal_id) {
+                    goalModal.hide();
+                    await loadGoals();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to save: ' + error.message);
+            }
+        }
+
+        async function deleteGoal(goalId) {
+            if (!confirm('Are you sure you want to delete this goal?')) return;
+
+            try {
+                const res = await fetch(`/api/goals/${goalId}`, { method: 'DELETE' });
+                const result = await res.json();
+
+                if (result.success) {
+                    await loadGoals();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to delete: ' + error.message);
+            }
+        }
+
+        async function openLinkModal(goalId) {
+            const goal = allGoals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById('linkGoalId').value = goalId;
+            document.getElementById('linkGoalName').textContent = goal.name;
+
+            // Show currently linked
+            const linkedContainer = document.getElementById('linkedFolios');
+            if (goal.linked_folios && goal.linked_folios.length > 0) {
+                linkedContainer.innerHTML = goal.linked_folios.map(f => `
+                    <div class="linked-folio d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${f.scheme_name}</strong><br>
+                            <small class="text-muted">Folio: ${f.folio_number} | ${formatCurrency(f.value || 0)}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="unlinkFolio(${goalId}, ${f.folio_id})">
+                            <i class="bi bi-x-lg"></i> Unlink
+                        </button>
+                    </div>
+                `).join('');
+            } else {
+                linkedContainer.innerHTML = '<p class="text-muted">No assets linked yet</p>';
+            }
+
+            // Load available folios
+            try {
+                const res = await fetch(`/api/goals/${goalId}/available-folios`);
+                const available = await res.json();
+
+                const availableContainer = document.getElementById('availableFolios');
+                if (available.length > 0) {
+                    availableContainer.innerHTML = available.map(f => `
+                        <div class="linked-folio d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${f.scheme_name}</strong><br>
+                                <small class="text-muted">Folio: ${f.folio_number} | ${formatCurrency(f.value || 0)}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="linkFolio(${goalId}, ${f.folio_id})">
+                                <i class="bi bi-plus-lg"></i> Link
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    availableContainer.innerHTML = '<p class="text-muted">All assets are already linked to this goal</p>';
+                }
+            } catch (error) {
+                document.getElementById('availableFolios').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+            }
+
+            linkModal = new bootstrap.Modal(document.getElementById('linkModal'));
+            linkModal.show();
+        }
+
+        async function linkFolio(goalId, folioId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/link`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folio_id: folioId })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    await openLinkModal(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to link: ' + error.message);
+            }
+        }
+
+        async function unlinkFolio(goalId, folioId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/unlink`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folio_id: folioId })
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    await openLinkModal(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to unlink: ' + error.message);
+            }
+        }
+
+        async function openDetailModal(goalId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}`);
+                const goal = await res.json();
+
+                if (goal.error) {
+                    alert('Error: ' + goal.error);
+                    return;
+                }
+
+                document.getElementById('detailGoalName').textContent = goal.name;
+                document.getElementById('detailCurrentValue').textContent = formatCurrency(goal.current_value);
+                document.getElementById('detailTargetAmount').textContent = formatCurrency(goal.target_amount);
+
+                const progress = goal.target_amount > 0
+                    ? Math.min(100, (goal.current_value / goal.target_amount * 100))
+                    : 0;
+                document.getElementById('detailProgress').textContent = progress.toFixed(1) + '%';
+                document.getElementById('detailProgress').className = progress >= 100 ? 'text-success' : 'text-primary';
+
+                const progressBar = document.getElementById('detailProgressBar');
+                progressBar.style.width = progress + '%';
+                progressBar.className = 'progress-bar ' + (progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning'));
+
+                document.getElementById('detailTargetDate').textContent = goal.target_date
+                    ? `Target date: ${goal.target_date}`
+                    : '';
+
+                // Allocation comparison
+                renderAllocationBars('targetAllocBars', {
+                    equity: goal.target_equity_pct,
+                    debt: goal.target_debt_pct,
+                    commodity: goal.target_commodity_pct,
+                    cash: goal.target_cash_pct,
+                    others: goal.target_others_pct
+                });
+
+                renderAllocationBars('actualAllocBars', goal.actual_allocation_pct || {});
+
+                // Linked assets table
+                document.getElementById('detailLinkedCount').textContent = `${goal.linked_count} assets`;
+                const tbody = document.getElementById('detailLinkedTable');
+                if (goal.linked_folios && goal.linked_folios.length > 0) {
+                    tbody.innerHTML = goal.linked_folios.map(f => `
+                        <tr>
+                            <td>${f.scheme_name}</td>
+                            <td><code>${f.folio_number}</code></td>
+                            <td class="text-end">${(f.units || 0).toFixed(3)}</td>
+                            <td class="text-end">${(f.nav || 0).toFixed(4)}</td>
+                            <td class="text-end">${formatCurrency(f.value || 0)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No assets linked</td></tr>';
+                }
+
+                detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+                detailModal.show();
+
+            } catch (error) {
+                alert('Failed to load goal details: ' + error.message);
+            }
+        }
+
+        function renderAllocationBars(containerId, alloc) {
+            const container = document.getElementById(containerId);
+            const classes = ['equity', 'debt', 'commodity', 'cash', 'others'];
+            const colors = {
+                'equity': '#28a745',
+                'debt': '#17a2b8',
+                'commodity': '#ffc107',
+                'cash': '#6c757d',
+                'others': '#6f42c1'
+            };
+
+            let html = '';
+            classes.forEach(cls => {
+                const pct = alloc[cls] || 0;
+                if (pct > 0) {
+                    html += `
+                        <div class="d-flex align-items-center mb-1">
+                            <span class="small" style="width:70px;">${cls.charAt(0).toUpperCase() + cls.slice(1)}</span>
+                            <div class="progress allocation-bar flex-grow-1">
+                                <div class="progress-bar" style="width:${pct}%;background-color:${colors[cls]}"></div>
+                            </div>
+                            <span class="small ms-2" style="width:40px;">${pct.toFixed(0)}%</span>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html || '<p class="text-muted small">Not defined</p>';
+        }
+
+        function formatCurrency(value) {
+            if (value === undefined || value === null) return '₹0';
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        // ==================== View Switching ====================
+
+        function switchView(view) {
+            currentView = view;
+
+            // Update tab active states
+            document.querySelectorAll('#viewTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            if (view === 'goals') {
+                document.getElementById('goalsList').style.display = 'block';
+                document.getElementById('timelineView').style.display = 'none';
+                document.getElementById('goalsActions').style.display = 'flex';
+            } else {
+                document.getElementById('goalsList').style.display = 'none';
+                document.getElementById('timelineView').style.display = 'block';
+                document.getElementById('goalsActions').style.display = 'none';
+                loadTimeline();
+            }
+        }
+
+        async function loadTimeline() {
+            const container = document.getElementById('timelineView');
+            container.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            try {
+                const res = await fetch(`/api/investors/${investorId}/notes-timeline`);
+                const notes = await res.json();
+
+                if (notes.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="bi bi-journal" style="font-size:3rem;color:#ccc;"></i>
+                            <h5 class="mt-3 text-muted">No Notes Yet</h5>
+                            <p class="text-muted">Start journaling your investment thoughts by adding notes to your goals</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = notes.map(note => renderTimelineNote(note)).join('');
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-danger">Failed to load timeline: ${error.message}</div>`;
+            }
+        }
+
+        function renderTimelineNote(note) {
+            const typeIcon = {
+                'thought': 'bi-lightbulb',
+                'decision': 'bi-check-circle',
+                'milestone': 'bi-trophy',
+                'review': 'bi-clipboard-check'
+            }[note.note_type] || 'bi-sticky';
+
+            const moodHtml = note.mood
+                ? `<span class="mood-badge mood-${note.mood}">${note.mood}</span>`
+                : '';
+
+            return `
+                <div class="card note-card type-${note.note_type} mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge bg-secondary me-2"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
+                                <span class="badge bg-primary">${note.goal_name}</span>
+                                ${moodHtml}
+                            </div>
+                            <span class="timeline-date">${formatDate(note.created_at)}</span>
+                        </div>
+                        ${note.title ? `<h6>${note.title}</h6>` : ''}
+                        <p class="mb-0">${note.content}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== Notes Modal Functions ====================
+
+        async function openNotesModal(goalId) {
+            const goal = allGoals.find(g => g.id === goalId);
+            if (!goal) return;
+
+            document.getElementById('notesGoalId').value = goalId;
+            document.getElementById('notesGoalName').textContent = goal.name;
+
+            // Reset form
+            document.getElementById('newNoteType').value = 'thought';
+            document.getElementById('newNoteMood').value = '';
+            document.getElementById('newNoteTitle').value = '';
+            document.getElementById('newNoteContent').value = '';
+
+            // Load notes
+            await loadGoalNotes(goalId);
+
+            notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
+            notesModal.show();
+        }
+
+        async function loadGoalNotes(goalId) {
+            const container = document.getElementById('notesList');
+            container.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            try {
+                const res = await fetch(`/api/goals/${goalId}/notes`);
+                const notes = await res.json();
+
+                if (notes.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No notes yet. Add your first note above!</p>';
+                    return;
+                }
+
+                container.innerHTML = notes.map(note => renderNoteCard(note)).join('');
+            } catch (error) {
+                container.innerHTML = `<p class="text-danger">Error loading notes: ${error.message}</p>`;
+            }
+        }
+
+        function renderNoteCard(note) {
+            const typeIcon = {
+                'thought': 'bi-lightbulb',
+                'decision': 'bi-check-circle',
+                'milestone': 'bi-trophy',
+                'review': 'bi-clipboard-check'
+            }[note.note_type] || 'bi-sticky';
+
+            const moodHtml = note.mood
+                ? `<span class="mood-badge mood-${note.mood} ms-2">${note.mood}</span>`
+                : '';
+
+            return `
+                <div class="card note-card type-${note.note_type}">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <span class="badge bg-secondary"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
+                                ${moodHtml}
+                                <span class="timeline-date ms-2">${formatDate(note.created_at)}</span>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary btn-sm" onclick="openEditNoteModal(${note.id}, ${note.goal_id})" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteNote(${note.id}, ${note.goal_id})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        ${note.title ? `<h6 class="mt-2 mb-1">${note.title}</h6>` : ''}
+                        <p class="mb-0 mt-1">${note.content}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveNote() {
+            const goalId = document.getElementById('notesGoalId').value;
+            const content = document.getElementById('newNoteContent').value.trim();
+
+            if (!content) {
+                alert('Note content is required');
+                return;
+            }
+
+            const data = {
+                content: content,
+                title: document.getElementById('newNoteTitle').value.trim(),
+                note_type: document.getElementById('newNoteType').value,
+                mood: document.getElementById('newNoteMood').value || null
+            };
+
+            try {
+                const res = await fetch(`/api/goals/${goalId}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    // Clear form
+                    document.getElementById('newNoteContent').value = '';
+                    document.getElementById('newNoteTitle').value = '';
+                    document.getElementById('newNoteType').value = 'thought';
+                    document.getElementById('newNoteMood').value = '';
+                    // Reload notes
+                    await loadGoalNotes(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to save note: ' + error.message);
+            }
+        }
+
+        async function openEditNoteModal(noteId, goalId) {
+            try {
+                const res = await fetch(`/api/notes/${noteId}`);
+                const note = await res.json();
+
+                if (note.error) {
+                    alert('Error: ' + note.error);
+                    return;
+                }
+
+                document.getElementById('editNoteId').value = note.id;
+                document.getElementById('editNoteGoalId').value = goalId;
+                document.getElementById('editNoteType').value = note.note_type || 'thought';
+                document.getElementById('editNoteMood').value = note.mood || '';
+                document.getElementById('editNoteTitle').value = note.title || '';
+                document.getElementById('editNoteContent').value = note.content || '';
+
+                editNoteModal = new bootstrap.Modal(document.getElementById('editNoteModal'));
+                editNoteModal.show();
+            } catch (error) {
+                alert('Failed to load note: ' + error.message);
+            }
+        }
+
+        async function updateNote() {
+            const noteId = document.getElementById('editNoteId').value;
+            const goalId = document.getElementById('editNoteGoalId').value;
+            const content = document.getElementById('editNoteContent').value.trim();
+
+            if (!content) {
+                alert('Note content is required');
+                return;
+            }
+
+            const data = {
+                content: content,
+                title: document.getElementById('editNoteTitle').value.trim() || null,
+                note_type: document.getElementById('editNoteType').value,
+                mood: document.getElementById('editNoteMood').value || null
+            };
+
+            try {
+                const res = await fetch(`/api/notes/${noteId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+                if (result.success) {
+                    editNoteModal.hide();
+                    await loadGoalNotes(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to update note: ' + error.message);
+            }
+        }
+
+        async function deleteNote(noteId, goalId) {
+            if (!confirm('Are you sure you want to delete this note?')) return;
+
+            try {
+                const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+                const result = await res.json();
+
+                if (result.success) {
+                    await loadGoalNotes(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Failed to delete note: ' + error.message);
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Load goals on page load
+        loadGoals();
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Settings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .action-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .action-card:hover {
+            transform: translateY(-2px);
+        }
+        .action-card.danger {
+            border-left-color: #dc3545;
+        }
+        .action-card.success {
+            border-left-color: #28a745;
+        }
+        .action-card.warning {
+            border-left-color: #ffc107;
+        }
+        .backup-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .backup-item:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <a href="/" class="text-white text-decoration-none">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <h1 class="mt-3"><i class="bi bi-gear"></i> Settings & Backup</h1>
+            <p class="mb-0">Manage backups and database operations</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <!-- Backup Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card action-card success shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-cloud-upload text-success"></i> Create Backup</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Backup all your important data:
+                        </p>
+                        <ul class="small text-muted">
+                            <li>Investors (name, PAN, contact, CAS upload history)</li>
+                            <li>Mutual Fund Master (AMFI mappings, asset allocations)</li>
+                            <li>Goals, linked folios, and journal notes</li>
+                            <li>Manual ISIN mappings</li>
+                        </ul>
+                        <button class="btn btn-success w-100" onclick="createBackup()" id="backupBtn">
+                            <i class="bi bi-cloud-upload"></i> Create Backup Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restore Section -->
+            <div class="col-md-6 mb-4">
+                <div class="card action-card warning shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-cloud-download text-warning"></i> Restore from Backup</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Restore your static data after a database reset. This will:
+                        </p>
+                        <ul class="small text-muted">
+                            <li>Restore investor profiles</li>
+                            <li>Restore AMFI mappings & asset allocations</li>
+                            <li>Restore goals (folio links restored if folios exist)</li>
+                        </ul>
+                        <button class="btn btn-warning w-100" onclick="restoreLatest()" id="restoreBtn">
+                            <i class="bi bi-cloud-download"></i> Restore Latest Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reset Database Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card action-card danger shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> Reset Database</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-danger">
+                            <strong>Warning:</strong> This will delete ALL data including transactions, holdings, folios, and everything else.
+                            Only static data can be restored from backup.
+                        </div>
+                        <p class="text-muted">
+                            Use this when you want to reimport CAS files from scratch while preserving your mappings and goals.
+                        </p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Recommended workflow:</strong>
+                                <ol class="small text-muted">
+                                    <li>Create a backup first</li>
+                                    <li>Reset the database</li>
+                                    <li>Restore from backup</li>
+                                    <li>Re-import your CAS PDFs</li>
+                                </ol>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-center">
+                                <button class="btn btn-outline-danger w-100" onclick="confirmReset()" id="resetBtn">
+                                    <i class="bi bi-trash"></i> Reset Database
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Backups -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-archive"></i> Available Backups</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadBackups()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="backupsList">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        Loading backups...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ISIN Resolver Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-search"></i> ISIN Resolver</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    When PDF extraction truncates ISINs, the resolver uses AMFI database and manual mappings to recover full ISINs.
+                </p>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="bi bi-database"></i> AMFI Database</h6>
+                                <p class="small text-muted mb-2">Official mutual fund database from AMFI India</p>
+                                <div class="d-flex align-items-center">
+                                    <span id="amfiStatus" class="badge bg-secondary me-2">Loading...</span>
+                                    <button class="btn btn-sm btn-primary" onclick="refreshAmfi()" id="refreshAmfiBtn">
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh AMFI Data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6><i class="bi bi-pencil-square"></i> Manual Mappings</h6>
+                                <p class="small text-muted mb-2">Custom scheme name to ISIN mappings</p>
+                                <span id="manualMappingsCount" class="badge bg-info">0 mappings</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Manual Mapping -->
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6>Add Manual ISIN Mapping</h6>
+                        <p class="small text-muted">Use this when automatic resolution fails. The scheme pattern will be matched (case-insensitive) against scheme names.</p>
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <input type="text" class="form-control form-control-sm" id="schemePatternInput" placeholder="Scheme pattern (e.g., 'Multi-Asset Fund')">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" id="isinInput" placeholder="ISIN (e.g., INF109K015K4)" maxlength="12">
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-success btn-sm w-100" onclick="addMapping()">
+                                    <i class="bi bi-plus"></i> Add Mapping
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Mappings -->
+                <div id="mappingsList"></div>
+
+                <!-- ISIN Search -->
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6><i class="bi bi-search"></i> Search ISIN by Scheme Name</h6>
+                        <p class="small text-muted">Search the AMFI database to find the correct ISIN for any scheme.</p>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="isinSearchInput" placeholder="Enter scheme name (e.g., 'ICICI Multi Asset')">
+                            <button class="btn btn-primary" onclick="searchIsin()">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                        <div id="searchResults" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- Unresolved ISINs -->
+                <div class="mt-3">
+                    <h6><i class="bi bi-exclamation-circle text-warning"></i> Unresolved ISINs in Database</h6>
+                    <p class="small text-muted">These funds have missing or invalid ISINs. Green suggestions are auto-detected from AMFI database.</p>
+                    <div id="unresolvedList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quarantine Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-inbox text-warning"></i> Quarantined Items</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadQuarantine()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> When PDF parsing encounters broken/truncated ISINs, the related holdings and transactions are quarantined here.
+                    Once you provide the correct ISIN, re-import the CAS PDF to import the data properly.
+                </div>
+
+                <div id="quarantineStats" class="mb-3">
+                    <span class="badge bg-secondary">Loading...</span>
+                </div>
+
+                <div id="quarantineList">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        Loading quarantine...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Requests -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-lightbulb text-primary"></i> Feature Requests</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadFeatureRequests()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="featureRequestsList">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        Loading feature requests...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Log -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-terminal"></i> Activity Log</h5>
+            </div>
+            <div class="card-body">
+                <div id="logArea" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
+                    <div class="text-muted">Ready.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Reset Modal -->
+    <div class="modal fade" id="resetModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Database Reset</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success mb-3">
+                        <i class="bi bi-shield-check"></i> <strong>Safety:</strong> A backup will be created automatically before reset.
+                    </div>
+                    <p class="text-danger fw-bold">This will delete the following (re-import CAS to restore):</p>
+                    <ul>
+                        <li>All transactions</li>
+                        <li>All holdings</li>
+                        <li>All folios</li>
+                        <li>All NAV history</li>
+                        <li>All portfolio snapshots</li>
+                    </ul>
+                    <p class="text-success"><strong>What will be preserved (via auto-restore):</strong></p>
+                    <ul class="text-muted">
+                        <li>Investor profiles</li>
+                        <li>Fund mappings & allocations</li>
+                        <li>Goals & journal notes</li>
+                        <li>ISIN mappings</li>
+                    </ul>
+                    <p>Type <strong>RESET</strong> to confirm:</p>
+                    <input type="text" class="form-control" id="resetConfirmInput" placeholder="Type RESET here">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="executeReset()" id="executeResetBtn">
+                        <i class="bi bi-trash"></i> Reset Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let resetModal;
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'text-danger' : (type === 'success' ? 'text-success' : 'text-info');
+            logArea.innerHTML += `<div class="${colorClass}">[${timestamp}] ${message}</div>`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function createBackup() {
+            const btn = document.getElementById('backupBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating backup...';
+            log('Creating backup...');
+
+            try {
+                const res = await fetch('/api/backup', { method: 'POST' });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Backup created: ${result.file}`, 'success');
+                    const counts = result.counts || {};
+                    let summary = `Backed up: ${counts.investors || 0} investors, ${counts.mutual_fund_master || 0} funds, ${counts.goals || 0} goals`;
+                    if (counts.goal_notes) summary += `, ${counts.goal_notes} notes`;
+                    if (counts.isin_mappings) summary += `, ${counts.isin_mappings} mappings`;
+                    if (result.size_kb) summary += ` (${result.size_kb} KB)`;
+                    log(summary, 'success');
+                    await loadBackups();
+                } else {
+                    log('Backup failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Backup failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Create Backup Now';
+            }
+        }
+
+        async function restoreLatest() {
+            const btn = document.getElementById('restoreBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
+            log('Restoring from latest backup...');
+
+            try {
+                const res = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    }
+                    log(`Restore complete from: ${result.backup_file}`, 'success');
+                    const r = result.restored || {};
+                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
+                    if (r.goal_folios) summary += `, ${r.goal_folios} goal links`;
+                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
+                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
+                    log(summary, 'success');
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-download"></i> Restore Latest Backup';
+            }
+        }
+
+        async function restoreFromFile(backupFile) {
+            log(`Restoring from: ${backupFile}...`);
+
+            try {
+                const res = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ backup_file: backupFile })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    }
+                    log(`Restore complete!`, 'success');
+                    const r = result.restored || {};
+                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
+                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
+                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
+                    log(summary, 'success');
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            }
+        }
+
+        function confirmReset() {
+            document.getElementById('resetConfirmInput').value = '';
+            resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
+            resetModal.show();
+        }
+
+        async function executeReset() {
+            const confirmInput = document.getElementById('resetConfirmInput').value;
+            if (confirmInput !== 'RESET') {
+                alert('Please type RESET to confirm');
+                return;
+            }
+
+            const btn = document.getElementById('executeResetBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
+            log('Resetting database...', 'error');
+
+            try {
+                const res = await fetch('/api/reset-database', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: 'RESET' })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'success');
+                    }
+                    log('Database reset complete!', 'success');
+                    log(`Dropped tables: ${result.dropped_tables.join(', ')}`, 'info');
+                    log('All tables have been recreated empty.', 'info');
+                    log('Tip: Click "Restore Latest Backup" to recover your settings, then re-import CAS', 'info');
+                    resetModal.hide();
+                    await loadBackups();
+                } else {
+                    log('Reset failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Reset failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i> Reset Database';
+            }
+        }
+
+        async function loadBackups() {
+            const container = document.getElementById('backupsList');
+
+            try {
+                const res = await fetch('/api/backups');
+                const backups = await res.json();
+
+                if (backups.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-archive" style="font-size:2rem;"></i>
+                            <p class="mt-2">No backups found</p>
+                            <p class="small">Create your first backup using the button above</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = backups.map(b => {
+                    const hasNotes = (b.counts.goal_notes || 0) > 0;
+                    const hasMappings = (b.isin_mappings || 0) > 0;
+                    return `
+                    <div class="backup-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="bi bi-file-earmark-zip"></i> ${b.filename}</strong>
+                            <span class="badge bg-secondary ms-2">${b.size_kb || '?'} KB</span>
+                            ${b.version === '2.0' ? '<span class="badge bg-success ms-1">v2</span>' : ''}
+                            <br>
+                            <small class="text-muted">
+                                ${b.counts.investors || 0} investors |
+                                ${b.counts.mutual_fund_master || 0} funds |
+                                ${b.counts.goals || 0} goals
+                                ${hasNotes ? `| ${b.counts.goal_notes} notes` : ''}
+                                ${hasMappings ? `| ${b.isin_mappings} mappings` : ''}
+                            </small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-1" onclick="downloadBackup('${b.file}')" title="Download">
+                                <i class="bi bi-download"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="confirmRestore('${b.file}', ${JSON.stringify(b).replace(/"/g, '&quot;')})">
+                                <i class="bi bi-cloud-download"></i> Restore
+                            </button>
+                        </div>
+                    </div>
+                `}).join('');
+
+            } catch (error) {
+                container.innerHTML = `<div class="text-danger">Failed to load backups: ${error.message}</div>`;
+            }
+        }
+
+        function downloadBackup(filePath) {
+            // Create a link to download the backup file
+            const filename = filePath.split('/').pop();
+            log(`Downloading: ${filename}...`);
+
+            // Download via API endpoint
+            const link = document.createElement('a');
+            link.href = `/api/backups/download/${filename}`;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            log(`Download started: ${filename}`, 'success');
+        }
+
+        function confirmRestore(filePath, backupInfo) {
+            const info = typeof backupInfo === 'string' ? JSON.parse(backupInfo.replace(/&quot;/g, '"')) : backupInfo;
+            const counts = info.counts || {};
+            const details = [
+                `Investors: ${counts.investors || 0}`,
+                `Funds: ${counts.mutual_fund_master || 0}`,
+                `Goals: ${counts.goals || 0}`,
+                counts.goal_notes ? `Notes: ${counts.goal_notes}` : null,
+                info.isin_mappings ? `ISIN Mappings: ${info.isin_mappings}` : null
+            ].filter(Boolean).join(', ');
+
+            const message = `Restore from backup?\n\nFile: ${info.filename}\nSize: ${info.size_kb || '?'} KB\nContents: ${details}\n\nA safety backup will be created automatically before restore.`;
+
+            if (confirm(message)) {
+                restoreFromFile(filePath);
+            }
+        }
+
+        // Load backups on page load
+        loadBackups();
+
+        // ==================== ISIN Resolver Functions ====================
+
+        async function loadIsinResolverStatus() {
+            try {
+                const res = await fetch('/api/isin-resolver/status');
+                const status = await res.json();
+
+                // Update AMFI status
+                const amfiStatus = document.getElementById('amfiStatus');
+                if (status.amfi_scheme_count > 0) {
+                    amfiStatus.className = 'badge bg-success me-2';
+                    amfiStatus.textContent = `${status.amfi_scheme_count.toLocaleString()} schemes`;
+                } else {
+                    amfiStatus.className = 'badge bg-warning me-2';
+                    amfiStatus.textContent = 'Not loaded';
+                }
+
+                // Update manual mappings count
+                const mappingsCount = Object.keys(status.manual_mappings || {}).length;
+                document.getElementById('manualMappingsCount').textContent = `${mappingsCount} mappings`;
+
+                // Load mappings list
+                loadMappingsList(status.manual_mappings);
+            } catch (error) {
+                console.error('Failed to load ISIN resolver status:', error);
+            }
+        }
+
+        function loadMappingsList(mappings) {
+            const container = document.getElementById('mappingsList');
+
+            if (!mappings || Object.keys(mappings).length === 0) {
+                container.innerHTML = '<p class="small text-muted">No manual mappings configured.</p>';
+                return;
+            }
+
+            let html = '<table class="table table-sm table-striped"><thead><tr><th>Scheme Pattern</th><th>ISIN</th><th></th></tr></thead><tbody>';
+            for (const [pattern, isin] of Object.entries(mappings)) {
+                html += `<tr>
+                    <td><code>${pattern}</code></td>
+                    <td><code>${isin}</code></td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="deleteMapping('${pattern.replace(/'/g, "\\'")}')"><i class="bi bi-trash"></i></button></td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function refreshAmfi() {
+            const btn = document.getElementById('refreshAmfiBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Refreshing...';
+            log('Fetching AMFI scheme database...');
+
+            try {
+                const res = await fetch('/api/isin-resolver/refresh-amfi', { method: 'POST' });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`AMFI data refreshed: ${result.scheme_count.toLocaleString()} schemes loaded`, 'success');
+                    loadIsinResolverStatus();
+                } else {
+                    log('Failed to refresh AMFI data: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Failed to refresh AMFI data: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh AMFI Data';
+            }
+        }
+
+        async function addMapping() {
+            const pattern = document.getElementById('schemePatternInput').value.trim();
+            const isin = document.getElementById('isinInput').value.trim().toUpperCase();
+
+            if (!pattern || !isin) {
+                alert('Please enter both scheme pattern and ISIN');
+                return;
+            }
+
+            if (isin.length !== 12 || !isin.startsWith('INF')) {
+                alert('ISIN must be 12 characters starting with INF');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/isin-resolver/mappings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scheme_pattern: pattern, isin: isin })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Added mapping: '${pattern}' -> ${isin}`, 'success');
+                    document.getElementById('schemePatternInput').value = '';
+                    document.getElementById('isinInput').value = '';
+                    loadIsinResolverStatus();
+                } else {
+                    log('Failed to add mapping: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Failed to add mapping: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteMapping(pattern) {
+            if (!confirm(`Delete mapping for '${pattern}'?`)) return;
+
+            try {
+                const res = await fetch(`/api/isin-resolver/mappings/${encodeURIComponent(pattern)}`, { method: 'DELETE' });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Deleted mapping: '${pattern}'`, 'success');
+                    loadIsinResolverStatus();
+                } else {
+                    log('Failed to delete mapping', 'error');
+                }
+            } catch (error) {
+                log('Failed to delete mapping: ' + error.message, 'error');
+            }
+        }
+
+        async function loadUnresolvedIsins() {
+            const container = document.getElementById('unresolvedList');
+
+            try {
+                const res = await fetch('/api/mutual-funds/unresolved-isins');
+                const funds = await res.json();
+
+                if (funds.length === 0) {
+                    container.innerHTML = '<p class="small text-success"><i class="bi bi-check-circle"></i> All ISINs are valid!</p>';
+                    return;
+                }
+
+                let html = '<table class="table table-sm"><thead><tr><th>Scheme Name</th><th>Current ISIN</th><th>Suggested</th><th>Action</th></tr></thead><tbody>';
+                for (const fund of funds) {
+                    const suggested = fund.suggested_isin;
+                    const suggestedHtml = suggested
+                        ? `<code class="text-success" title="Click to use" style="cursor:pointer" onclick="document.getElementById('fix-${fund.id}').value='${suggested}'">${suggested}</code> <i class="bi bi-check-circle text-success"></i>`
+                        : `<span class="text-muted">Not found - <a href="#" onclick="searchScheme('${(fund.scheme_name || '').replace(/'/g, "\\'")}'); return false;">search</a></span>`;
+
+                    html += `<tr>
+                        <td>
+                            <strong>${fund.scheme_name || '<em>Unknown</em>'}</strong>
+                            ${fund.partial_isin ? `<br><small class="text-muted">Partial: ${fund.partial_isin}</small>` : ''}
+                        </td>
+                        <td><code class="text-danger">${fund.isin || 'MISSING'}</code></td>
+                        <td>${suggestedHtml}</td>
+                        <td>
+                            <div class="input-group input-group-sm" style="width:200px">
+                                <input type="text" class="form-control" placeholder="ISIN" id="fix-${fund.id}" maxlength="12" value="${suggested || ''}">
+                                <button class="btn btn-success" onclick="fixIsin(${fund.id})"><i class="bi bi-check"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<p class="small text-danger">Failed to load: ${error.message}</p>`;
+            }
+        }
+
+        function searchScheme(schemeName) {
+            document.getElementById('isinSearchInput').value = schemeName;
+            searchIsin();
+            // Scroll to search section
+            document.getElementById('isinSearchInput').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function searchIsin() {
+            const query = document.getElementById('isinSearchInput').value.trim();
+            const container = document.getElementById('searchResults');
+
+            if (query.length < 3) {
+                container.innerHTML = '<p class="small text-muted">Enter at least 3 characters to search</p>';
+                return;
+            }
+
+            container.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Searching...';
+
+            try {
+                const res = await fetch(`/api/isin-resolver/search?q=${encodeURIComponent(query)}`);
+                const results = await res.json();
+
+                if (results.length === 0) {
+                    container.innerHTML = '<p class="small text-warning">No matches found. Try different keywords or refresh AMFI data.</p>';
+                    return;
+                }
+
+                let html = '<table class="table table-sm table-striped"><thead><tr><th>Scheme Name</th><th>ISIN</th><th>AMC</th><th></th></tr></thead><tbody>';
+                for (const r of results) {
+                    html += `<tr>
+                        <td><small>${r.scheme_name}</small></td>
+                        <td><code>${r.isin}</code></td>
+                        <td><small class="text-muted">${r.amc || ''}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-success" onclick="copyIsin('${r.isin}')">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="addMappingFromSearch('${r.isin}')">
+                                <i class="bi bi-plus"></i> Map
+                            </button>
+                        </td>
+                    </tr>`;
+                }
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<p class="small text-danger">Search failed: ${error.message}</p>`;
+            }
+        }
+
+        function copyIsin(isin) {
+            navigator.clipboard.writeText(isin);
+            log(`Copied ISIN: ${isin}`, 'success');
+        }
+
+        function addMappingFromSearch(isin) {
+            const query = document.getElementById('isinSearchInput').value.trim();
+            document.getElementById('schemePatternInput').value = query;
+            document.getElementById('isinInput').value = isin;
+            // Scroll to mapping section
+            document.getElementById('schemePatternInput').scrollIntoView({ behavior: 'smooth' });
+            log(`Ready to add mapping: '${query}' -> ${isin}. Click "Add Mapping" to save.`, 'info');
+        }
+
+        async function fixIsin(fundId) {
+            const input = document.getElementById(`fix-${fundId}`);
+            const isin = input.value.trim().toUpperCase();
+
+            if (isin.length !== 12 || !isin.startsWith('INF')) {
+                alert('ISIN must be 12 characters starting with INF');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/mutual-funds/${fundId}/update-isin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isin: isin })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Updated fund ${fundId} ISIN to ${isin}`, 'success');
+                    loadUnresolvedIsins();
+                } else {
+                    log('Failed to update ISIN: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Failed to update ISIN: ' + error.message, 'error');
+            }
+        }
+
+        // Load ISIN resolver status on page load
+        loadIsinResolverStatus();
+        loadUnresolvedIsins();
+
+        // ==================== Quarantine Functions ====================
+
+        async function loadQuarantine() {
+            const statsContainer = document.getElementById('quarantineStats');
+            const listContainer = document.getElementById('quarantineList');
+
+            try {
+                // Load stats
+                const statsRes = await fetch('/api/quarantine/stats');
+                const stats = await statsRes.json();
+
+                if (stats.pending > 0) {
+                    statsContainer.innerHTML = `
+                        <span class="badge bg-warning">${stats.pending} pending items</span>
+                        <span class="badge bg-secondary">${stats.unique_isins} unique ISINs</span>
+                    `;
+                } else {
+                    statsContainer.innerHTML = '<span class="badge bg-success">No items in quarantine</span>';
+                }
+
+                // Load summary
+                const summaryRes = await fetch('/api/quarantine/summary');
+                const summary = await summaryRes.json();
+
+                if (summary.length === 0) {
+                    listContainer.innerHTML = '<p class="text-muted">No quarantined items. All ISINs are properly resolved.</p>';
+                    return;
+                }
+
+                let html = '<table class="table table-sm table-striped"><thead><tr><th>Partial ISIN</th><th>Scheme Name</th><th>Source File</th><th>Items</th><th>Action</th></tr></thead><tbody>';
+                for (let idx = 0; idx < summary.length; idx++) {
+                    const item = summary[idx];
+                    const itemKey = item.partial_isin || `scheme_${idx}`;
+                    const escapedScheme = (item.scheme_name || '').replace(/'/g, "\\'");
+                    html += `<tr>
+                        <td><code class="text-warning">${item.partial_isin || '(missing)'}</code></td>
+                        <td><small>${item.scheme_name || '-'}</small><br><small class="text-muted">${item.amc || ''}</small></td>
+                        <td><small class="text-muted">${item.source_files || '-'}</small></td>
+                        <td>
+                            <span class="badge bg-info">${item.holdings_count || 0} holdings</span>
+                            <span class="badge bg-secondary">${item.transactions_count || 0} txns</span>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm" style="width:240px">
+                                <input type="text" class="form-control" placeholder="Correct ISIN" id="qfix-${itemKey}" maxlength="12">
+                                <button class="btn btn-success" onclick="resolveQuarantine('${item.partial_isin || ''}', '${escapedScheme}')" title="Resolve">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteQuarantine('${item.partial_isin || ''}', '${escapedScheme}')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }
+                html += '</tbody></table>';
+                html += '<div class="alert alert-secondary mt-2"><small><i class="bi bi-info-circle"></i> After resolving, re-import your CAS PDF to import the quarantined items with the correct ISIN.</small></div>';
+                listContainer.innerHTML = html;
+
+            } catch (error) {
+                listContainer.innerHTML = `<p class="text-danger">Failed to load: ${error.message}</p>`;
+            }
+        }
+
+        async function resolveQuarantine(partialIsin, schemeName) {
+            // Find the input - use partial_isin if available, else use index-based key
+            const inputKey = partialIsin || `scheme_${Array.from(document.querySelectorAll('[id^="qfix-"]')).findIndex(el => el.id.includes('scheme_'))}`;
+            let input = document.getElementById(`qfix-${partialIsin || inputKey}`);
+
+            // Fallback: find by iterating
+            if (!input) {
+                const inputs = document.querySelectorAll('[id^="qfix-"]');
+                for (const inp of inputs) {
+                    if (inp.value) {
+                        input = inp;
+                        break;
+                    }
+                }
+            }
+
+            if (!input) {
+                alert('Could not find input field');
+                return;
+            }
+
+            const resolvedIsin = input.value.trim().toUpperCase();
+
+            if (!resolvedIsin || resolvedIsin.length !== 12 || !resolvedIsin.startsWith('INF')) {
+                alert('Please enter a valid 12-character ISIN starting with INF');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/quarantine/resolve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partial_isin: partialIsin,
+                        scheme_name: schemeName,
+                        resolved_isin: resolvedIsin
+                    })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Resolved quarantine: ${partialIsin || schemeName} -> ${resolvedIsin}. ${result.message}`, 'success');
+                    loadQuarantine();
+                    loadUnresolvedIsins();
+                } else {
+                    log('Failed to resolve: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Failed to resolve: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteQuarantine(partialIsin, schemeName) {
+            const identifier = partialIsin || schemeName;
+            if (!confirm(`Delete all quarantined items for ${identifier}? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                // Use POST with body for delete when we need to pass scheme_name
+                const res = await fetch('/api/quarantine/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partial_isin: partialIsin,
+                        scheme_name: schemeName
+                    })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Deleted ${result.deleted} quarantined items`, 'success');
+                    loadQuarantine();
+                } else {
+                    log('Failed to delete: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Failed to delete: ' + error.message, 'error');
+            }
+        }
+
+        // Load quarantine on page load
+        loadQuarantine();
+
+        // ==================== Feature Requests ====================
+
+        async function loadFeatureRequests() {
+            const container = document.getElementById('featureRequestsList');
+
+            try {
+                const res = await fetch('/api/feature-requests');
+                const requests = await res.json();
+
+                if (requests.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-lightbulb" style="font-size:2rem;"></i>
+                            <p class="mt-2">No feature requests yet</p>
+                            <p class="small">Click the <i class="bi bi-lightbulb"></i> button to submit one!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '<div class="table-responsive"><table class="table table-sm table-striped align-middle"><thead><tr><th>Title</th><th>Description</th><th>Page</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+                for (const req of requests) {
+                    const statusClass = req.status === 'done' ? 'bg-success' : req.status === 'rejected' ? 'bg-danger' : 'bg-primary';
+                    const date = new Date(req.created_at).toLocaleDateString();
+                    html += `<tr>
+                        <td><strong>${escapeHtml(req.title)}</strong></td>
+                        <td><small class="text-muted">${escapeHtml(req.description || '-')}</small></td>
+                        <td><code class="small">${escapeHtml(req.page || '/')}</code></td>
+                        <td><span class="badge ${statusClass}">${req.status}</span></td>
+                        <td><small class="text-muted">${date}</small></td>
+                    </tr>`;
+                }
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<div class="text-danger">Failed to load feature requests: ${error.message}</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load feature requests on page load
+        loadFeatureRequests();
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

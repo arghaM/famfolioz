@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Investor Portfolio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+        .summary-card h2 { font-size: 2rem; font-weight: bold; }
+
+        /* Main Asset Tabs */
+        .asset-tabs {
+            background: white;
+            border-radius: 10px;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .asset-tabs .nav-link {
+            color: #6c757d;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .asset-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .asset-tabs .nav-link:not(.active):hover {
+            background: #f8f9fa;
+        }
+        .asset-tabs .badge {
+            font-size: 0.7rem;
+        }
+
+        /* Sub Tabs */
+        .sub-tabs .nav-link {
+            color: #667eea;
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            padding: 0.5rem 1rem;
+        }
+        .sub-tabs .nav-link.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: transparent;
+        }
+
+        /* Cards */
+        .holding-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border-left: 4px solid #667eea;
+        }
+        .holding-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .nps-card {
+            border-left: 4px solid #11998e;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nps-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .holding-value { font-size: 1.25rem; font-weight: bold; color: #28a745; }
+        .positive { color: #28a745; font-weight: 500; }
+        .negative { color: #dc3545; font-weight: 500; }
+        .nav-live { font-size: 0.85rem; color: #667eea; }
+        .table-responsive { max-height: 500px; overflow-y: auto; }
+        .badge-purchase { background-color: #28a745; }
+        .badge-sip { background-color: #17a2b8; }
+        .badge-redemption { background-color: #dc3545; }
+        .badge-mf { background-color: #667eea; }
+        .badge-nps { background-color: #11998e; }
+        .badge-fd { background-color: #fd7e14; }
+        .badge-sgb { background-color: #ffc107; color: #000; }
+
+        .refresh-btn { transition: transform 0.3s; }
+        .refresh-btn.spinning { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        body.mask-amounts .mask-amount {
+            filter: blur(8px);
+            user-select: none;
+        }
+
+        .asset-bar {
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+        }
+        .asset-bar .mf-segment { background: #667eea; }
+        .asset-bar .nps-segment { background: #11998e; }
+        .asset-bar .fd-segment { background: #fd7e14; }
+        .asset-bar .sgb-segment { background: #ffc107; }
+        .asset-bar .other-segment { background: #6c757d; }
+
+        .empty-asset {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        .empty-asset i { font-size: 3rem; opacity: 0.5; }
+
+        /* Home Tab Widgets */
+        .home-stat-card {
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            text-align: center;
+            color: white;
+            height: 100%;
+        }
+        .home-stat-card .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .home-stat-card .stat-label { font-size: 0.8rem; opacity: 0.9; }
+
+        .alert-item {
+            border-left: 4px solid #6c757d;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background: #fff;
+            border-radius: 0 6px 6px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .alert-item.alert-warning-border { border-left-color: #ffc107; }
+        .alert-item.alert-danger-border { border-left-color: #dc3545; }
+        .alert-item.alert-info-border { border-left-color: #0dcaf0; }
+        .alert-item .alert-content { flex: 1; }
+        .alert-item .alert-title { font-weight: 600; font-size: 0.9rem; }
+        .alert-item .alert-desc { font-size: 0.8rem; color: #6c757d; }
+        .alert-item .alert-actions { display: flex; gap: 0.5rem; align-items: center; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <a href="/" class="text-white text-decoration-none">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            <h1 class="mt-3">
+                <span id="investorName">Loading...</span>
+                <button class="btn btn-sm btn-outline-light ms-2" onclick="openEditInvestorModal()" title="Edit Name">
+                    <i class="bi bi-pencil"></i>
+                </button>
+            </h1>
+            <p class="mb-0" id="investorDetails"></p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Top Action Bar -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> NAV Last Updated: <span id="navLastUpdate">-</span>
+                            </small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-2" id="maskToggle" onclick="toggleMask()">
+                                <i class="bi bi-eye" id="maskIcon"></i>
+                            </button>
+                            <a href="/investor/{{ investor.id }}/goals" class="btn btn-sm btn-outline-success me-2">
+                                <i class="bi bi-flag"></i> Goals
+                            </a>
+                            <a href="/investor/{{ investor.id }}/tax-harvesting" class="btn btn-sm btn-outline-warning me-2">
+                                <i class="bi bi-scissors"></i> Tax Harvesting
+                            </a>
+                            <a href="/manual-assets?investor_id={{ investor.id }}" class="btn btn-sm btn-outline-info me-2">
+                                <i class="bi bi-wallet2"></i> Add Assets
+                            </a>
+                            <button class="btn btn-sm btn-outline-primary" id="refreshNavBtn" onclick="refreshNAV()">
+                                <i class="bi bi-arrow-clockwise refresh-btn" id="refreshIcon"></i> Refresh NAV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <p class="mb-1">Total Portfolio</p>
+                    <h2 id="totalValue" class="mask-amount">-</h2>
+                    <div class="asset-bar mt-2" id="summaryAssetBar" style="display:none;"></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <p class="mb-1">Total Invested</p>
+                    <h2 id="totalInvested" class="mask-amount">-</h2>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card" id="gainCard" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <p class="mb-1">Total Gain/Loss</p>
+                    <h2 id="totalGain" class="mask-amount">-</h2>
+                    <small id="gainPct" class="mask-amount">-</small>
+                    <div id="portfolioXirr" style="margin-top: 4px; font-size: 0.85rem; opacity: 0.9;"></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <p class="mb-1">Asset Breakdown</p>
+                    <div id="assetBreakdown" style="font-size: 0.9rem;">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Asset Type Tabs -->
+        <div class="asset-tabs">
+            <ul class="nav nav-pills" id="assetTypeTabs" role="tablist">
+                <!-- Tabs will be dynamically inserted here -->
+            </ul>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="assetTypeContent">
+            <!-- Content will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Edit Investor Modal -->
+    <div class="modal fade" id="editInvestorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Investor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-control" id="editInvestorName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editInvestorEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="text" class="form-control" id="editInvestorMobile">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveInvestor()">
+                        <i class="bi bi-check-lg"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const investorId = {{ investor.id }};
+
+        // Data stores
+        let investorData = null;
+        let mfHoldings = [];
+        let mfTransactions = [];
+        let npsAccounts = [];
+        let manualAssets = [];
+        let portfolioChart = null;
+        let allocationChart = null;
+        let isinXirrMap = {};  // isin -> aggregated XIRR %
+
+        // Mask functionality
+        function isMaskEnabled() { return localStorage.getItem('maskAmounts') === 'true'; }
+        function toggleMask() {
+            localStorage.setItem('maskAmounts', !isMaskEnabled());
+            applyMask();
+        }
+        function applyMask() {
+            const masked = isMaskEnabled();
+            const icon = document.getElementById('maskIcon');
+            if (masked) {
+                document.body.classList.add('mask-amounts');
+                if (icon) icon.className = 'bi bi-eye-slash';
+            } else {
+                document.body.classList.remove('mask-amounts');
+                if (icon) icon.className = 'bi bi-eye';
+            }
+        }
+        applyMask();
+
+        // Main load function
+        async function loadData() {
+            try {
+                // Load investor details
+                const invRes = await fetch(`/api/investors/${investorId}`);
+                investorData = await invRes.json();
+
+                document.getElementById('investorName').textContent = investorData.name || 'Unknown';
+                const lastUpload = investorData.last_cas_upload
+                    ? new Date(investorData.last_cas_upload).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})
+                    : 'Never';
+                document.getElementById('investorDetails').innerHTML =
+                    `PAN: ${investorData.pan || '-'} | Email: ${investorData.email || '-'} | Last CAS: ${lastUpload}`;
+
+                // Load MF holdings
+                const holdingsRes = await fetch(`/api/investors/${investorId}/holdings-live`);
+                mfHoldings = await holdingsRes.json();
+
+                // Load MF transactions
+                const txRes = await fetch(`/api/investors/${investorId}/transactions`);
+                mfTransactions = await txRes.json();
+
+                // Load NPS accounts
+                const npsRes = await fetch(`/api/nps/subscribers?investor_id=${investorId}`);
+                npsAccounts = await npsRes.json();
+
+                // Load NPS summaries
+                for (const nps of npsAccounts) {
+                    try {
+                        const summaryRes = await fetch(`/api/nps/subscribers/${nps.id}/summary`);
+                        nps.summary = await summaryRes.json();
+                    } catch (e) { console.error('Failed to load NPS summary:', e); }
+                }
+
+                // Load manual assets (FD, SGB, etc.)
+                try {
+                    const assetsRes = await fetch(`/api/manual-assets?investor_id=${investorId}`);
+                    manualAssets = await assetsRes.json();
+                } catch (e) { manualAssets = []; }
+
+                // Calculate totals and render
+                calculateAndDisplayTotals();
+                buildAssetTabs();
+                loadNavStatus();
+
+                // Load XIRR data (non-blocking)
+                loadXirrData();
+
+            } catch (error) {
+                console.error('Failed to load data:', error);
+            }
+        }
+
+        async function loadXirrData() {
+            try {
+                const res = await fetch(`/api/investors/${investorId}/xirr`);
+                const data = await res.json();
+
+                // Portfolio-level XIRR in summary card
+                const portfolioEl = document.getElementById('portfolioXirr');
+                const homeXirrEl = document.getElementById('homeXirr');
+                if (data.portfolio_xirr !== null && data.portfolio_xirr !== undefined) {
+                    const val = data.portfolio_xirr;
+                    portfolioEl.textContent = `XIRR: ${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+                    if (homeXirrEl) homeXirrEl.textContent = `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+                } else {
+                    portfolioEl.textContent = '';
+                    if (homeXirrEl) homeXirrEl.textContent = 'N/A';
+                }
+
+                // Store per-ISIN aggregated XIRR
+                isinXirrMap = data.isin_xirr || {};
+
+                // Per-folio XIRR badges
+                if (data.folios) {
+                    data.folios.forEach(f => {
+                        const badges = document.querySelectorAll(`.folio-xirr-badge[data-folio-id="${f.folio_id}"]`);
+                        badges.forEach(badge => {
+                            if (f.xirr !== null && f.xirr !== undefined) {
+                                const cls = f.xirr >= 0 ? 'bg-success' : 'bg-danger';
+                                badge.innerHTML = `<span class="badge ${cls}" style="font-size:0.65rem;">XIRR: ${f.xirr >= 0 ? '+' : ''}${f.xirr.toFixed(1)}%</span>`;
+                            }
+                        });
+                    });
+                }
+
+                // Per-ISIN group XIRR badges
+                Object.entries(isinXirrMap).forEach(([isin, val]) => {
+                    const badges = document.querySelectorAll(`.isin-xirr-badge[data-isin="${isin}"]`);
+                    badges.forEach(badge => {
+                        if (val !== null && val !== undefined) {
+                            const cls = val >= 0 ? 'bg-success' : 'bg-danger';
+                            badge.innerHTML = `<span class="badge ${cls}" style="font-size:0.7rem;">XIRR: ${val >= 0 ? '+' : ''}${val.toFixed(1)}%</span>`;
+                        }
+                    });
+                });
+            } catch (e) {
+                console.error('Failed to load XIRR data:', e);
+            }
+        }
+
+        function calculateAndDisplayTotals() {
+            // MF totals
+            const mfValue = mfHoldings.reduce((sum, h) => {
+                const val = (h.current_nav && h.current_nav > 0) ? h.current_value_live : h.current_value;
+                return sum + (val || 0);
+            }, 0);
+            const mfInvested = mfHoldings.reduce((sum, h) => sum + (h.invested_amount || 0), 0);
+
+            // NPS totals
+            let npsValue = 0, npsContribution = 0;
+            npsAccounts.forEach(nps => {
+                npsValue += nps.total_value || 0;
+                if (nps.summary) npsContribution += nps.summary.total_contribution || 0;
+            });
+
+            // Manual assets totals by type
+            let fdValue = 0, sgbValue = 0, otherValue = 0;
+            let fdInvested = 0, sgbInvested = 0, otherInvested = 0;
+            manualAssets.forEach(asset => {
+                // Use calculated_value for enriched assets (FD/SGB), fallback to current_value
+                const val = asset.calculated_value || asset.current_value || 0;
+                const inv = asset.fd_principal || asset.purchase_value || 0;
+                if (asset.asset_type === 'fd') { fdValue += val; fdInvested += inv; }
+                else if (asset.asset_type === 'sgb') { sgbValue += val; sgbInvested += inv; }
+                else { otherValue += val; otherInvested += inv; }
+            });
+
+            // Combined totals
+            const totalValue = mfValue + npsValue + fdValue + sgbValue + otherValue;
+            const totalInvested = mfInvested + npsContribution + fdInvested + sgbInvested + otherInvested;
+            const totalGain = totalValue - totalInvested;
+            const gainPct = totalInvested > 0 ? ((totalGain / totalInvested) * 100).toFixed(1) : 0;
+
+            // Update summary cards
+            document.getElementById('totalValue').textContent = formatCurrency(totalValue);
+            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
+            document.getElementById('totalGain').textContent = (totalGain >= 0 ? '+' : '') + formatCurrency(totalGain);
+            document.getElementById('gainPct').textContent = (totalGain >= 0 ? '+' : '') + gainPct + '%';
+
+            if (totalGain < 0) {
+                document.getElementById('gainCard').style.background = 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)';
+            }
+
+            // Asset breakdown
+            let breakdownHtml = '';
+            if (mfValue > 0) breakdownHtml += `<span class="badge badge-mf me-1">MF: ${formatCurrencyShort(mfValue)}</span>`;
+            if (npsValue > 0) breakdownHtml += `<span class="badge badge-nps me-1">NPS: ${formatCurrencyShort(npsValue)}</span>`;
+            if (fdValue > 0) breakdownHtml += `<span class="badge badge-fd me-1">FD: ${formatCurrencyShort(fdValue)}</span>`;
+            if (sgbValue > 0) breakdownHtml += `<span class="badge badge-sgb me-1">SGB: ${formatCurrencyShort(sgbValue)}</span>`;
+            if (otherValue > 0) breakdownHtml += `<span class="badge bg-secondary me-1">Other: ${formatCurrencyShort(otherValue)}</span>`;
+            document.getElementById('assetBreakdown').innerHTML = breakdownHtml || '-';
+
+            // Asset bar
+            if (totalValue > 0) {
+                let barHtml = '';
+                if (mfValue > 0) barHtml += `<div class="mf-segment" style="width: ${mfValue/totalValue*100}%" title="MF: ${formatCurrency(mfValue)}"></div>`;
+                if (npsValue > 0) barHtml += `<div class="nps-segment" style="width: ${npsValue/totalValue*100}%" title="NPS: ${formatCurrency(npsValue)}"></div>`;
+                if (fdValue > 0) barHtml += `<div class="fd-segment" style="width: ${fdValue/totalValue*100}%" title="FD: ${formatCurrency(fdValue)}"></div>`;
+                if (sgbValue > 0) barHtml += `<div class="sgb-segment" style="width: ${sgbValue/totalValue*100}%" title="SGB: ${formatCurrency(sgbValue)}"></div>`;
+                if (otherValue > 0) barHtml += `<div class="other-segment" style="width: ${otherValue/totalValue*100}%" title="Other: ${formatCurrency(otherValue)}"></div>`;
+                document.getElementById('summaryAssetBar').innerHTML = barHtml;
+                document.getElementById('summaryAssetBar').style.display = 'flex';
+            }
+        }
+
+        function buildAssetTabs() {
+            const tabsContainer = document.getElementById('assetTypeTabs');
+            const contentContainer = document.getElementById('assetTypeContent');
+
+            let tabsHtml = '';
+            let contentHtml = '';
+
+            // Home tab is always first and active
+            tabsHtml += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#home-tab" type="button">
+                        <i class="bi bi-house-door"></i> Home
+                    </button>
+                </li>`;
+            contentHtml += buildHomeTabContent();
+
+            // Mutual Funds tab (always show if has holdings)
+            if (mfHoldings.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mf-tab" type="button">
+                            <i class="bi bi-bank"></i> Mutual Funds
+                            <span class="badge badge-mf">${mfHoldings.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildMFTabContent(false);
+            }
+
+            // NPS tab
+            if (npsAccounts.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#nps-tab" type="button">
+                            <i class="bi bi-shield-check"></i> NPS
+                            <span class="badge badge-nps">${npsAccounts.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildNPSTabContent(false);
+            }
+
+            // FD tab
+            const fdAssets = manualAssets.filter(a => a.asset_type === 'fd');
+            if (fdAssets.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#fd-tab" type="button">
+                            <i class="bi bi-safe"></i> Fixed Deposits
+                            <span class="badge badge-fd">${fdAssets.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildFDTabContent(fdAssets, false);
+            }
+
+            // SGB tab
+            const sgbAssets = manualAssets.filter(a => a.asset_type === 'sgb');
+            if (sgbAssets.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#sgb-tab" type="button">
+                            <i class="bi bi-gem"></i> Sovereign Gold Bonds
+                            <span class="badge badge-sgb">${sgbAssets.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildSGBTabContent(sgbAssets, false);
+            }
+
+            // Other assets tab
+            const otherAssets = manualAssets.filter(a => !['fd', 'sgb'].includes(a.asset_type));
+            if (otherAssets.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#other-tab" type="button">
+                            <i class="bi bi-wallet2"></i> Other Assets
+                            <span class="badge bg-secondary">${otherAssets.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildOtherAssetsTabContent(otherAssets, false);
+            }
+
+            tabsContainer.innerHTML = tabsHtml;
+            contentContainer.innerHTML = contentHtml;
+
+            // Initialize sub-tabs event listeners and home data
+            initializeSubTabs();
+            loadHomeData();
+        }
+
+        // ==================== Home Tab ====================
+
+        let homeGrowthChart = null;
+        let homeAllocationChart = null;
+
+        function buildHomeTabContent() {
+            return `
+            <div class="tab-pane fade show active" id="home-tab" role="tabpanel">
+                <!-- Widget 1: Account Summary Cards -->
+                <div class="row mb-3" id="homeStatCards">
+                    <div class="col">
+                        <div class="home-stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="stat-value" id="homeFolioCount">-</div>
+                            <div class="stat-label">Investment Accounts</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="home-stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <div class="stat-value mask-amount" id="homeTotalInvested">-</div>
+                            <div class="stat-label">Total Invested</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="home-stat-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                            <div class="stat-value mask-amount" id="homeTotalValue">-</div>
+                            <div class="stat-label">Current Value</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="home-stat-card" id="homeGainCard" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                            <div class="stat-value mask-amount" id="homeGainValue">-</div>
+                            <div class="stat-label" id="homeGainLabel">Overall Gain</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="home-stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="stat-value" id="homeXirr">-</div>
+                            <div class="stat-label">Portfolio XIRR</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget 2 + 3: Charts Row -->
+                <div class="row mb-3">
+                    <div class="col-md-7">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0"><i class="bi bi-graph-up"></i> Portfolio Growth</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="homeGrowthContainer" style="height: 280px; position: relative;">
+                                    <div class="text-center py-5" id="homeGrowthEmpty">
+                                        <i class="bi bi-hourglass" style="font-size:2.5rem;color:#ccc;"></i>
+                                        <p class="text-muted mt-2">No history data yet. Refresh NAV to take snapshots.</p>
+                                    </div>
+                                    <canvas id="homeGrowthChart" style="display:none;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white py-2">
+                                <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Asset Allocation</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="homeAllocContainer" style="height: 280px; position: relative;">
+                                    <div class="text-center py-5" id="homeAllocEmpty" style="display:none;">
+                                        <i class="bi bi-pie-chart" style="font-size:2.5rem;color:#ccc;"></i>
+                                        <p class="text-muted mt-2">No asset data available</p>
+                                    </div>
+                                    <canvas id="homeAllocChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget 4: Alerts Panel -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-bell"></i> Alerts</h6>
+                        <small class="text-muted" id="homeAlertCount"></small>
+                    </div>
+                    <div class="card-body py-2" id="homeAlertsBody">
+                        <div class="text-center py-3 text-muted">
+                            <i class="bi bi-arrow-repeat spinning" style="font-size:1.2rem;"></i> Loading alerts...
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function loadHomeData() {
+            // Widget 1: Account summary stats
+            const folioCount = mfHoldings.length;
+            const npsCount = npsAccounts.length;
+            const manualCount = manualAssets.length;
+            const totalAccounts = folioCount + npsCount + manualCount;
+
+            // Calculate totals (same logic as calculateAndDisplayTotals)
+            const mfValue = mfHoldings.reduce((sum, h) => {
+                const val = (h.current_nav && h.current_nav > 0) ? h.current_value_live : h.current_value;
+                return sum + (val || 0);
+            }, 0);
+            const mfInvested = mfHoldings.reduce((sum, h) => sum + (h.invested_amount || 0), 0);
+
+            let npsValue = 0, npsContribution = 0;
+            npsAccounts.forEach(nps => {
+                npsValue += nps.total_value || 0;
+                if (nps.summary) npsContribution += nps.summary.total_contribution || 0;
+            });
+
+            let maValue = 0, maInvested = 0;
+            manualAssets.forEach(asset => {
+                maValue += asset.calculated_value || asset.current_value || 0;
+                maInvested += asset.fd_principal || asset.purchase_value || 0;
+            });
+
+            const totalValue = mfValue + npsValue + maValue;
+            const totalInvested = mfInvested + npsContribution + maInvested;
+            const totalGain = totalValue - totalInvested;
+            const gainPct = totalInvested > 0 ? ((totalGain / totalInvested) * 100).toFixed(1) : '0.0';
+
+            document.getElementById('homeFolioCount').textContent = totalAccounts;
+            document.getElementById('homeTotalInvested').textContent = formatCurrencyShort(totalInvested);
+            document.getElementById('homeTotalValue').textContent = formatCurrencyShort(totalValue);
+            document.getElementById('homeGainValue').textContent = (totalGain >= 0 ? '+' : '') + formatCurrencyShort(totalGain);
+            document.getElementById('homeGainLabel').textContent = `Overall Gain (${totalGain >= 0 ? '+' : ''}${gainPct}%)`;
+
+            if (totalGain < 0) {
+                document.getElementById('homeGainCard').style.background = 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)';
+            }
+
+            // Widget 2: Portfolio growth chart
+            loadHomeGrowthChart();
+
+            // Widget 3: Overall asset allocation doughnut
+            loadHomeAllocationChart(mfValue, npsValue, maValue);
+
+            // Widget 4: Alerts
+            loadAlerts();
+        }
+
+        async function loadHomeGrowthChart() {
+            try {
+                const res = await fetch(`/api/investors/${investorId}/portfolio-history`);
+                const history = await res.json();
+
+                const emptyEl = document.getElementById('homeGrowthEmpty');
+                const chartEl = document.getElementById('homeGrowthChart');
+
+                if (!history || history.length < 2) {
+                    if (emptyEl) emptyEl.style.display = 'block';
+                    if (chartEl) chartEl.style.display = 'none';
+                    return;
+                }
+
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (chartEl) chartEl.style.display = 'block';
+
+                const ctx = chartEl.getContext('2d');
+                if (homeGrowthChart) homeGrowthChart.destroy();
+                homeGrowthChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: history.map(h => h.snapshot_date),
+                        datasets: [
+                            {
+                                label: 'Portfolio Value',
+                                data: history.map(h => h.total_value),
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40,167,69,0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 2
+                            },
+                            {
+                                label: 'Invested',
+                                data: history.map(h => h.total_invested),
+                                borderColor: '#6c757d',
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+                        scales: {
+                            y: { beginAtZero: false, ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } },
+                            x: { ticks: { maxTicksLimit: 8 } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Failed to load home growth chart:', e);
+            }
+        }
+
+        function loadHomeAllocationChart(mfValue, npsValue, maValue) {
+            const chartEl = document.getElementById('homeAllocChart');
+            const emptyEl = document.getElementById('homeAllocEmpty');
+
+            // Break manual assets into sub-types
+            let fdValue = 0, sgbValue = 0, otherValue = 0;
+            manualAssets.forEach(asset => {
+                const val = asset.calculated_value || asset.current_value || 0;
+                if (asset.asset_type === 'fd') fdValue += val;
+                else if (asset.asset_type === 'sgb') sgbValue += val;
+                else otherValue += val;
+            });
+
+            const segments = [];
+            if (mfValue > 0) segments.push({ label: 'Mutual Funds', value: mfValue, color: '#667eea' });
+            if (npsValue > 0) segments.push({ label: 'NPS', value: npsValue, color: '#11998e' });
+            if (fdValue > 0) segments.push({ label: 'Fixed Deposits', value: fdValue, color: '#fd7e14' });
+            if (sgbValue > 0) segments.push({ label: 'Gold Bonds', value: sgbValue, color: '#ffc107' });
+            if (otherValue > 0) segments.push({ label: 'Other', value: otherValue, color: '#6c757d' });
+
+            if (segments.length === 0) {
+                if (chartEl) chartEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+
+            if (chartEl) chartEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            const ctx = chartEl.getContext('2d');
+            if (homeAllocationChart) homeAllocationChart.destroy();
+            homeAllocationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: segments.map(s => s.label),
+                    datasets: [{
+                        data: segments.map(s => s.value),
+                        backgroundColor: segments.map(s => s.color),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                    return `${ctx.label}: ${formatCurrency(ctx.raw)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadAlerts() {
+            const body = document.getElementById('homeAlertsBody');
+            const countEl = document.getElementById('homeAlertCount');
+            try {
+                const res = await fetch(`/api/investors/${investorId}/alerts`);
+                const alerts = await res.json();
+
+                // Filter out dismissed alerts
+                const dismissedKey = `dismissedAlerts_${investorId}`;
+                const dismissed = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+                const visible = alerts.filter(a => !dismissed.includes(a.id));
+
+                if (countEl) countEl.textContent = visible.length > 0 ? `${visible.length} alert${visible.length !== 1 ? 's' : ''}` : '';
+
+                if (visible.length === 0) {
+                    body.innerHTML = `
+                        <div class="text-center py-3">
+                            <i class="bi bi-check-circle text-success" style="font-size:1.5rem;"></i>
+                            <p class="text-muted mb-0 mt-1">All clear! No alerts.</p>
+                        </div>`;
+                    return;
+                }
+
+                const borderClass = { warning: 'alert-warning-border', danger: 'alert-danger-border', info: 'alert-info-border' };
+                const iconClass = { warning: 'bi-exclamation-triangle text-warning', danger: 'bi-x-octagon text-danger', info: 'bi-info-circle text-info' };
+
+                body.innerHTML = visible.map(a => `
+                    <div class="alert-item ${borderClass[a.type] || ''}" id="alert-${a.id}">
+                        <div class="alert-content">
+                            <div class="alert-title">
+                                <i class="bi ${iconClass[a.type] || 'bi-bell'} me-1"></i>
+                                <span class="badge bg-light text-dark me-1" style="font-size:0.7rem;">${a.category}</span>
+                                ${a.title}
+                            </div>
+                            ${a.description ? `<div class="alert-desc">${a.description}</div>` : ''}
+                        </div>
+                        <div class="alert-actions">
+                            ${a.link ? `<a href="${a.link}" class="btn btn-sm btn-outline-primary">${a.link_text || 'View'}</a>` : ''}
+                            <button class="btn btn-sm btn-outline-secondary" onclick="dismissAlert('${a.id}')" title="Dismiss">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load alerts:', e);
+                body.innerHTML = '<div class="text-center py-3 text-muted">Failed to load alerts</div>';
+            }
+        }
+
+        function dismissAlert(alertId) {
+            const dismissedKey = `dismissedAlerts_${investorId}`;
+            const dismissed = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+            if (!dismissed.includes(alertId)) {
+                dismissed.push(alertId);
+                localStorage.setItem(dismissedKey, JSON.stringify(dismissed));
+            }
+            // Hide the alert element
+            const el = document.getElementById(`alert-${alertId}`);
+            if (el) el.remove();
+
+            // Update count
+            const remaining = document.querySelectorAll('#homeAlertsBody .alert-item').length;
+            const countEl = document.getElementById('homeAlertCount');
+            if (countEl) countEl.textContent = remaining > 0 ? `${remaining} alert${remaining !== 1 ? 's' : ''}` : '';
+
+            if (remaining === 0) {
+                document.getElementById('homeAlertsBody').innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="bi bi-check-circle text-success" style="font-size:1.5rem;"></i>
+                        <p class="text-muted mb-0 mt-1">All clear! No alerts.</p>
+                    </div>`;
+            }
+        }
+
+        function buildMFTabContent(isActive) {
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="mf-tab" role="tabpanel">
+                <!-- MF Sub Tabs -->
+                <ul class="nav nav-pills sub-tabs mb-3" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#mf-holdings">
+                            <i class="bi bi-briefcase"></i> Holdings
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mf-transactions">
+                            <i class="bi bi-list-ul"></i> Transactions
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mf-history" onclick="loadPortfolioHistory()">
+                            <i class="bi bi-graph-up"></i> Portfolio History
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mf-allocation" onclick="loadAssetAllocation()">
+                            <i class="bi bi-pie-chart"></i> Asset Allocation
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Holdings Sub-tab -->
+                    <div class="tab-pane fade show active" id="mf-holdings">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="holdingsSearch" placeholder="Search holdings...">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row" id="holdingsGrid"></div>
+                    </div>
+
+                    <!-- Transactions Sub-tab -->
+                    <div class="tab-pane fade" id="mf-transactions">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="txTypeFilter"><option value="">All Types</option></select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="txSearch" placeholder="Search...">
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-sm">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th><th>Type</th><th>Scheme</th><th>Folio</th>
+                                                <th class="text-end">Amount</th><th class="text-end">Units</th><th class="text-end">NAV</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="transactionsBody"></tbody>
+                                    </table>
+                                </div>
+                                <p class="text-muted mt-2">Showing <span id="txCount">0</span> transactions</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Portfolio History Sub-tab -->
+                    <div class="tab-pane fade" id="mf-history">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Portfolio Value Over Time</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="historyChart" style="height: 300px;">
+                                    <div class="text-center py-5" id="historyEmpty">
+                                        <i class="bi bi-hourglass" style="font-size:3rem;color:#ccc;"></i>
+                                        <p class="text-muted mt-2">No history data yet. Snapshots are taken when you refresh NAV.</p>
+                                    </div>
+                                    <canvas id="portfolioChart" style="display:none;"></canvas>
+                                </div>
+                                <div class="table-responsive mt-4">
+                                    <table class="table table-sm">
+                                        <thead class="table-light">
+                                            <tr><th>Date</th><th class="text-end">Value</th><th class="text-end">Invested</th><th class="text-end">Gain/Loss</th><th class="text-end">Return %</th></tr>
+                                        </thead>
+                                        <tbody id="historyTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Asset Allocation Sub-tab -->
+                    <div class="tab-pane fade" id="mf-allocation">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-pie-chart"></i> Allocation</h5></div>
+                                    <div class="card-body">
+                                        <div id="allocationChartContainer" style="height: 300px;">
+                                            <div class="text-center py-5" id="allocEmpty">
+                                                <i class="bi bi-pie-chart" style="font-size:3rem;color:#ccc;"></i>
+                                                <p class="text-muted mt-2">No allocation data</p>
+                                            </div>
+                                            <canvas id="allocationChart" style="display:none;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-list"></i> Breakdown</h5></div>
+                                    <div class="card-body">
+                                        <table class="table">
+                                            <thead class="table-light">
+                                                <tr><th>Asset Class</th><th class="text-end">Value</th><th class="text-end">%</th><th style="width:200px;"></th></tr>
+                                            </thead>
+                                            <tbody id="allocationTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function buildNPSTabContent(isActive) {
+            let npsHtml = '';
+            npsAccounts.forEach(nps => {
+                const summary = nps.summary || {};
+                const totalValue = nps.total_value || 0;
+                const totalContrib = summary.total_contribution || 0;
+                const gain = summary.gain_loss || (totalValue - totalContrib);
+                const gainPct = summary.gain_loss_pct || (totalContrib > 0 ? ((gain / totalContrib) * 100).toFixed(1) : 0);
+                const gainClass = gain >= 0 ? 'positive' : 'negative';
+
+                let allocHtml = '';
+                const schemeAlloc = summary.scheme_allocation || {};
+                ['E', 'C', 'G', 'A'].forEach(type => {
+                    const key = `I_${type}`;
+                    if (schemeAlloc[key] && schemeAlloc[key].pct > 0) {
+                        const colors = { 'E': 'success', 'C': 'primary', 'G': 'warning', 'A': 'secondary' };
+                        allocHtml += `<span class="badge bg-${colors[type]} me-1">${type}: ${schemeAlloc[key].pct.toFixed(0)}%</span>`;
+                    }
+                });
+
+                npsHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card nps-card h-100" onclick="window.location='/nps/${nps.id}'">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="card-title mb-1">${nps.name}</h6>
+                                    <small class="text-muted">PRAN: ${nps.pran}</small>
+                                </div>
+                                <span class="badge badge-nps">NPS</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h4 class="mb-0 text-success mask-amount">${formatCurrency(totalValue)}</h4>
+                                <span class="${gainClass} mask-amount">
+                                    ${gain >= 0 ? '+' : ''}${formatCurrency(gain)} (${gain >= 0 ? '+' : ''}${gainPct}%)
+                                </span>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted mask-amount">Contributed: ${formatCurrency(totalContrib)}</span>
+                                <div>${allocHtml}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="nps-tab" role="tabpanel">
+                <div class="row">${npsHtml}</div>
+                <p class="text-muted text-center mt-3">
+                    <i class="bi bi-info-circle"></i> Click on an NPS account to view detailed schemes and transactions
+                </p>
+            </div>`;
+        }
+
+        function buildFDTabContent(fdAssets, isActive) {
+            let fdHtml = '';
+            fdAssets.forEach(fd => {
+                const currentVal = fd.current_value || fd.purchase_value || 0;
+                const principal = fd.fd_principal || fd.purchase_value || 0;
+                const interest = currentVal - principal;
+                const maturityDate = fd.fd_maturity_date || '-';
+
+                fdHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100" style="border-left: 4px solid #fd7e14;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-1">${fd.name}</h6>
+                                <span class="badge badge-fd">FD</span>
+                            </div>
+                            <h4 class="text-success mask-amount">${formatCurrency(currentVal)}</h4>
+                            <div class="row small mt-2">
+                                <div class="col-6">
+                                    <span class="text-muted">Principal:</span><br>
+                                    <strong class="mask-amount">${formatCurrency(principal)}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Interest Earned:</span><br>
+                                    <strong class="text-success mask-amount">+${formatCurrency(interest)}</strong>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar"></i> Maturity: ${maturityDate}
+                                ${fd.fd_interest_rate ? ` | Rate: ${fd.fd_interest_rate}%` : ''}
+                            </small>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="fd-tab" role="tabpanel">
+                <div class="row">${fdHtml}</div>
+            </div>`;
+        }
+
+        function buildSGBTabContent(sgbAssets, isActive) {
+            let sgbHtml = '';
+            sgbAssets.forEach(sgb => {
+                const currentVal = sgb.current_value || 0;
+                const purchaseVal = sgb.purchase_value || 0;
+                const gain = currentVal - purchaseVal;
+                const gainPct = purchaseVal > 0 ? ((gain / purchaseVal) * 100).toFixed(1) : 0;
+
+                sgbHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100" style="border-left: 4px solid #ffc107;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-1">${sgb.name}</h6>
+                                <span class="badge badge-sgb">SGB</span>
+                            </div>
+                            <h4 class="text-success mask-amount">${formatCurrency(currentVal)}</h4>
+                            <div class="d-flex justify-content-between small mt-2">
+                                <span class="text-muted mask-amount">Invested: ${formatCurrency(purchaseVal)}</span>
+                                <span class="${gain >= 0 ? 'positive' : 'negative'} mask-amount">
+                                    ${gain >= 0 ? '+' : ''}${formatCurrency(gain)} (${gain >= 0 ? '+' : ''}${gainPct}%)
+                                </span>
+                            </div>
+                            <hr class="my-2">
+                            <small class="text-muted">
+                                ${sgb.sgb_grams ? `<i class="bi bi-gem"></i> ${sgb.sgb_grams}g` : ''}
+                                ${sgb.purchase_date ? ` | Purchased: ${sgb.purchase_date}` : ''}
+                            </small>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="sgb-tab" role="tabpanel">
+                <div class="row">${sgbHtml}</div>
+            </div>`;
+        }
+
+        function buildOtherAssetsTabContent(assets, isActive) {
+            let html = '';
+            assets.forEach(asset => {
+                const currentVal = asset.current_value || 0;
+                const purchaseVal = asset.purchase_value || 0;
+                const gain = currentVal - purchaseVal;
+
+                html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100" style="border-left: 4px solid #6c757d;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-1">${asset.name}</h6>
+                                <span class="badge bg-secondary">${asset.asset_type.toUpperCase()}</span>
+                            </div>
+                            <h4 class="text-success mask-amount">${formatCurrency(currentVal)}</h4>
+                            <div class="d-flex justify-content-between small mt-2">
+                                <span class="text-muted mask-amount">Invested: ${formatCurrency(purchaseVal)}</span>
+                                <span class="${gain >= 0 ? 'positive' : 'negative'} mask-amount">
+                                    ${gain >= 0 ? '+' : ''}${formatCurrency(gain)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="other-tab" role="tabpanel">
+                <div class="row">${html}</div>
+            </div>`;
+        }
+
+        function initializeSubTabs() {
+            // MF Holdings display
+            displayHoldings(mfHoldings);
+            displayTransactions(mfTransactions);
+            populateTxFilters(mfTransactions);
+
+            // Search listeners
+            const holdingsSearch = document.getElementById('holdingsSearch');
+            if (holdingsSearch) holdingsSearch.addEventListener('input', () => displayHoldings(mfHoldings));
+
+            const txTypeFilter = document.getElementById('txTypeFilter');
+            if (txTypeFilter) txTypeFilter.addEventListener('change', () => displayTransactions(mfTransactions));
+
+            const txSearch = document.getElementById('txSearch');
+            if (txSearch) txSearch.addEventListener('input', () => displayTransactions(mfTransactions));
+        }
+
+        function getHoldingValue(h) {
+            return (h.current_nav && h.current_nav > 0) ? (h.current_value_live || h.current_value) : (h.current_value || 0);
+        }
+
+        function displayHoldings(holdings) {
+            const grid = document.getElementById('holdingsGrid');
+            if (!grid) return;
+
+            const searchEl = document.getElementById('holdingsSearch');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+
+            let filtered = holdings;
+            if (search) {
+                filtered = holdings.filter(h =>
+                    (h.scheme_name || '').toLowerCase().includes(search) ||
+                    (h.folio_number || '').toLowerCase().includes(search) ||
+                    (h.amc || '').toLowerCase().includes(search)
+                );
+            }
+
+            // Category labels and styling
+            const catLabels = {equity: 'Equity', debt: 'Debt', hybrid: 'Hybrid', gold_commodity: 'Gold / Commodity'};
+            const catIcons = {equity: 'bi-graph-up-arrow', debt: 'bi-shield-check', hybrid: 'bi-intersect', gold_commodity: 'bi-gem'};
+            const catColors = {equity: '#1d4ed8', debt: '#15803d', hybrid: '#7c3aed', gold_commodity: '#b45309'};
+
+            // Group by fund_category
+            const grouped = {};
+            filtered.forEach(h => {
+                const cat = h.fund_category || '_uncategorized';
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(h);
+            });
+
+            // Sort: known categories first (in defined order), uncategorized last
+            const catOrder = ['equity', 'debt', 'hybrid', 'gold_commodity', '_uncategorized'];
+            const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                const ai = catOrder.indexOf(a); const bi = catOrder.indexOf(b);
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+            });
+
+            let html = '';
+            sortedKeys.forEach(cat => {
+                const catHoldings = grouped[cat];
+                const catTotal = catHoldings.reduce((sum, h) => sum + getHoldingValue(h), 0);
+                const catInvested = catHoldings.reduce((sum, h) => sum + (h.invested_amount || 0), 0);
+                const catGain = catTotal - catInvested;
+                const catGainPct = catInvested > 0 ? ((catGain / catInvested) * 100).toFixed(1) : '0.0';
+                const catGainClass = catGain >= 0 ? 'positive' : 'negative';
+
+                const label = catLabels[cat] || 'Uncategorized';
+                const icon = catIcons[cat] || 'bi-question-circle';
+                const color = catColors[cat] || '#6c757d';
+
+                // Count unique ISINs in this category
+                const uniqueIsins = new Set(catHoldings.map(h => h.isin || h.folio_id));
+
+                html += `
+                <div class="col-12 mb-3">
+                    <div class="card" style="border-left: 4px solid ${color}; background: #f9fafb;">
+                        <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0" style="color:${color};"><i class="bi ${icon}"></i> ${label}</h6>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="${catGainClass} mask-amount" style="font-size:0.8rem;">${catGain >= 0 ? '+' : ''}${formatCurrency(catGain)} (${catGain >= 0 ? '+' : ''}${catGainPct}%)</span>
+                                <span class="badge bg-primary">${uniqueIsins.size} scheme${uniqueIsins.size !== 1 ? 's' : ''} | <span class="mask-amount">${formatCurrency(catTotal)}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                // Sub-group by ISIN within category
+                const byIsin = {};
+                catHoldings.forEach(h => {
+                    const key = h.isin || `_no_isin_${h.folio_id}`;
+                    if (!byIsin[key]) byIsin[key] = [];
+                    byIsin[key].push(h);
+                });
+
+                // Sort ISIN groups by total value descending
+                const sortedIsins = Object.keys(byIsin).sort((a, b) => {
+                    const valA = byIsin[a].reduce((s, h) => s + getHoldingValue(h), 0);
+                    const valB = byIsin[b].reduce((s, h) => s + getHoldingValue(h), 0);
+                    return valB - valA;
+                });
+
+                sortedIsins.forEach(isinKey => {
+                    const isinHoldings = byIsin[isinKey];
+
+                    if (isinHoldings.length > 1) {
+                        // Multiple folios for same ISIN — show aggregate header
+                        const isinTotal = isinHoldings.reduce((s, h) => s + getHoldingValue(h), 0);
+                        const isinInvested = isinHoldings.reduce((s, h) => s + (h.invested_amount || 0), 0);
+                        const isinGain = isinTotal - isinInvested;
+                        const isinGainPct = isinInvested > 0 ? ((isinGain / isinInvested) * 100).toFixed(1) : '0.0';
+                        const isinGainClass = isinGain >= 0 ? 'positive' : 'negative';
+                        const totalUnits = isinHoldings.reduce((s, h) => s + (h.units || 0), 0);
+                        const schemeName = isinHoldings[0].scheme_name || '';
+                        const isin = isinHoldings[0].isin || '';
+                        const hasLiveNav = isinHoldings[0].current_nav && isinHoldings[0].current_nav > 0;
+                        const navDisplay = hasLiveNav ? isinHoldings[0].current_nav : (isinHoldings[0].nav || 0);
+
+                        html += `
+                        <div class="col-12 mb-2">
+                            <div class="card shadow-sm" style="border-left: 3px solid #667eea; background: #fff;">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div style="flex:1;">
+                                            <h6 class="mb-0" style="font-size:0.9rem;">${truncate(schemeName, 65)}</h6>
+                                            <small class="text-muted">${isin} &middot; ${isinHoldings.length} folios &middot; ${totalUnits.toFixed(3)} units &middot; NAV: ${navDisplay.toFixed(4)}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="holding-value mask-amount" style="font-size:1.1rem;">
+                                                ${formatCurrency(isinTotal)}
+                                                ${hasLiveNav ? '<span class="badge bg-success ms-1" style="font-size:0.55rem;">LIVE</span>' : ''}
+                                            </div>
+                                            <div class="small">
+                                                <span class="${isinGainClass} mask-amount">${isinGain >= 0 ? '+' : ''}${formatCurrency(isinGain)} (${isinGain >= 0 ? '+' : ''}${isinGainPct}%)</span>
+                                                <span class="isin-xirr-badge" data-isin="${isin}" style="margin-left:4px;"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+
+                        isinHoldings.forEach(h => {
+                            html += renderHoldingCard(h);
+                        });
+                    } else {
+                        // Single folio for this ISIN — render directly
+                        html += renderHoldingCard(isinHoldings[0]);
+                    }
+                });
+            });
+
+            grid.innerHTML = html || '<div class="col-12 text-center text-muted py-4">No holdings found</div>';
+        }
+
+        function renderHoldingCard(h) {
+            const hasLiveNav = h.current_nav && h.current_nav > 0;
+            const displayValue = hasLiveNav ? (h.current_value_live || h.current_value) : h.current_value;
+            const invested = h.invested_amount || 0;
+            const gain = displayValue - invested;
+            const gainPct = invested > 0 ? ((gain / invested) * 100).toFixed(1) : 0;
+            const gainClass = gain >= 0 ? 'positive' : 'negative';
+
+            return `
+            <div class="col-md-6 mb-3">
+                <div class="card holding-card h-100" onclick="window.location='/folio/${h.folio_id}'">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="card-title mb-1" style="flex:1;">${truncate(h.scheme_name, 50)}</h6>
+                            <div class="holding-value text-end mask-amount">
+                                ${formatCurrency(displayValue || 0)}
+                                ${hasLiveNav ? '<span class="badge bg-success ms-1" style="font-size:0.6rem;">LIVE</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-2">
+                            <span class="text-muted mask-amount">Invested: ${formatCurrency(invested)}</span>
+                            <span>
+                                <span class="${gainClass} mask-amount">${gain >= 0 ? '+' : ''}${formatCurrency(gain)} (${gain >= 0 ? '+' : ''}${gainPct}%)</span>
+                                <span class="folio-xirr-badge" data-folio-id="${h.folio_id}" style="margin-left:6px;font-size:0.7rem;"></span>
+                            </span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row small">
+                            <div class="col-4"><strong>Folio:</strong><br><code>${h.folio_number}</code></div>
+                            <div class="col-4"><strong>Units:</strong><br>${(h.units || 0).toFixed(3)}</div>
+                            <div class="col-4"><strong>NAV:</strong><br>${(hasLiveNav ? h.current_nav : h.nav || 0).toFixed(4)}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function displayTransactions(transactions) {
+            const tbody = document.getElementById('transactionsBody');
+            if (!tbody) return;
+
+            const typeFilterEl = document.getElementById('txTypeFilter');
+            const searchEl = document.getElementById('txSearch');
+            const typeFilter = typeFilterEl ? typeFilterEl.value : '';
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+
+            let filtered = transactions;
+            if (typeFilter) filtered = filtered.filter(t => t.tx_type === typeFilter);
+            if (search) filtered = filtered.filter(t => (t.scheme_name || '').toLowerCase().includes(search));
+
+            tbody.innerHTML = filtered.slice(0, 500).map(t => `
+                <tr>
+                    <td>${t.tx_date}</td>
+                    <td><span class="badge badge-${t.tx_type}">${t.tx_type}</span></td>
+                    <td title="${t.scheme_name}">${truncate(t.scheme_name, 35)}</td>
+                    <td><code>${t.folio_number}</code></td>
+                    <td class="text-end ${(t.amount || 0) < 0 ? 'negative' : ''} mask-amount">${t.amount ? formatCurrency(t.amount) : '-'}</td>
+                    <td class="text-end ${(t.units || 0) < 0 ? 'negative' : 'positive'}">${(t.units || 0).toFixed(3)}</td>
+                    <td class="text-end">${t.nav ? t.nav.toFixed(4) : '-'}</td>
+                </tr>
+            `).join('');
+
+            const txCountEl = document.getElementById('txCount');
+            if (txCountEl) txCountEl.textContent = filtered.length;
+        }
+
+        function populateTxFilters(transactions) {
+            const typeFilter = document.getElementById('txTypeFilter');
+            if (!typeFilter) return;
+            const types = [...new Set(transactions.map(t => t.tx_type))].sort();
+            typeFilter.innerHTML = '<option value="">All Types</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        async function loadPortfolioHistory() {
+            try {
+                const res = await fetch(`/api/investors/${investorId}/portfolio-history`);
+                const history = await res.json();
+
+                const emptyEl = document.getElementById('historyEmpty');
+                const chartEl = document.getElementById('portfolioChart');
+                const tbody = document.getElementById('historyTableBody');
+
+                if (history.length === 0) {
+                    if (emptyEl) emptyEl.style.display = 'block';
+                    if (chartEl) chartEl.style.display = 'none';
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No snapshots yet</td></tr>';
+                    return;
+                }
+
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (chartEl) chartEl.style.display = 'block';
+
+                // Render chart
+                const ctx = chartEl.getContext('2d');
+                if (portfolioChart) portfolioChart.destroy();
+                portfolioChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: history.map(h => h.snapshot_date),
+                        datasets: [
+                            { label: 'Portfolio Value', data: history.map(h => h.total_value), borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,0.1)', fill: true, tension: 0.3 },
+                            { label: 'Invested', data: history.map(h => h.total_invested), borderColor: '#6c757d', borderDash: [5, 5], fill: false, tension: 0.3 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } } } }
+                });
+
+                // Table
+                if (tbody) {
+                    tbody.innerHTML = history.slice().reverse().map(h => {
+                        const gain = h.total_value - h.total_invested;
+                        const pct = h.total_invested > 0 ? ((gain / h.total_invested) * 100).toFixed(1) : 0;
+                        const cls = gain >= 0 ? 'positive' : 'negative';
+                        return `<tr><td>${h.snapshot_date}</td><td class="text-end">${formatCurrency(h.total_value)}</td><td class="text-end">${formatCurrency(h.total_invested)}</td><td class="text-end ${cls}">${gain >= 0 ? '+' : ''}${formatCurrency(gain)}</td><td class="text-end ${cls}">${gain >= 0 ? '+' : ''}${pct}%</td></tr>`;
+                    }).join('');
+                }
+            } catch (error) { console.error('Failed to load portfolio history:', error); }
+        }
+
+        async function loadAssetAllocation() {
+            try {
+                const res = await fetch(`/api/investors/${investorId}/asset-allocation`);
+                const data = await res.json();
+
+                const emptyEl = document.getElementById('allocEmpty');
+                const chartEl = document.getElementById('allocationChart');
+                const tbody = document.getElementById('allocationTableBody');
+
+                if (!data.breakdown || Object.keys(data.breakdown).length === 0 || data.total_value === 0) {
+                    if (emptyEl) emptyEl.style.display = 'block';
+                    if (chartEl) chartEl.style.display = 'none';
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No allocation data</td></tr>';
+                    return;
+                }
+
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (chartEl) chartEl.style.display = 'block';
+
+                const assetClasses = ['equity', 'debt', 'commodity', 'cash', 'others'];
+                const colors = { equity: '#28a745', debt: '#17a2b8', commodity: '#ffc107', cash: '#6c757d', others: '#6f42c1' };
+                const labels = { equity: 'Equity', debt: 'Debt', commodity: 'Commodity', cash: 'Cash', others: 'Others' };
+
+                // Table
+                if (tbody) {
+                    let tableHtml = '';
+                    assetClasses.forEach(asset => {
+                        const value = data.breakdown[asset] || 0;
+                        const pct = data.total_value > 0 ? (value / data.total_value * 100).toFixed(1) : 0;
+                        tableHtml += `<tr><td><span class="badge" style="background-color:${colors[asset]}">${labels[asset]}</span></td><td class="text-end">${formatCurrency(value)}</td><td class="text-end">${pct}%</td><td><div class="progress" style="height:20px;"><div class="progress-bar" style="width:${Math.min(100,pct)}%;background-color:${colors[asset]};"></div></div></td></tr>`;
+                    });
+                    tableHtml += `<tr class="table-light"><td><strong>Total</strong></td><td class="text-end"><strong>${formatCurrency(data.total_value)}</strong></td><td class="text-end"><strong>100%</strong></td><td></td></tr>`;
+
+                    // Market cap breakdown within equity
+                    if (data.market_cap && data.market_cap.total_equity > 0) {
+                        const mc = data.market_cap;
+                        const capColors = { large: '#1e40af', mid: '#3730a3', small: '#5b21b6' };
+                        const hasCapData = mc.large.value > 0 || mc.mid.value > 0 || mc.small.value > 0;
+                        if (hasCapData) {
+                            tableHtml += `<tr><td colspan="4" style="background:#f0f4ff;"><strong style="font-size:0.8rem;color:#1e40af;"><i class="bi bi-graph-up-arrow"></i> Equity Market Cap Split</strong> <small class="text-muted">(of ${formatCurrency(mc.total_equity)} equity)</small></td></tr>`;
+                            [{key:'large',label:'Large Cap'},{key:'mid',label:'Mid Cap'},{key:'small',label:'Small Cap'}].forEach(cap => {
+                                const val = mc[cap.key].value || 0;
+                                const pctOfEq = mc[cap.key].pct || 0;
+                                tableHtml += `<tr><td style="padding-left:2rem;"><span class="badge" style="background-color:${capColors[cap.key]};font-size:0.7rem;">${cap.label}</span></td><td class="text-end">${formatCurrency(val)}</td><td class="text-end">${pctOfEq.toFixed(1)}%</td><td><div class="progress" style="height:14px;"><div class="progress-bar" style="width:${Math.min(100,pctOfEq)}%;background-color:${capColors[cap.key]};"></div></div></td></tr>`;
+                            });
+                        }
+                    }
+
+                    tbody.innerHTML = tableHtml;
+                }
+
+                // Chart
+                const nonZero = assetClasses.filter(a => (data.breakdown[a] || 0) > 0);
+                if (nonZero.length > 0 && chartEl) {
+                    const ctx = chartEl.getContext('2d');
+                    if (allocationChart) allocationChart.destroy();
+                    allocationChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: nonZero.map(a => labels[a]),
+                            datasets: [{ data: nonZero.map(a => data.breakdown[a] || 0), backgroundColor: nonZero.map(a => colors[a]), borderWidth: 2, borderColor: '#fff' }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                    });
+                }
+            } catch (error) { console.error('Failed to load asset allocation:', error); }
+        }
+
+        async function loadNavStatus() {
+            try {
+                const res = await fetch('/api/nav/status');
+                const data = await res.json();
+                document.getElementById('navLastUpdate').textContent = data.last_update || 'Never';
+            } catch (error) { console.error('Failed to load NAV status:', error); }
+        }
+
+        async function refreshNAV() {
+            const btn = document.getElementById('refreshNavBtn');
+            const icon = document.getElementById('refreshIcon');
+            btn.disabled = true;
+            icon.classList.add('spinning');
+
+            try {
+                const res = await fetch('/api/nav/refresh', { method: 'POST' });
+                const result = await res.json();
+                if (result.error) {
+                    alert('Error: ' + result.error);
+                } else {
+                    await loadData();
+                    alert('NAV refreshed successfully!');
+                }
+            } catch (error) { alert('Failed to refresh NAV: ' + error.message); }
+            finally { btn.disabled = false; icon.classList.remove('spinning'); }
+        }
+
+        // Edit investor
+        async function openEditInvestorModal() {
+            document.getElementById('editInvestorName').value = investorData?.name || '';
+            document.getElementById('editInvestorEmail').value = investorData?.email || '';
+            document.getElementById('editInvestorMobile').value = investorData?.mobile || '';
+            new bootstrap.Modal(document.getElementById('editInvestorModal')).show();
+        }
+
+        async function saveInvestor() {
+            const name = document.getElementById('editInvestorName').value.trim();
+            const email = document.getElementById('editInvestorEmail').value.trim();
+            const mobile = document.getElementById('editInvestorMobile').value.trim();
+            if (!name) { alert('Name is required'); return; }
+
+            try {
+                const res = await fetch(`/api/investors/${investorId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, mobile })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('editInvestorModal')).hide();
+                    document.getElementById('investorName').textContent = name;
+                    investorData.name = name;
+                } else { alert('Failed: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed: ' + error.message); }
+        }
+
+        // Utility functions
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+        }
+        function formatCurrencyShort(value) {
+            if (value >= 10000000) return '₹' + (value / 10000000).toFixed(1) + 'Cr';
+            if (value >= 100000) return '₹' + (value / 100000).toFixed(1) + 'L';
+            if (value >= 1000) return '₹' + (value / 1000).toFixed(1) + 'K';
+            return '₹' + value;
+        }
+        function truncate(str, len) { return str && str.length > len ? str.substring(0, len) + '...' : str || '-'; }
+
+        // Initialize
+        loadData();
+    </script>
+    {% include '_feature_request_widget.html' %}
+</body>
+</html>

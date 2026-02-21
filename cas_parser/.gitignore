@@ -1,0 +1,3 @@
+# Webapp runtime data (also covered by root .gitignore)
+webapp/data.db
+webapp/backups/
