@@ -15,17 +15,20 @@ Family portfolio tracker — parse CDSL CAS PDFs, track mutual funds, NPS, FDs, 
 - Validation rules with anomaly detection
 - JSON export
 
-## Installation
+## Quick Start
+
+See **[SETUP.md](SETUP.md)** for full setup instructions (with screenshots-level detail).
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/arghaM/famfolioz.git
+cd famfolioz
+bash setup_app.sh      # one-time setup
+./start.sh             # start the app (or double-click start.command on macOS)
 ```
 
-Or install in development mode:
+Then open http://127.0.0.1:5000 in your browser.
 
-```bash
-pip install -e .
-```
+## Installation (Developer)
 
 ## Usage
 

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Double-click this file to start the CAS Parser Web App
+# macOS: Double-click this file to start Famfolioz
+# It activates the venv, starts Flask, and opens the browser.
 
 cd "$(dirname "$0")"
 
@@ -10,7 +11,16 @@ if lsof -i :5000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     exit 0
 fi
 
-echo "Starting CAS Parser Web App..."
+# Check setup
+if [ ! -d "venv" ]; then
+    echo "First time? Running setup..."
+    bash setup_app.sh
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
+echo "Starting Famfolioz..."
 
 # Start Flask in background
 python3 -m cas_parser.webapp.app &

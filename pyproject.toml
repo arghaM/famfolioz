@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "famfolioz"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Family portfolio tracker - Parse CDSL CAS PDFs, track mutual funds, NPS, FDs and more"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -30,6 +30,8 @@ classifiers = [
 dependencies = [
     "pdfplumber>=0.10.0",
     "python-dateutil>=2.8.0",
+    "flask>=3.0.0",
+    "requests>=2.28.0",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +47,9 @@ dev = [
 
 [project.scripts]
 cas-parser = "cas_parser.main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "cas_parser.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
