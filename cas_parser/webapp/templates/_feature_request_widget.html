@@ -38,8 +38,18 @@
         pointer-events: none;
     }
     .fr-toast.show { opacity: 1; }
+    .fr-version {
+        position: fixed;
+        bottom: 28px;
+        right: 80px;
+        font-size: 0.7rem;
+        color: #adb5bd;
+        z-index: 1050;
+        cursor: default;
+    }
 </style>
 
+<span class="fr-version" title="Famfolioz v{{ app_version }}">v{{ app_version }}</span>
 <button class="fr-fab" onclick="document.getElementById('frModal') ? new bootstrap.Modal(document.getElementById('frModal')).show() : null" title="Submit a feature request">
     <i class="bi bi-lightbulb"></i>
 </button>

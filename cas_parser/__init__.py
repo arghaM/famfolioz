@@ -15,7 +15,7 @@ from cas_parser.models import (
 )
 from cas_parser.main import parse_cas_pdf
 
-__version__ = "1.0.0"
+__version__ = "1.0.0-beta"
 __all__ = [
     "Investor",
     "Holding",

@@ -23,6 +23,10 @@ from cas_parser.webapp.xirr import build_cashflows_for_folio, xirr
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
+# Make app version available in all templates
+from cas_parser import __version__ as APP_VERSION
+app.jinja_env.globals['app_version'] = APP_VERSION
+
 
 class DecimalEncoder(json.JSONEncoder):
     """JSON encoder that handles Decimal types."""
