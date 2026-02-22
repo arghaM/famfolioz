@@ -7,36 +7,124 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
+        body { background-color: #f8f9fa; margin: 0; }
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem 0;
-            margin-bottom: 2rem;
+            padding: 0.75rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
         }
-        .investor-card {
-            transition: transform 0.2s, box-shadow 0.2s;
+        .header h1 { font-size: 1.4rem; margin-bottom: 0; }
+        .header p { font-size: 0.8rem; }
+
+        /* App layout */
+        .app-layout {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: white;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .family-name-display {
+            font-size: 1.1rem;
+            font-weight: 600;
             cursor: pointer;
-            border: none;
-            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        .investor-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        .family-name-display:hover .edit-hint {
+            opacity: 1;
         }
-        .portfolio-value {
-            font-size: 1.8rem;
-            font-weight: bold;
+        .edit-hint {
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        .family-name-input {
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            width: 100%;
+        }
+        .member-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+        .member-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: background 0.15s, border-color 0.15s;
+            gap: 0.75rem;
+        }
+        .member-item:hover {
+            background: #f8f9fa;
+        }
+        .member-item.active {
+            background: #eef2ff;
+            border-left-color: #667eea;
+        }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: white;
+            flex-shrink: 0;
+        }
+        .member-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .member-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .member-value {
+            font-size: 0.8rem;
             color: #28a745;
+            font-weight: 500;
         }
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            padding: 1.5rem;
+            min-width: 0;
         }
-        .empty-state i {
-            font-size: 4rem;
-            color: #dee2e6;
-        }
+
+        /* Alert styles (unchanged) */
         .alert-unmapped {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -47,40 +135,6 @@
             color: white;
             border: none;
         }
-        .nav-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        body.mask-amounts .mask-amount {
-            filter: blur(8px);
-            user-select: none;
-        }
-        .value-breakdown {
-            display: flex;
-            gap: 1rem;
-            margin-top: 0.5rem;
-        }
-        .value-item {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .value-item small {
-            font-size: 0.75rem;
-        }
-        .badge-mf { background-color: #667eea; }
-        .badge-nps { background-color: #11998e; }
-        .asset-bar {
-            height: 6px;
-            border-radius: 3px;
-            overflow: hidden;
-            display: flex;
-            margin-top: 0.5rem;
-        }
-        .asset-bar .mf-segment { background: #667eea; }
-        .asset-bar .nps-segment { background: #11998e; }
-        .badge-fd { background-color: #fd7e14; }
         .alert-alloc-review {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             color: #78350f;
@@ -101,6 +155,172 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+
+        body.mask-amounts .mask-amount {
+            filter: blur(8px);
+            user-select: none;
+        }
+
+        /* Family overview hero */
+        .wealth-hero {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 1.5rem;
+        }
+        .wealth-hero h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .wealth-hero p {
+            opacity: 0.85;
+            margin-bottom: 0;
+        }
+
+        /* Summary cards row */
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .summary-card h4 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Member summary cards in family overview */
+        .member-summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .member-summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+
+        /* Asset bar */
+        .asset-bar {
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            display: flex;
+            margin-top: 0.5rem;
+        }
+        .asset-bar .mf-segment { background: #667eea; }
+        .asset-bar .nps-segment { background: #11998e; }
+        .asset-bar .fd-segment { background: #fd7e14; }
+
+        .badge-mf { background-color: #667eea; }
+        .badge-nps { background-color: #11998e; }
+        .badge-fd { background-color: #fd7e14; }
+
+        .value-breakdown {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        .value-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .value-item small {
+            font-size: 0.75rem;
+        }
+
+        /* Tree view */
+        .tree-header {
+            padding: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .tree-node {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .tree-node-header {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            gap: 0.75rem;
+        }
+        .tree-node-header:hover {
+            background: #f8f9fa;
+        }
+        .tree-node-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .tree-node-info {
+            flex: 1;
+        }
+        .tree-node-label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .tree-node-meta {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .tree-node-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-align: right;
+        }
+        .tree-node-arrow {
+            color: #adb5bd;
+            font-size: 1.2rem;
+        }
+        .tree-children {
+            border-top: 1px solid #e9ecef;
+            padding: 0.5rem 1rem 0.5rem 3.5rem;
+            background: #fafbfc;
+        }
+        .tree-child-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
+        .tree-child-item:last-child { border-bottom: none; }
+        .tree-child-item:hover { color: #667eea; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #dee2e6;
+        }
+
+        /* FD items in modals */
         .fd-item {
             padding: 0.75rem;
             border-bottom: 1px solid #eee;
@@ -110,29 +330,51 @@
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
         }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .app-layout {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                min-width: 100%;
+                position: relative;
+                top: 0;
+                height: auto;
+                max-height: 300px;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            .main-content {
+                padding: 1rem;
+            }
+            .wealth-hero h2 {
+                font-size: 1.8rem;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
     <div class="header">
-        <div class="container">
-            <div class="nav-header">
+        <div class="container-fluid px-3">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1><i class="bi bi-house-heart"></i> Famfolio</h1>
-                    <p class="mb-0">Family Portfolio Manager - MF, NPS, FD & more</p>
                 </div>
                 <div class="d-flex align-items-center">
-                    <button class="btn btn-outline-light me-2" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
+                    <button class="btn btn-outline-light btn-sm me-2" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
                         <i class="bi bi-eye" id="maskIcon"></i>
                     </button>
-                    <a href="/settings" class="btn btn-outline-light me-2">
-                        <i class="bi bi-gear"></i> Settings
+                    <a href="/settings" class="btn btn-outline-light btn-sm me-2">
+                        <i class="bi bi-gear"></i>
                     </a>
-                    <a href="/mutual-funds" class="btn btn-outline-light me-2">
-                        <i class="bi bi-bank"></i> MF Master
+                    <a href="/mutual-funds" class="btn btn-outline-light btn-sm me-2">
+                        <i class="bi bi-bank"></i>
                     </a>
-                    <div class="dropdown me-2">
-                        <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             <i class="bi bi-cloud-arrow-up"></i> Upload
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
@@ -147,141 +389,226 @@
         </div>
     </div>
 
-    <div class="container">
-        <!-- Transaction Conflicts Alert -->
-        <div id="conflictsAlert" class="alert alert-warning mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong id="conflictCount">0</strong> transaction conflicts need to be resolved
+    <div class="app-layout">
+        <!-- LEFT SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div id="familyNameDisplay" class="family-name-display" onclick="editFamilyName()">
+                    <i class="bi bi-people-fill" style="color: #667eea;"></i>
+                    <span id="familyNameText">{{ family_name }}</span>
+                    <span class="edit-hint"><i class="bi bi-pencil"></i></span>
                 </div>
-                <a href="/resolve-conflicts" class="btn btn-dark btn-sm">
-                    <i class="bi bi-check2-square"></i> Resolve Now
-                </a>
-            </div>
-        </div>
-
-        <!-- Unmapped Folios Alert -->
-        <div id="unmappedAlert" class="alert alert-unmapped mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong id="unmappedCount">0</strong> mutual fund portfolios need to be mapped to an investor
+                <div id="familyNameEdit" style="display: none;">
+                    <input type="text" class="family-name-input" id="familyNameInput"
+                           onkeydown="if(event.key==='Enter')saveFamilyName();if(event.key==='Escape')cancelFamilyNameEdit();"
+                           onblur="saveFamilyName()">
                 </div>
-                <a href="/map-folios" class="btn btn-light btn-sm">
-                    <i class="bi bi-link"></i> Map Folios
-                </a>
-            </div>
-        </div>
-
-        <!-- Unmapped NPS Alert -->
-        <div id="unmappedNpsAlert" class="alert alert-nps-unmapped mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-shield-check"></i>
-                    <strong id="unmappedNpsCount">0</strong> NPS accounts need to be mapped to an investor
-                </div>
-                <button class="btn btn-light btn-sm" onclick="openNpsMappingModal()">
-                    <i class="bi bi-link"></i> Map NPS
+                <button class="btn btn-outline-primary btn-sm w-100 mt-2" onclick="showAddMemberModal()">
+                    <i class="bi bi-person-plus"></i> Add Member
                 </button>
             </div>
-        </div>
-
-        <!-- FD Maturing Soon Alert -->
-        <div id="fdMaturingAlert" class="alert alert-fd-maturing mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-clock-history"></i>
-                    <strong id="fdMaturingCount">0</strong> FD(s) maturing in next 30 days
-                </div>
-                <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturingModal">
-                    <i class="bi bi-eye"></i> View Details
-                </button>
+            <div class="member-list" id="memberList">
+                <!-- Family Overview + member items rendered by JS -->
             </div>
         </div>
 
-        <!-- FD Matured Alert (flashing) -->
-        <div id="fdMaturedAlert" class="alert alert-fd-matured mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-exclamation-circle"></i>
-                    <strong id="fdMaturedCount">0</strong> FD(s) have matured - Action Required!
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- Alerts Container -->
+            <div id="alertsContainer">
+                <!-- Transaction Conflicts Alert -->
+                <div id="conflictsAlert" class="alert alert-warning mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong id="conflictCount">0</strong> transaction conflicts need to be resolved
+                        </div>
+                        <a href="/resolve-conflicts" class="btn btn-dark btn-sm">
+                            <i class="bi bi-check2-square"></i> Resolve Now
+                        </a>
+                    </div>
                 </div>
-                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturedModal">
-                    <i class="bi bi-check2-circle"></i> Mark Received
-                </button>
-            </div>
-        </div>
 
-        <!-- Allocation Review Alert -->
-        <div id="allocReviewAlert" class="alert alert-alloc-review mb-3" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-clock-history"></i>
-                    <strong id="allocReviewCount">0</strong> fund allocation(s) need review (30+ days since last check)
+                <!-- Unmapped Folios Alert -->
+                <div id="unmappedAlert" class="alert alert-unmapped mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong id="unmappedCount">0</strong> mutual fund portfolios need to be mapped to an investor
+                        </div>
+                        <a href="/map-folios" class="btn btn-light btn-sm">
+                            <i class="bi bi-link"></i> Map Folios
+                        </a>
+                    </div>
                 </div>
-                <a href="/mutual-funds" class="btn btn-dark btn-sm">
-                    <i class="bi bi-pie-chart"></i> Review Now
-                </a>
-            </div>
-        </div>
 
-        <!-- Portfolio Summary -->
-        <div class="row mb-4" id="summaryCards">
-            <div class="col-md-3">
-                <div class="card bg-white border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <small class="text-muted text-uppercase">Total Portfolio</small>
-                        <h3 class="mb-0 mask-amount" id="totalPortfolioValue">-</h3>
+                <!-- Unmapped NPS Alert -->
+                <div id="unmappedNpsAlert" class="alert alert-nps-unmapped mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-shield-check"></i>
+                            <strong id="unmappedNpsCount">0</strong> NPS accounts need to be mapped to an investor
+                        </div>
+                        <button class="btn btn-light btn-sm" onclick="openNpsMappingModal()">
+                            <i class="bi bi-link"></i> Map NPS
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FD Maturing Soon Alert -->
+                <div id="fdMaturingAlert" class="alert alert-fd-maturing mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-clock-history"></i>
+                            <strong id="fdMaturingCount">0</strong> FD(s) maturing in next 30 days
+                        </div>
+                        <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturingModal">
+                            <i class="bi bi-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FD Matured Alert (flashing) -->
+                <div id="fdMaturedAlert" class="alert alert-fd-matured mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-exclamation-circle"></i>
+                            <strong id="fdMaturedCount">0</strong> FD(s) have matured - Action Required!
+                        </div>
+                        <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#fdMaturedModal">
+                            <i class="bi bi-check2-circle"></i> Mark Received
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Allocation Review Alert -->
+                <div id="allocReviewAlert" class="alert alert-alloc-review mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-clock-history"></i>
+                            <strong id="allocReviewCount">0</strong> fund allocation(s) need review (30+ days since last check)
+                        </div>
+                        <a href="/mutual-funds" class="btn btn-dark btn-sm">
+                            <i class="bi bi-pie-chart"></i> Review Now
+                        </a>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-white border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <small class="text-muted text-uppercase"><i class="bi bi-bank"></i> Mutual Funds</small>
-                        <h3 class="mb-0 mask-amount text-primary" id="totalMfValue">-</h3>
+
+            <!-- Family Overview (default view) -->
+            <div id="familyOverviewView">
+                <div class="wealth-hero">
+                    <p>Total Family Wealth</p>
+                    <h2 class="mask-amount" id="totalPortfolioValue">-</h2>
+                </div>
+
+                <div class="row g-3 mb-4" id="summaryCards">
+                    <div class="col-6 col-md-3">
+                        <div class="summary-card">
+                            <small class="text-muted text-uppercase">Total Portfolio</small>
+                            <h4 class="mb-0 mask-amount" id="totalPortfolioValue2">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="summary-card">
+                            <small class="text-muted text-uppercase"><i class="bi bi-bank"></i> Mutual Funds</small>
+                            <h4 class="mb-0 mask-amount text-primary" id="totalMfValue">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="summary-card">
+                            <small class="text-muted text-uppercase"><i class="bi bi-shield-check"></i> NPS</small>
+                            <h4 class="mb-0 mask-amount" id="totalNpsValue" style="color: #11998e;">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="summary-card">
+                            <small class="text-muted text-uppercase"><i class="bi bi-safe"></i> Fixed Deposits</small>
+                            <h4 class="mb-0 mask-amount" id="totalFdValue" style="color: #fd7e14;">-</h4>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-white border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <small class="text-muted text-uppercase"><i class="bi bi-shield-check"></i> NPS</small>
-                        <h3 class="mb-0 mask-amount" id="totalNpsValue" style="color: #11998e;">-</h3>
-                    </div>
+
+                <!-- Member summary cards grid -->
+                <h5 class="mb-3"><i class="bi bi-people"></i> Members</h5>
+                <div class="row g-3" id="memberCardsGrid">
+                    <!-- Rendered by JS -->
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-white border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <small class="text-muted text-uppercase"><i class="bi bi-safe"></i> Fixed Deposits</small>
-                        <h3 class="mb-0 mask-amount" id="totalFdValue" style="color: #fd7e14;">-</h3>
+
+            <!-- Member Tree View (shown on member click) -->
+            <div id="memberTreeView" style="display: none;">
+                <div class="tree-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1" id="treeMemberName">-</h4>
+                            <small class="text-muted" id="treeMemberPan">-</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="text-muted small">Total Value</div>
+                            <h3 class="mb-0 mask-amount" id="treeMemberValue" style="color: #28a745;">-</h3>
+                        </div>
+                    </div>
+                </div>
+                <div id="treeNodes">
+                    <!-- Tree nodes rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Empty State (no investors) -->
+            <div id="emptyState" style="display: none;">
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <h3 class="mt-3 text-muted">No investors yet</h3>
+                    <p class="text-muted">Upload a CAS PDF or NPS statement to get started</p>
+                    <div class="d-flex justify-content-center gap-3 mt-3">
+                        <a href="/upload" class="btn btn-primary btn-lg">
+                            <i class="bi bi-file-earmark-pdf"></i> Upload CAS PDF
+                        </a>
+                        <button class="btn btn-outline-success btn-lg" onclick="openNpsUpload()">
+                            <i class="bi bi-shield-check"></i> Upload NPS
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Investors Grid -->
-        <div id="investorsSection">
-            <h4 class="mb-4"><i class="bi bi-people"></i> Investors</h4>
-            <div class="row" id="investorsGrid">
-                <!-- Investor cards will be inserted here -->
-            </div>
-        </div>
-
-        <!-- Empty State -->
-        <div id="emptyState" class="empty-state" style="display: none;">
-            <i class="bi bi-inbox"></i>
-            <h3 class="mt-3 text-muted">No investors yet</h3>
-            <p class="text-muted">Upload a CAS PDF or NPS statement to get started</p>
-            <div class="d-flex justify-content-center gap-3 mt-3">
-                <a href="/upload" class="btn btn-primary btn-lg">
-                    <i class="bi bi-file-earmark-pdf"></i> Upload CAS PDF
-                </a>
-                <button class="btn btn-outline-success btn-lg" onclick="openNpsUpload()">
-                    <i class="bi bi-shield-check"></i> Upload NPS
-                </button>
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Add Family Member</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addMemberForm">
+                        <div class="mb-3">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="memberName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">PAN</label>
+                            <input type="text" class="form-control" id="memberPan" placeholder="ABCDE1234F" maxlength="10"
+                                   style="text-transform: uppercase;">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="memberEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mobile</label>
+                            <input type="tel" class="form-control" id="memberMobile">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addMember()">
+                        <i class="bi bi-person-plus"></i> Add Member
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -470,9 +797,13 @@
     <script>
         let npsUploadModal, npsMappingModal;
         let fdUploadModal, fdMaturingModal, fdMaturedModal;
+        let addMemberModal;
         let investors = [];
         let unmappedNps = [];
         let maturingFds = [], maturedFds = [];
+        let activeMemberId = null; // null = family overview
+
+        const avatarColors = ['#667eea', '#764ba2', '#11998e', '#fd7e14', '#e74c3c', '#3498db', '#9b59b6', '#1abc9c'];
 
         document.addEventListener('DOMContentLoaded', function() {
             npsUploadModal = new bootstrap.Modal(document.getElementById('npsUploadModal'));
@@ -480,10 +811,11 @@
             fdUploadModal = new bootstrap.Modal(document.getElementById('fdUploadModal'));
             fdMaturingModal = new bootstrap.Modal(document.getElementById('fdMaturingModal'));
             fdMaturedModal = new bootstrap.Modal(document.getElementById('fdMaturedModal'));
+            addMemberModal = new bootstrap.Modal(document.getElementById('addMemberModal'));
             loadDashboard();
         });
 
-        // Mask amounts functionality
+        // ==================== Mask Amounts ====================
         function isMaskEnabled() {
             return localStorage.getItem('maskAmounts') === 'true';
         }
@@ -509,6 +841,84 @@
 
         applyMask();
 
+        // ==================== Family Name Editing ====================
+        function editFamilyName() {
+            document.getElementById('familyNameDisplay').style.display = 'none';
+            const editDiv = document.getElementById('familyNameEdit');
+            const input = document.getElementById('familyNameInput');
+            editDiv.style.display = 'block';
+            input.value = document.getElementById('familyNameText').textContent;
+            input.focus();
+            input.select();
+        }
+
+        function cancelFamilyNameEdit() {
+            document.getElementById('familyNameEdit').style.display = 'none';
+            document.getElementById('familyNameDisplay').style.display = 'flex';
+        }
+
+        async function saveFamilyName() {
+            const input = document.getElementById('familyNameInput');
+            const newName = input.value.trim();
+            if (!newName) {
+                cancelFamilyNameEdit();
+                return;
+            }
+
+            try {
+                await fetch('/api/config/family_name', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: newName })
+                });
+                document.getElementById('familyNameText').textContent = newName;
+            } catch (e) {
+                console.error('Failed to save family name:', e);
+            }
+
+            cancelFamilyNameEdit();
+        }
+
+        // ==================== Add Member ====================
+        function showAddMemberModal() {
+            document.getElementById('addMemberForm').reset();
+            addMemberModal.show();
+        }
+
+        async function addMember() {
+            const name = document.getElementById('memberName').value.trim();
+            if (!name) {
+                alert('Please enter a name');
+                return;
+            }
+
+            const data = {
+                name: name,
+                pan: document.getElementById('memberPan').value.trim().toUpperCase() || null,
+                email: document.getElementById('memberEmail').value.trim() || null,
+                mobile: document.getElementById('memberMobile').value.trim() || null
+            };
+
+            try {
+                const res = await fetch('/api/investors', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    addMemberModal.hide();
+                    loadDashboard();
+                } else {
+                    const result = await res.json();
+                    alert('Error: ' + (result.error || 'Failed to add member'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // ==================== Dashboard Loading ====================
         async function loadDashboard() {
             try {
                 // Load investors (now includes NPS data)
@@ -584,13 +994,25 @@
                     totalNps += nps.total_value || 0;
                 });
 
-                document.getElementById('totalPortfolioValue').textContent = formatCurrency(totalMf + totalNps + totalFd);
+                const totalAll = totalMf + totalNps + totalFd;
+                document.getElementById('totalPortfolioValue').textContent = formatCurrency(totalAll);
+                document.getElementById('totalPortfolioValue2').textContent = formatCurrency(totalAll);
                 document.getElementById('totalMfValue').textContent = formatCurrency(totalMf);
                 document.getElementById('totalNpsValue').textContent = formatCurrency(totalNps);
                 document.getElementById('totalFdValue').textContent = formatCurrency(totalFd);
 
-                // Display investors
-                displayInvestors();
+                // Render sidebar and views
+                renderSidebar();
+
+                if (investors.length === 0 && unmappedNps.length === 0) {
+                    document.getElementById('familyOverviewView').style.display = 'none';
+                    document.getElementById('memberTreeView').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'block';
+                } else if (activeMemberId) {
+                    showMemberTree(activeMemberId);
+                } else {
+                    showFamilyOverview();
+                }
 
                 // Populate investor select in NPS upload modal
                 populateInvestorSelects();
@@ -600,20 +1022,78 @@
             }
         }
 
-        function displayInvestors() {
-            const grid = document.getElementById('investorsGrid');
-            const emptyState = document.getElementById('emptyState');
-            const summaryCards = document.getElementById('summaryCards');
+        // ==================== Sidebar ====================
+        function renderSidebar() {
+            const list = document.getElementById('memberList');
+            let html = '';
 
-            if (investors.length === 0 && unmappedNps.length === 0) {
-                document.getElementById('investorsSection').style.display = 'none';
-                summaryCards.style.display = 'none';
-                emptyState.style.display = 'block';
+            // Family Overview item (always first)
+            html += `
+                <div class="member-item ${activeMemberId === null ? 'active' : ''}" onclick="showFamilyOverview()">
+                    <div class="member-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        <i class="bi bi-house-heart"></i>
+                    </div>
+                    <div class="member-info">
+                        <div class="member-name">Family Overview</div>
+                        <div class="member-value mask-amount">${formatCurrency(getTotalWealth())}</div>
+                    </div>
+                </div>
+            `;
+
+            // Member items
+            investors.forEach((inv, idx) => {
+                const initials = getInitials(inv.name || 'U');
+                const color = avatarColors[idx % avatarColors.length];
+                const totalValue = (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0);
+
+                html += `
+                    <div class="member-item ${activeMemberId === inv.id ? 'active' : ''}" onclick="showMemberTree(${inv.id})">
+                        <div class="member-avatar" style="background: ${color};">${initials}</div>
+                        <div class="member-info">
+                            <div class="member-name">${inv.name || 'Unknown'}</div>
+                            <div class="member-value mask-amount">${formatCurrency(totalValue)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function getTotalWealth() {
+            let total = 0;
+            investors.forEach(inv => {
+                total += (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0);
+            });
+            unmappedNps.forEach(nps => {
+                total += nps.total_value || 0;
+            });
+            return total;
+        }
+
+        // ==================== Family Overview ====================
+        function showFamilyOverview() {
+            activeMemberId = null;
+            document.getElementById('familyOverviewView').style.display = 'block';
+            document.getElementById('memberTreeView').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            renderSidebar();
+            renderFamilyOverview();
+        }
+
+        function renderFamilyOverview() {
+            const grid = document.getElementById('memberCardsGrid');
+
+            if (investors.length === 0) {
+                grid.innerHTML = '<div class="col-12"><p class="text-muted text-center">No members yet. Click "Add Member" to get started.</p></div>';
                 return;
             }
 
-            grid.innerHTML = investors.map(inv => {
-                const lastUpload = inv.last_cas_upload ? formatDate(inv.last_cas_upload) : 'Never';
+            grid.innerHTML = investors.map((inv, idx) => {
                 const mfValue = inv.mf_value || 0;
                 const npsValue = inv.nps_value || 0;
                 const fdValue = inv.fd_value || 0;
@@ -621,70 +1101,186 @@
                 const mfPct = totalValue > 0 ? (mfValue / totalValue * 100) : 0;
                 const npsPct = totalValue > 0 ? (npsValue / totalValue * 100) : 0;
                 const fdPct = totalValue > 0 ? (fdValue / totalValue * 100) : 0;
+                const initials = getInitials(inv.name || 'U');
+                const color = avatarColors[idx % avatarColors.length];
 
                 return `
-                <div class="col-md-4 mb-4">
-                    <div class="card investor-card h-100 shadow-sm" onclick="window.location='/investor/${inv.id}'">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                    <h5 class="card-title mb-1">${inv.name || 'Unknown'}</h5>
-                                    <small class="text-muted">${inv.pan || 'No PAN'}</small>
-                                </div>
-                                <div class="d-flex gap-1 flex-wrap">
-                                    ${inv.folio_count > 0 ? `<span class="badge badge-mf">${inv.folio_count} MF</span>` : ''}
-                                    ${inv.nps_count > 0 ? `<span class="badge badge-nps">${inv.nps_count} NPS</span>` : ''}
-                                    ${inv.fd_count > 0 ? `<span class="badge badge-fd">${inv.fd_count} FD</span>` : ''}
-                                </div>
-                            </div>
-                            <div class="portfolio-value mask-amount">
-                                ${formatCurrency(totalValue)}
-                            </div>
-                            <small class="text-muted">Total Portfolio Value</small>
-
-                            ${totalValue > 0 ? `
-                            <div class="asset-bar">
-                                ${mfPct > 0 ? `<div class="mf-segment" style="width: ${mfPct}%;" title="MF: ${formatCurrency(mfValue)}"></div>` : ''}
-                                ${npsPct > 0 ? `<div class="nps-segment" style="width: ${npsPct}%;" title="NPS: ${formatCurrency(npsValue)}"></div>` : ''}
-                                ${fdPct > 0 ? `<div style="width: ${fdPct}%; background: #fd7e14;" title="FD: ${formatCurrency(fdValue)}"></div>` : ''}
-                            </div>
-                            <div class="value-breakdown mt-2">
-                                ${mfValue > 0 ? `
-                                <div class="value-item">
-                                    <span class="badge badge-mf" style="font-size: 0.65rem;">MF</span>
-                                    <small class="text-muted mask-amount">${formatCurrency(mfValue)}</small>
-                                </div>
-                                ` : ''}
-                                ${npsValue > 0 ? `
-                                <div class="value-item">
-                                    <span class="badge badge-nps" style="font-size: 0.65rem;">NPS</span>
-                                    <small class="text-muted mask-amount">${formatCurrency(npsValue)}</small>
-                                </div>
-                                ` : ''}
-                                ${fdValue > 0 ? `
-                                <div class="value-item">
-                                    <span class="badge badge-fd" style="font-size: 0.65rem;">FD</span>
-                                    <small class="text-muted mask-amount">${formatCurrency(fdValue)}</small>
-                                </div>
-                                ` : ''}
-                            </div>
-                            ` : ''}
-                        </div>
-                        <div class="card-footer bg-transparent border-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">
-                                    <i class="bi bi-cloud-upload"></i> ${lastUpload}
-                                </small>
-                                <small class="text-muted">
-                                    <i class="bi bi-calendar-range"></i> ${inv.statement_to_date || '-'}
-                                </small>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="member-summary-card" onclick="showMemberTree(${inv.id})">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <div class="member-avatar" style="background: ${color};">${initials}</div>
+                            <div>
+                                <div style="font-weight: 600;">${inv.name || 'Unknown'}</div>
+                                <small class="text-muted">${inv.pan || 'No PAN'}</small>
                             </div>
                         </div>
+                        <div style="font-size: 1.4rem; font-weight: 700; color: #28a745;" class="mask-amount">
+                            ${formatCurrency(totalValue)}
+                        </div>
+                        ${totalValue > 0 ? `
+                        <div class="asset-bar">
+                            ${mfPct > 0 ? `<div class="mf-segment" style="width: ${mfPct}%;" title="MF: ${formatCurrency(mfValue)}"></div>` : ''}
+                            ${npsPct > 0 ? `<div class="nps-segment" style="width: ${npsPct}%;" title="NPS: ${formatCurrency(npsValue)}"></div>` : ''}
+                            ${fdPct > 0 ? `<div class="fd-segment" style="width: ${fdPct}%;" title="FD: ${formatCurrency(fdValue)}"></div>` : ''}
+                        </div>
+                        <div class="value-breakdown mt-2">
+                            ${mfValue > 0 ? `<div class="value-item"><span class="badge badge-mf" style="font-size: 0.65rem;">MF</span><small class="text-muted mask-amount">${formatCurrency(mfValue)}</small></div>` : ''}
+                            ${npsValue > 0 ? `<div class="value-item"><span class="badge badge-nps" style="font-size: 0.65rem;">NPS</span><small class="text-muted mask-amount">${formatCurrency(npsValue)}</small></div>` : ''}
+                            ${fdValue > 0 ? `<div class="value-item"><span class="badge badge-fd" style="font-size: 0.65rem;">FD</span><small class="text-muted mask-amount">${formatCurrency(fdValue)}</small></div>` : ''}
+                        </div>
+                        ` : ''}
                     </div>
-                </div>
-            `}).join('');
+                </div>`;
+            }).join('');
         }
 
+        // ==================== Member Tree View ====================
+        async function showMemberTree(investorId) {
+            activeMemberId = investorId;
+            document.getElementById('familyOverviewView').style.display = 'none';
+            document.getElementById('memberTreeView').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+            renderSidebar();
+
+            const inv = investors.find(i => i.id === investorId);
+            if (!inv) return;
+
+            const mfValue = inv.mf_value || 0;
+            const npsValue = inv.nps_value || 0;
+            const fdValue = inv.fd_value || 0;
+            const totalValue = mfValue + npsValue + fdValue;
+
+            document.getElementById('treeMemberName').textContent = inv.name || 'Unknown';
+            document.getElementById('treeMemberPan').textContent = inv.pan ? `PAN: ${inv.pan}` : '';
+            document.getElementById('treeMemberValue').textContent = formatCurrency(totalValue);
+
+            // Fetch goals for this investor
+            let goals = [];
+            try {
+                const goalsRes = await fetch(`/api/investors/${investorId}/goals`);
+                goals = await goalsRes.json();
+            } catch (e) { /* ignore */ }
+
+            // Build tree nodes
+            let nodesHtml = '';
+
+            // Mutual Funds node
+            if (inv.folio_count > 0 || mfValue > 0) {
+                nodesHtml += buildTreeNode({
+                    icon: 'bi-bank',
+                    iconBg: '#667eea',
+                    label: 'Mutual Funds',
+                    meta: `${inv.folio_count || 0} folios`,
+                    value: mfValue,
+                    valueColor: '#667eea',
+                    linkUrl: `/investor/${investorId}#mf-tab`
+                });
+            }
+
+            // NPS node
+            if (inv.nps_count > 0 || npsValue > 0) {
+                nodesHtml += buildTreeNode({
+                    icon: 'bi-shield-check',
+                    iconBg: '#11998e',
+                    label: 'NPS',
+                    meta: `${inv.nps_count || 0} schemes`,
+                    value: npsValue,
+                    valueColor: '#11998e',
+                    linkUrl: `/investor/${investorId}#nps-tab`
+                });
+            }
+
+            // Fixed Deposits node
+            if (inv.fd_count > 0 || fdValue > 0) {
+                nodesHtml += buildTreeNode({
+                    icon: 'bi-safe',
+                    iconBg: '#fd7e14',
+                    label: 'Fixed Deposits',
+                    meta: `${inv.fd_count || 0} FDs`,
+                    value: fdValue,
+                    valueColor: '#fd7e14',
+                    linkUrl: `/investor/${investorId}#fd-tab`
+                });
+            }
+
+            // Goals node (expandable)
+            if (goals.length > 0) {
+                const goalsValue = goals.reduce((sum, g) => sum + (g.current_value || 0), 0);
+                let childrenHtml = goals.map(g => `
+                    <div class="tree-child-item" onclick="window.location='/investor/${investorId}/goals'">
+                        <div>
+                            <span>${g.name}</span>
+                            <small class="text-muted ms-2">${g.target_date ? formatDate(g.target_date) : ''}</small>
+                        </div>
+                        <span class="mask-amount" style="font-weight: 500;">${formatCurrency(g.current_value || 0)}</span>
+                    </div>
+                `).join('');
+
+                nodesHtml += `
+                <div class="tree-node">
+                    <div class="tree-node-header" onclick="toggleTreeNode('goalsChildren')">
+                        <div class="tree-node-icon" style="background: rgba(155, 89, 182, 0.12); color: #9b59b6;">
+                            <i class="bi bi-bullseye"></i>
+                        </div>
+                        <div class="tree-node-info">
+                            <div class="tree-node-label">Goals</div>
+                            <div class="tree-node-meta">${goals.length} goals</div>
+                        </div>
+                        <div class="tree-node-value mask-amount" style="color: #9b59b6;">${formatCurrency(goalsValue)}</div>
+                        <div class="tree-node-arrow">
+                            <i class="bi bi-chevron-down" id="goalsChildrenArrow"></i>
+                        </div>
+                    </div>
+                    <div class="tree-children" id="goalsChildren" style="display: none;">
+                        ${childrenHtml}
+                    </div>
+                </div>`;
+            }
+
+            // If nothing to show
+            if (!nodesHtml) {
+                nodesHtml = `
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-2">No assets yet. Upload a CAS PDF, NPS statement, or FD CSV.</p>
+                </div>`;
+            }
+
+            document.getElementById('treeNodes').innerHTML = nodesHtml;
+        }
+
+        function buildTreeNode({icon, iconBg, label, meta, value, valueColor, linkUrl}) {
+            return `
+            <div class="tree-node">
+                <div class="tree-node-header" onclick="window.location='${linkUrl}'">
+                    <div class="tree-node-icon" style="background: ${iconBg}22; color: ${iconBg};">
+                        <i class="bi ${icon}"></i>
+                    </div>
+                    <div class="tree-node-info">
+                        <div class="tree-node-label">${label}</div>
+                        <div class="tree-node-meta">${meta}</div>
+                    </div>
+                    <div class="tree-node-value mask-amount" style="color: ${valueColor};">${formatCurrency(value)}</div>
+                    <div class="tree-node-arrow">
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function toggleTreeNode(nodeId) {
+            const children = document.getElementById(nodeId);
+            const arrow = document.getElementById(nodeId + 'Arrow');
+            if (children.style.display === 'none') {
+                children.style.display = 'block';
+                arrow.className = 'bi bi-chevron-up';
+            } else {
+                children.style.display = 'none';
+                arrow.className = 'bi bi-chevron-down';
+            }
+        }
+
+        // ==================== Investor Selects ====================
         function populateInvestorSelects() {
             const selects = [
                 document.getElementById('npsInvestorSelect'),
@@ -975,6 +1571,8 @@
             }
         }
 
+        // ==================== NPS Functions ====================
+
         function openNpsUpload() {
             document.getElementById('npsUploadForm').reset();
             document.getElementById('npsUploadProgress').style.display = 'none';
@@ -1108,6 +1706,8 @@
                 alert('Failed to link NPS account');
             }
         }
+
+        // ==================== Utilities ====================
 
         function formatCurrency(value) {
             return new Intl.NumberFormat('en-IN', {

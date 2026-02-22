@@ -582,6 +582,7 @@
                         <i class="bi bi-arrow-repeat spin"></i> Loading...
                     </div>
                     <input type="hidden" id="hsFundId">
+                    <datalist id="sectorSuggestions"></datalist>
 
                     <!-- Stock Holdings Section -->
                     <div class="hs-section">
@@ -606,6 +607,11 @@
                         <div id="sectorsRows"></div>
                         <div class="d-flex gap-2 align-items-center mt-2">
                             <button class="hs-add-btn" onclick="addSectorRow()"><i class="bi bi-plus"></i> Add Sector</button>
+                            <button class="hs-add-btn" onclick="toggleSectorPaste()"><i class="bi bi-clipboard"></i> Paste bulk text</button>
+                        </div>
+                        <div class="paste-area" id="sectorPasteArea">
+                            <textarea id="sectorPasteText" placeholder="Paste lines like:&#10;Financial Services&#9;25.3&#10;Information Technology&#9;18.1&#10;(tab, comma, or space-separated)"></textarea>
+                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="parseSectorPastedText()">Parse</button>
                         </div>
                         <div class="hs-total" id="sectorsTotal">Total: 0%</div>
                     </div>
@@ -1418,12 +1424,28 @@
 
         // ==================== Holdings & Sectors ====================
 
-        const VALID_SECTORS = [
+        const DEFAULT_SECTORS = [
             'Financial Services', 'Information Technology', 'Healthcare', 'FMCG',
             'Automobile', 'Energy', 'Metals & Mining', 'Real Estate', 'Telecom',
             'Capital Goods', 'Consumer Discretionary', 'Utilities', 'Construction',
             'Chemicals', 'Textiles', 'Media & Entertainment', 'Others'
         ];
+        let knownSectors = new Set(DEFAULT_SECTORS);
+
+        function refreshSectorDatalist() {
+            const dl = document.getElementById('sectorSuggestions');
+            if (!dl) return;
+            dl.innerHTML = [...knownSectors].sort().map(s =>
+                `<option value="${escHtml(s)}">`
+            ).join('');
+        }
+
+        function ensureSectorKnown(name) {
+            if (name && !knownSectors.has(name)) {
+                knownSectors.add(name);
+                refreshSectorDatalist();
+            }
+        }
 
         async function openHoldingsModal(fundId) {
             document.getElementById('hsFundId').value = fundId;
@@ -1433,7 +1455,9 @@
             document.getElementById('sectorsTotal').textContent = 'Total: 0%';
             document.getElementById('sectorsTotal').className = 'hs-total';
             document.getElementById('pasteArea').style.display = 'none';
+            document.getElementById('sectorPasteArea').style.display = 'none';
             document.getElementById('hsLoading').style.display = '';
+            refreshSectorDatalist();
 
             new bootstrap.Modal(document.getElementById('holdingsModal')).show();
 
@@ -1466,21 +1490,18 @@
         }
 
         function addSectorRow(name = '', weight = '') {
+            if (name) ensureSectorKnown(name);
             const container = document.getElementById('sectorsRows');
             const row = document.createElement('div');
             row.className = 'hs-row';
-            const options = VALID_SECTORS.map(s =>
-                `<option value="${s}" ${s === name ? 'selected' : ''}>${s}</option>`
-            ).join('');
             row.innerHTML = `
-                <select class="hs-sector-name">
-                    <option value="">-- Select sector --</option>
-                    ${options}
-                </select>
+                <input type="text" list="sectorSuggestions" placeholder="Sector name" value="${escHtml(String(name))}" class="hs-sector-name"
+                       onchange="ensureSectorKnown(this.value)">
                 <input type="number" placeholder="%" value="${weight}" min="0" max="100" step="0.1" class="hs-sector-weight" oninput="updateSectorsTotal()">
                 <button class="hs-remove" onclick="this.parentElement.remove(); updateSectorsTotal();" title="Remove"><i class="bi bi-x-lg"></i></button>
             `;
             container.appendChild(row);
+            if (!name) row.querySelector('.hs-sector-name').focus();
         }
 
         function updateHoldingsTotal() {
@@ -1552,6 +1573,64 @@
                 document.getElementById('pasteText').value = '';
                 updateHoldingsTotal();
                 showToast(`Parsed ${count} holdings`, 'success');
+            }
+        }
+
+        function toggleSectorPaste() {
+            const area = document.getElementById('sectorPasteArea');
+            area.style.display = area.style.display === 'none' ? 'block' : 'none';
+            if (area.style.display === 'block') {
+                document.getElementById('sectorPasteText').value = '';
+                document.getElementById('sectorPasteText').focus();
+            }
+        }
+
+        function parseSectorPastedText() {
+            const text = document.getElementById('sectorPasteText').value.trim();
+            if (!text) return;
+
+            // Build a lowercase lookup for case-insensitive matching to known sectors
+            const sectorLower = {};
+            knownSectors.forEach(s => { sectorLower[s.toLowerCase()] = s; });
+
+            const lines = text.split('\n');
+            let count = 0;
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                let name = '', weight = '';
+                if (trimmed.includes('\t')) {
+                    const parts = trimmed.split('\t');
+                    name = parts[0].trim();
+                    weight = parseFloat(parts[parts.length - 1]) || '';
+                } else if (trimmed.includes(',')) {
+                    const parts = trimmed.split(',');
+                    name = parts[0].trim();
+                    weight = parseFloat(parts[parts.length - 1]) || '';
+                } else {
+                    const match = trimmed.match(/^(.+?)\s+([\d.]+)\s*%?\s*$/);
+                    if (match) {
+                        name = match[1].trim();
+                        weight = parseFloat(match[2]) || '';
+                    } else {
+                        name = trimmed;
+                    }
+                }
+
+                if (name) {
+                    // Use known sector name if case-insensitive match exists, otherwise use as-is (new sector)
+                    const matched = sectorLower[name.toLowerCase()];
+                    addSectorRow(matched || name, weight);
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                document.getElementById('sectorPasteArea').style.display = 'none';
+                document.getElementById('sectorPasteText').value = '';
+                updateSectorsTotal();
+                showToast(`Parsed ${count} sectors`, 'success');
             }
         }
 

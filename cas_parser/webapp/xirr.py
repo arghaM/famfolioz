@@ -210,7 +210,12 @@ def build_cashflows_for_folio(
                 cashflows.append((tx_date, -validated))
         elif tx_type in INFLOW_TYPES:
             cashflows.append((tx_date, validated))
-        # Unknown types are skipped
+        elif tx_type == 'charges' and amount > 0 and abs(tx.get('units') or 0) < 0.001:
+            # Hidden dividend payout: IDCW fund distributions sometimes appear
+            # as 'charges' with positive amount and zero units. These are real
+            # cash returned to the investor (same as dividend_payout).
+            cashflows.append((tx_date, validated))
+        # Other unknown types are skipped
 
     # Tier 2: Remove outlier cashflows relative to current_value
     if current_value and current_value > 0 and len(cashflows) >= 3:

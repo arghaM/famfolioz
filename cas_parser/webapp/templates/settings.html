@@ -155,6 +155,57 @@
             </div>
         </div>
 
+        <!-- Folio Management Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Folio Management</h5>
+                <div>
+                    <span id="folioCountBadges"></span>
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="loadAllFolios()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="folioSearchInput"
+                               placeholder="Search by scheme name, folio number, or investor..."
+                               oninput="filterFolios()">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="folioFilterSelect" onchange="filterFolios()">
+                            <option value="all">All Folios</option>
+                            <option value="assigned">Assigned Only</option>
+                            <option value="unassigned">Unassigned Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0" id="folioMgmtTable" style="display:none;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Folio Number</th>
+                                <th>Scheme Name</th>
+                                <th>AMC</th>
+                                <th>Investor</th>
+                                <th class="text-end">Value</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="folioMgmtBody"></tbody>
+                    </table>
+                </div>
+                <div id="folioMgmtLoading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    Loading folios...
+                </div>
+                <div id="folioMgmtEmpty" class="text-center py-3 text-muted" style="display:none;">
+                    No folios found
+                </div>
+            </div>
+        </div>
+
         <!-- ISIN Resolver Section -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white">
@@ -579,6 +630,181 @@
 
         // Load backups on page load
         loadBackups();
+
+        // ==================== Folio Management Functions ====================
+
+        let allFoliosData = [];
+        let allInvestorsData = [];
+
+        async function loadAllFolios() {
+            const loading = document.getElementById('folioMgmtLoading');
+            const table = document.getElementById('folioMgmtTable');
+            const empty = document.getElementById('folioMgmtEmpty');
+            loading.style.display = '';
+            table.style.display = 'none';
+            empty.style.display = 'none';
+
+            try {
+                const [foliosRes, investorsRes] = await Promise.all([
+                    fetch('/api/folios/all'),
+                    fetch('/api/investors')
+                ]);
+                allFoliosData = await foliosRes.json();
+                allInvestorsData = await investorsRes.json();
+
+                loading.style.display = 'none';
+
+                if (!allFoliosData.length) {
+                    empty.style.display = '';
+                    return;
+                }
+
+                // Update count badges
+                const total = allFoliosData.length;
+                const assigned = allFoliosData.filter(f => f.investor_id).length;
+                const unassigned = total - assigned;
+                document.getElementById('folioCountBadges').innerHTML =
+                    `<span class="badge bg-secondary">${total} Total</span> ` +
+                    `<span class="badge bg-success">${assigned} Assigned</span> ` +
+                    (unassigned > 0 ? `<span class="badge bg-danger">${unassigned} Unassigned</span>` : '');
+
+                renderFolioTable();
+                table.style.display = '';
+            } catch(e) {
+                console.error('Failed to load folios:', e);
+                loading.style.display = 'none';
+                empty.style.display = '';
+                empty.textContent = 'Failed to load folios';
+            }
+        }
+
+        function renderFolioTable() {
+            const tbody = document.getElementById('folioMgmtBody');
+            const search = (document.getElementById('folioSearchInput').value || '').toLowerCase();
+            const filter = document.getElementById('folioFilterSelect').value;
+
+            let filtered = allFoliosData;
+            if (filter === 'assigned') filtered = filtered.filter(f => f.investor_id);
+            if (filter === 'unassigned') filtered = filtered.filter(f => !f.investor_id);
+            if (search) {
+                filtered = filtered.filter(f =>
+                    (f.scheme_name || '').toLowerCase().includes(search) ||
+                    (f.folio_number || '').toLowerCase().includes(search) ||
+                    (f.investor_name || '').toLowerCase().includes(search) ||
+                    (f.amc || '').toLowerCase().includes(search)
+                );
+            }
+
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No matching folios</td></tr>';
+                return;
+            }
+
+            const investorOptions = allInvestorsData.map(inv =>
+                `<option value="${inv.id}">${inv.name}${inv.pan ? ' (' + inv.pan + ')' : ''}</option>`
+            ).join('');
+
+            let rows = '';
+            for (const f of filtered) {
+                const val = f.current_value ? Number(f.current_value).toLocaleString('en-IN', {style: 'currency', currency: 'INR', maximumFractionDigits: 0}) : '-';
+                const schemeName = (f.scheme_name || '').length > 40
+                    ? f.scheme_name.substring(0, 40) + '...' : (f.scheme_name || '');
+
+                let investorCell, actionsCell;
+                if (f.investor_id) {
+                    investorCell = `<span class="text-success fw-semibold">${f.investor_name}</span>`;
+                    actionsCell = `
+                        <div class="d-flex gap-1 justify-content-center align-items-center">
+                            <select class="form-select form-select-sm" style="width:140px;font-size:0.75rem;"
+                                    id="reassign-${f.id}" title="Reassign to another investor">
+                                <option value="">Reassign...</option>
+                                ${investorOptions}
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary px-1 py-0" onclick="reassignFolio(${f.id})" title="Reassign">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger px-1 py-0" onclick="unlinkFolio(${f.id}, '${(f.scheme_name || '').replace(/'/g, "\\'")}')">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>`;
+                } else {
+                    investorCell = '<span class="text-danger fst-italic">Unassigned</span>';
+                    actionsCell = `
+                        <div class="d-flex gap-1 justify-content-center align-items-center">
+                            <select class="form-select form-select-sm" style="width:140px;font-size:0.75rem;"
+                                    id="reassign-${f.id}" title="Assign to investor">
+                                <option value="">Assign to...</option>
+                                ${investorOptions}
+                            </select>
+                            <button class="btn btn-sm btn-outline-success px-1 py-0" onclick="reassignFolio(${f.id})" title="Assign">
+                                <i class="bi bi-link-45deg"></i>
+                            </button>
+                        </div>`;
+                }
+
+                rows += `<tr>
+                    <td><code class="small">${f.folio_number || '-'}</code></td>
+                    <td title="${f.scheme_name || ''}">${schemeName}</td>
+                    <td class="small">${f.amc || '-'}</td>
+                    <td>${investorCell}</td>
+                    <td class="text-end">${val}</td>
+                    <td>${actionsCell}</td>
+                </tr>`;
+            }
+            tbody.innerHTML = rows;
+        }
+
+        function filterFolios() {
+            renderFolioTable();
+        }
+
+        async function reassignFolio(folioId) {
+            const select = document.getElementById(`reassign-${folioId}`);
+            const investorId = select ? select.value : '';
+            if (!investorId) {
+                select.focus();
+                return;
+            }
+            try {
+                const res = await fetch('/api/map-folios', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({investor_id: parseInt(investorId), folio_ids: [folioId]})
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadAllFolios();
+                    logActivity('Folio reassigned successfully');
+                } else {
+                    alert('Failed to reassign folio: ' + (result.error || 'Unknown error'));
+                }
+            } catch(e) {
+                alert('Error reassigning folio: ' + e.message);
+            }
+        }
+
+        async function unlinkFolio(folioId, schemeName) {
+            if (!confirm(`Unlink "${schemeName}" from its investor?\n\nThe folio will become unassigned.`)) return;
+            try {
+                const res = await fetch('/api/unmap-folio', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({folio_id: folioId})
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadAllFolios();
+                    logActivity('Folio unlinked successfully');
+                } else {
+                    alert('Failed to unlink folio: ' + (result.error || 'Unknown error'));
+                }
+            } catch(e) {
+                alert('Error unlinking folio: ' + e.message);
+            }
+        }
+
+        // Load folios on page load
+        loadAllFolios();
 
         // ==================== ISIN Resolver Functions ====================
 

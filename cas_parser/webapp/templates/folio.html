@@ -166,6 +166,7 @@
                                 <th class="text-end">Units</th>
                                 <th class="text-end">NAV</th>
                                 <th class="text-end">Balance</th>
+                                <th class="text-end">Running Units</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -314,6 +315,10 @@
                 const txRes = await fetch(`/api/folios/${folioId}/transactions`);
                 allTransactions = await txRes.json();
 
+                // Override units display with computed sum from transactions
+                const computedUnits = allTransactions.reduce((sum, t) => sum + (t.units || 0), 0);
+                document.getElementById('units').textContent = computedUnits.toFixed(3);
+
                 displayTransactions(allTransactions);
                 populateFilters(allTransactions);
 
@@ -386,9 +391,19 @@
                 );
             }
 
-            tbody.innerHTML = filtered.map(t => {
+            // Compute running sum of units (oldest→newest).
+            // filtered is in DESC order (newest first), so accumulate from the end.
+            const runningSums = new Array(filtered.length);
+            let cumulative = 0;
+            for (let i = filtered.length - 1; i >= 0; i--) {
+                cumulative += (filtered[i].units || 0);
+                runningSums[i] = cumulative;
+            }
+
+            tbody.innerHTML = filtered.map((t, i) => {
                 const amount = t.amount || 0;
                 const units = t.units || 0;
+                const runSum = runningSums[i];
                 return `
                     <tr>
                         <td>${t.tx_date}</td>
@@ -398,6 +413,7 @@
                         <td class="text-end ${units < 0 ? 'negative' : 'positive'}">${units.toFixed(3)}</td>
                         <td class="text-end">${t.nav ? t.nav.toFixed(4) : '-'}</td>
                         <td class="text-end">${(t.balance_units || 0).toFixed(3)}</td>
+                        <td class="text-end">${runSum.toFixed(3)}</td>
                         <td class="text-center">
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal(${t.id})" title="Edit">
                                 <i class="bi bi-pencil"></i>
