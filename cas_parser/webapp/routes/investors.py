@@ -101,6 +101,14 @@ def api_get_notes_timeline(investor_id):
     return jsonify(notes)
 
 
+@investors_bp.route('/api/investors/<int:investor_id>/tax-harvesting', methods=['GET'])
+def api_get_tax_harvesting(investor_id):
+    """Compute tax-loss harvesting analysis."""
+    tax_slab = request.args.get('tax_slab', type=float)
+    result = db.compute_tax_harvesting(investor_id, tax_slab)
+    return jsonify(result)
+
+
 @investors_bp.route('/api/investors/<int:investor_id>/tax-slab', methods=['PUT'])
 def api_update_tax_slab(investor_id):
     """Update investor's tax slab percentage."""
