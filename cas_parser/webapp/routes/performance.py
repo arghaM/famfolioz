@@ -7,6 +7,7 @@ from flask import current_app
 from cas_parser.webapp import data as db
 from cas_parser.webapp.xirr import build_cashflows_for_folio, xirr
 from cas_parser.webapp.routes import DecimalEncoder
+from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_folio
 
 performance_bp = Blueprint('performance', __name__)
 
@@ -14,6 +15,7 @@ performance_bp = Blueprint('performance', __name__)
 @performance_bp.route('/api/investors/<int:investor_id>/performance', methods=['GET'])
 def api_get_performance(investor_id):
     """Get complete performance data with metrics."""
+    check_investor_access(investor_id)
     category = request.args.get('category', '')
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
@@ -42,6 +44,7 @@ def api_export_performance(investor_id):
     Sheet 1: Portfolio cashflows.
     Sheet 2+: One sheet per user-added benchmark.
     """
+    check_investor_access(investor_id)
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Font
@@ -182,6 +185,7 @@ def _auto_width(ws, num_cols):
 @performance_bp.route('/api/investors/<int:investor_id>/performance/returns', methods=['GET'])
 def api_multi_period_returns(investor_id):
     """Get portfolio XIRR vs benchmark CAGR for all standard periods."""
+    check_investor_access(investor_id)
     category = request.args.get('category', '')
 
     extra_benchmarks = db.get_benchmarks_by_investor(investor_id)
@@ -203,6 +207,7 @@ def api_multi_period_returns(investor_id):
 @performance_bp.route('/api/investors/<int:investor_id>/benchmarks', methods=['GET'])
 def api_get_benchmarks(investor_id):
     """Get all saved benchmarks for an investor."""
+    check_investor_access(investor_id)
     benchmarks = db.get_benchmarks_by_investor(investor_id)
     return jsonify(benchmarks)
 
@@ -210,6 +215,7 @@ def api_get_benchmarks(investor_id):
 @performance_bp.route('/api/investors/<int:investor_id>/benchmarks', methods=['POST'])
 def api_add_benchmark(investor_id):
     """Add a benchmark for an investor and fetch its NAV data."""
+    check_investor_access(investor_id)
     data = request.json
     if not data or 'scheme_code' not in data or 'scheme_name' not in data:
         return jsonify({'error': 'Missing scheme_code or scheme_name'}), 400
@@ -233,6 +239,7 @@ def api_add_benchmark(investor_id):
 @performance_bp.route('/api/investors/<int:investor_id>/benchmarks/<int:benchmark_id>', methods=['DELETE'])
 def api_delete_benchmark(investor_id, benchmark_id):
     """Delete a benchmark."""
+    check_investor_access(investor_id)
     deleted = db.delete_benchmark(investor_id, benchmark_id)
     if not deleted:
         return jsonify({'error': 'Benchmark not found'}), 404
@@ -309,6 +316,7 @@ def _fetch_and_cache_benchmark(scheme_code: int):
 
 
 @performance_bp.route('/api/nav/refresh', methods=['POST'])
+@admin_required
 def api_refresh_nav():
     """Refresh NAV data from AMFI for mapped funds and take portfolio snapshots."""
     try:
@@ -356,6 +364,9 @@ def api_nav_status():
 @performance_bp.route('/api/folios/<int:folio_id>/xirr', methods=['GET'])
 def api_get_folio_xirr(folio_id):
     """Get XIRR for a specific folio."""
+    inv_id = get_investor_id_for_folio(folio_id)
+    if inv_id:
+        check_investor_access(inv_id)
     data = db.get_xirr_data_for_folio(folio_id)
     cashflows = build_cashflows_for_folio(
         data['transactions'], data['current_value']
@@ -372,6 +383,7 @@ def api_get_folio_xirr(folio_id):
 @performance_bp.route('/api/investors/<int:investor_id>/xirr', methods=['GET'])
 def api_get_investor_xirr(investor_id):
     """Get XIRR for all folios of an investor + portfolio-level and per-ISIN XIRR."""
+    check_investor_access(investor_id)
     folio_data_list = db.get_xirr_data_for_investor(investor_id)
     all_cashflows = []
     folios = []
@@ -419,6 +431,7 @@ def api_get_investor_xirr(investor_id):
 @performance_bp.route('/api/investors/<int:investor_id>/portfolio-history', methods=['GET'])
 def api_get_portfolio_history(investor_id):
     """Get historical portfolio valuation."""
+    check_investor_access(investor_id)
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     history = db.get_portfolio_history(investor_id, start_date, end_date)
@@ -428,6 +441,7 @@ def api_get_portfolio_history(investor_id):
 @performance_bp.route('/api/investors/<int:investor_id>/valuation/<valuation_date>', methods=['GET'])
 def api_get_portfolio_valuation(investor_id, valuation_date):
     """Get portfolio valuation on a specific date."""
+    check_investor_access(investor_id)
     valuation = db.get_portfolio_valuation_on_date(investor_id, valuation_date)
     return jsonify(valuation)
 
@@ -435,6 +449,7 @@ def api_get_portfolio_valuation(investor_id, valuation_date):
 @performance_bp.route('/api/investors/<int:investor_id>/snapshot', methods=['POST'])
 def api_take_portfolio_snapshot(investor_id):
     """Take a portfolio snapshot for an investor."""
+    check_investor_access(investor_id)
     data = request.json or {}
     snapshot_date = data.get('snapshot_date')
     result = db.take_portfolio_snapshot(investor_id, snapshot_date)

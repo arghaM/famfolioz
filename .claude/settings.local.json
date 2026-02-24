@@ -22,7 +22,14 @@
       "Bash(./release.sh:*)",
       "Bash(while read f)",
       "Bash(do basename \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(python -c:*)",
+      "WebFetch(domain:api.mfapi.in)",
+      "Bash(python:*)",
+      "WebFetch(domain:help.mprofit.in)",
+      "Bash(wc:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)"
     ]
   }
 }

@@ -318,9 +318,12 @@
                     <h1><i class="bi bi-bank2"></i> Mutual Fund Master</h1>
                     <p>Manage fund names, AMFI mappings, and asset allocations</p>
                 </div>
-                <button class="btn btn-primary btn-sm" id="refreshNavBtn" onclick="refreshAllNAV()">
-                    <i class="bi bi-arrow-clockwise" id="refreshIcon"></i> Refresh NAV
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-primary btn-sm" id="refreshNavBtn" onclick="refreshAllNAV()">
+                        <i class="bi bi-arrow-clockwise" id="refreshIcon"></i> Refresh NAV
+                    </button>
+                    {% include '_auth_nav.html' %}
+                </div>
             </div>
         </div>
     </div>
@@ -1718,5 +1721,15 @@
         loadData();
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

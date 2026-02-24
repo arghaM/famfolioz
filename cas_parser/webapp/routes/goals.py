@@ -3,6 +3,7 @@ from datetime import date, datetime
 from flask import Blueprint, jsonify, request
 from cas_parser.webapp import data as db
 from cas_parser.webapp.xirr import xirr, build_cashflows_for_folio
+from cas_parser.webapp.auth import check_investor_access, get_investor_id_for_goal, get_investor_id_for_note
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -10,6 +11,7 @@ goals_bp = Blueprint('goals', __name__)
 @goals_bp.route('/api/investors/<int:investor_id>/goals', methods=['GET'])
 def api_get_goals(investor_id):
     """Get all goals for an investor."""
+    check_investor_access(investor_id)
     goals = db.get_goals_by_investor(investor_id)
     return jsonify(goals)
 
@@ -17,6 +19,7 @@ def api_get_goals(investor_id):
 @goals_bp.route('/api/investors/<int:investor_id>/goals', methods=['POST'])
 def api_create_goal(investor_id):
     """Create a new goal."""
+    check_investor_access(investor_id)
     data = request.json
 
     if not data.get('name'):
@@ -41,6 +44,7 @@ def api_create_goal(investor_id):
 @goals_bp.route('/api/goals/<int:goal_id>', methods=['GET'])
 def api_get_goal(goal_id):
     """Get a single goal with details."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     goal = db.get_goal_by_id(goal_id)
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404
@@ -50,6 +54,7 @@ def api_get_goal(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>', methods=['PUT'])
 def api_update_goal(goal_id):
     """Update a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     data = request.json
 
     result = db.update_goal(
@@ -73,6 +78,7 @@ def api_update_goal(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>', methods=['DELETE'])
 def api_delete_goal(goal_id):
     """Delete a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     result = db.delete_goal(goal_id)
     return jsonify(result)
 
@@ -80,6 +86,7 @@ def api_delete_goal(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/link', methods=['POST'])
 def api_link_folio_to_goal(goal_id):
     """Link a folio to a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     data = request.json
     folio_id = data.get('folio_id')
 
@@ -95,6 +102,7 @@ def api_link_folio_to_goal(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/unlink', methods=['POST'])
 def api_unlink_folio_from_goal(goal_id):
     """Unlink a folio from a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     data = request.json
     folio_id = data.get('folio_id')
 
@@ -108,12 +116,10 @@ def api_unlink_folio_from_goal(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/available-folios', methods=['GET'])
 def api_get_available_folios(goal_id):
     """Get folios that can be linked to this goal."""
-    # Get the goal to find investor_id
-    goal = db.get_goal_by_id(goal_id)
-    if not goal:
-        return jsonify({'error': 'Goal not found'}), 404
+    investor_id = get_investor_id_for_goal(goal_id)
+    check_investor_access(investor_id)
 
-    folios = db.get_unlinked_folios_for_goal(goal_id, goal['investor_id'])
+    folios = db.get_unlinked_folios_for_goal(goal_id, investor_id)
     return jsonify(folios)
 
 
@@ -122,6 +128,7 @@ def api_get_available_folios(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/notes', methods=['GET'])
 def api_get_goal_notes(goal_id):
     """Get all notes for a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     limit = request.args.get('limit', 50, type=int)
     notes = db.get_goal_notes(goal_id, limit=limit)
     return jsonify(notes)
@@ -130,6 +137,7 @@ def api_get_goal_notes(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/notes', methods=['POST'])
 def api_create_goal_note(goal_id):
     """Create a new note for a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     data = request.json
 
     content = data.get('content', '').strip()
@@ -150,6 +158,7 @@ def api_create_goal_note(goal_id):
 @goals_bp.route('/api/notes/<int:note_id>', methods=['GET'])
 def api_get_note(note_id):
     """Get a single note by ID."""
+    check_investor_access(get_investor_id_for_note(note_id))
     note = db.get_goal_note_by_id(note_id)
     if not note:
         return jsonify({'error': 'Note not found'}), 404
@@ -159,6 +168,7 @@ def api_get_note(note_id):
 @goals_bp.route('/api/notes/<int:note_id>', methods=['PUT'])
 def api_update_note(note_id):
     """Update a note."""
+    check_investor_access(get_investor_id_for_note(note_id))
     data = request.json
 
     result = db.update_goal_note(
@@ -177,6 +187,7 @@ def api_update_note(note_id):
 @goals_bp.route('/api/notes/<int:note_id>', methods=['DELETE'])
 def api_delete_note(note_id):
     """Delete a note."""
+    check_investor_access(get_investor_id_for_note(note_id))
     result = db.delete_goal_note(note_id)
     return jsonify(result)
 
@@ -184,6 +195,7 @@ def api_delete_note(note_id):
 @goals_bp.route('/api/goals/<int:goal_id>/allocation-detail', methods=['GET'])
 def api_get_goal_allocation_detail(goal_id):
     """Get detailed per-fund allocation breakdown for a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     goal = db.get_goal_by_id(goal_id)
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404
@@ -194,6 +206,7 @@ def api_get_goal_allocation_detail(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/phases', methods=['GET'])
 def api_get_goal_phases(goal_id):
     """Get all phases with equity sub-allocations for a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     phases = db.get_goal_phases(goal_id)
     return jsonify(phases)
 
@@ -201,6 +214,7 @@ def api_get_goal_phases(goal_id):
 @goals_bp.route('/api/goals/<int:goal_id>/phases', methods=['PUT'])
 def api_save_goal_phases(goal_id):
     """Save/replace all phases for a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     data = request.json
     phases_data = data.get('phases', [])
     result = db.save_goal_phases(goal_id, phases_data)
@@ -211,7 +225,8 @@ def api_save_goal_phases(goal_id):
 
 @goals_bp.route('/api/goals/<int:goal_id>/xirr', methods=['GET'])
 def api_get_goal_xirr(goal_id):
-    """Compute XIRR for a goal — per-fund + goal-level aggregate."""
+    """Compute XIRR for a goal -- per-fund + goal-level aggregate."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
     goal = db.get_goal_by_id(goal_id)
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404

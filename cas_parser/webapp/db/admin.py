@@ -114,6 +114,32 @@ def backup_static_tables() -> dict:
         """)
         backup_data['tables']['goal_notes'] = [dict(row) for row in cursor.fetchall()]
 
+        # Backup users (without password hashes for safety — restore uses upsert by username)
+        try:
+            cursor.execute("""
+                SELECT id, username, password_hash, display_name, role, investor_id,
+                       is_active, last_login, created_at, updated_at
+                FROM users
+            """)
+            backup_data['tables']['users'] = [dict(row) for row in cursor.fetchall()]
+        except Exception:
+            backup_data['tables']['users'] = []
+
+        # Backup custodian_access (with username + investor PAN for re-linking)
+        try:
+            cursor.execute("""
+                SELECT ca.investor_id, u.username as custodian_username,
+                       gu.username as granted_by_username, i.pan as investor_pan,
+                       ca.created_at
+                FROM custodian_access ca
+                JOIN users u ON u.id = ca.custodian_user_id
+                JOIN users gu ON gu.id = ca.granted_by_user_id
+                LEFT JOIN investors i ON i.id = ca.investor_id
+            """)
+            backup_data['tables']['custodian_access'] = [dict(row) for row in cursor.fetchall()]
+        except Exception:
+            backup_data['tables']['custodian_access'] = []
+
     # Backup manual ISIN mappings from external file
     manual_mappings_file = Path(__file__).parent.parent / 'data' / 'manual_isin_mappings.json'
     if manual_mappings_file.exists():
@@ -143,6 +169,8 @@ def backup_static_tables() -> dict:
             'goals': len(backup_data['tables']['goals']),
             'goal_folios': len(backup_data['tables']['goal_folios']),
             'goal_notes': len(backup_data['tables'].get('goal_notes', [])),
+            'users': len(backup_data['tables'].get('users', [])),
+            'custodian_access': len(backup_data['tables'].get('custodian_access', [])),
             'isin_mappings': len(backup_data['external_files'].get('manual_isin_mappings', {}))
         }
     }
@@ -222,7 +250,8 @@ def restore_static_tables(backup_file: str = None, auto_backup: bool = True) -> 
         backup_data = json.load(f)
 
     restored = {'investors': 0, 'mutual_fund_master': 0, 'fund_holdings': 0, 'fund_sectors': 0,
-                'goals': 0, 'goal_folios': 0, 'goal_notes': 0, 'isin_mappings': 0}
+                'goals': 0, 'goal_folios': 0, 'goal_notes': 0,
+                'users': 0, 'custodian_access': 0, 'isin_mappings': 0}
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -423,6 +452,75 @@ def restore_static_tables(backup_file: str = None, auto_backup: bool = True) -> 
                 restored['goal_notes'] += 1
             except Exception as e:
                 logger.warning(f"Failed to restore goal note: {e}")
+
+        # Restore users (upsert by username, preserve existing passwords if user exists)
+        user_map = {}  # old_user_id -> new_user_id
+        for user in backup_data['tables'].get('users', []):
+            try:
+                cursor.execute("SELECT id FROM users WHERE username = ?", (user['username'],))
+                existing = cursor.fetchone()
+                if existing:
+                    # User exists — update non-password fields, map ID
+                    cursor.execute("""
+                        UPDATE users SET display_name = ?, role = ?, is_active = ?,
+                                         updated_at = CURRENT_TIMESTAMP
+                        WHERE username = ?
+                    """, (user['display_name'], user['role'], user.get('is_active', 1),
+                          user['username']))
+                    user_map[user['id']] = existing['id']
+                else:
+                    # New user — insert with password hash
+                    cursor.execute("""
+                        INSERT INTO users (username, password_hash, display_name, role,
+                                           investor_id, is_active, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (user['username'], user['password_hash'], user['display_name'],
+                          user['role'],
+                          investor_map.get(user.get('investor_id')),
+                          user.get('is_active', 1),
+                          user.get('created_at'), user.get('updated_at')))
+                    user_map[user['id']] = cursor.lastrowid
+                restored['users'] += 1
+            except Exception as e:
+                logger.warning(f"Failed to restore user {user.get('username')}: {e}")
+
+        # Restore custodian_access (look up by username + investor PAN)
+        for ca in backup_data['tables'].get('custodian_access', []):
+            try:
+                # Find custodian user by username
+                cursor.execute("SELECT id FROM users WHERE username = ?",
+                               (ca['custodian_username'],))
+                cust_row = cursor.fetchone()
+                if not cust_row:
+                    continue
+
+                # Find granting user by username
+                cursor.execute("SELECT id FROM users WHERE username = ?",
+                               (ca['granted_by_username'],))
+                grant_row = cursor.fetchone()
+                if not grant_row:
+                    continue
+
+                # Find investor by PAN
+                inv_id = None
+                if ca.get('investor_pan'):
+                    cursor.execute("SELECT id FROM investors WHERE pan = ?",
+                                   (ca['investor_pan'],))
+                    inv_row = cursor.fetchone()
+                    if inv_row:
+                        inv_id = inv_row['id']
+
+                if not inv_id:
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO custodian_access (investor_id, custodian_user_id, granted_by_user_id)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(investor_id, custodian_user_id) DO NOTHING
+                """, (inv_id, cust_row['id'], grant_row['id']))
+                restored['custodian_access'] += 1
+            except Exception as e:
+                logger.warning(f"Failed to restore custodian access: {e}")
 
     # Restore manual ISIN mappings
     external_files = backup_data.get('external_files', {})

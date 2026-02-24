@@ -47,9 +47,12 @@
                     <h1 class="mt-3"><i class="bi bi-shield-check"></i> NPS Accounts</h1>
                     <p class="mb-0">Manage National Pension System accounts</p>
                 </div>
-                <button class="btn btn-light btn-lg" onclick="openUploadModal()">
-                    <i class="bi bi-cloud-arrow-up"></i> Upload NPS Statement
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-light btn-lg" onclick="openUploadModal()">
+                        <i class="bi bi-cloud-arrow-up"></i> Upload NPS Statement
+                    </button>
+                    {% include '_auth_nav.html' %}
+                </div>
             </div>
         </div>
     </div>
@@ -276,5 +279,15 @@
         }
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

@@ -54,11 +54,16 @@
     <!-- Header -->
     <div class="header">
         <div class="container">
-            <a href="/" class="text-white text-decoration-none">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-            <h1 class="mt-3"><i class="bi bi-link-45deg"></i> Map Portfolios</h1>
-            <p class="mb-0">Assign unmapped portfolios to an investor</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <a href="/" class="text-white text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <h1 class="mt-3"><i class="bi bi-link-45deg"></i> Map Portfolios</h1>
+                    <p class="mb-0">Assign unmapped portfolios to an investor</p>
+                </div>
+                {% include '_auth_nav.html' %}
+            </div>
         </div>
     </div>
 
@@ -282,5 +287,15 @@
         loadData();
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

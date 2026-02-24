@@ -3,11 +3,13 @@ import tempfile
 from flask import Blueprint, jsonify, request
 from cas_parser.main import parse_cas_pdf
 from cas_parser.webapp import data as db
+from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_tx
 
 transactions_bp = Blueprint('transactions', __name__)
 
 
 @transactions_bp.route('/api/parse', methods=['POST'])
+@admin_required
 def api_parse_pdf():
     """
     Parse an uploaded CAS PDF and store in database.
@@ -67,6 +69,9 @@ def api_parse_pdf():
 @transactions_bp.route('/api/transactions/<int:tx_id>', methods=['GET'])
 def api_get_transaction(tx_id):
     """Get a single transaction."""
+    investor_id = get_investor_id_for_tx(tx_id)
+    if investor_id:
+        check_investor_access(investor_id)
     tx = db.get_transaction_by_id(tx_id)
     if not tx:
         return jsonify({'error': 'Transaction not found'}), 404
@@ -77,6 +82,9 @@ def api_get_transaction(tx_id):
 @transactions_bp.route('/api/transactions/<int:tx_id>', methods=['PUT'])
 def api_update_transaction(tx_id):
     """Update a transaction with mandatory comment."""
+    investor_id = get_investor_id_for_tx(tx_id)
+    if investor_id:
+        check_investor_access(investor_id)
     data = request.json
 
     edit_comment = data.get('edit_comment', '').strip()
@@ -104,11 +112,15 @@ def api_update_transaction(tx_id):
 @transactions_bp.route('/api/transactions/<int:tx_id>/versions', methods=['GET'])
 def api_get_transaction_versions(tx_id):
     """Get all versions of a transaction."""
+    investor_id = get_investor_id_for_tx(tx_id)
+    if investor_id:
+        check_investor_access(investor_id)
     versions = db.get_transaction_versions(tx_id)
     return jsonify(versions)
 
 
 @transactions_bp.route('/api/conflicts', methods=['GET'])
+@admin_required
 def api_get_conflicts():
     """Get all pending conflict groups."""
     groups = db.get_pending_conflict_groups()
@@ -116,6 +128,7 @@ def api_get_conflicts():
 
 
 @transactions_bp.route('/api/conflicts/stats', methods=['GET'])
+@admin_required
 def api_get_conflict_stats():
     """Get conflict statistics."""
     stats = db.get_conflict_stats()
@@ -123,6 +136,7 @@ def api_get_conflict_stats():
 
 
 @transactions_bp.route('/api/conflicts/<conflict_group_id>', methods=['GET'])
+@admin_required
 def api_get_conflict_group(conflict_group_id):
     """Get transactions in a conflict group."""
     transactions = db.get_conflict_group_transactions(conflict_group_id)
@@ -130,6 +144,7 @@ def api_get_conflict_group(conflict_group_id):
 
 
 @transactions_bp.route('/api/conflicts/<conflict_group_id>/resolve', methods=['POST'])
+@admin_required
 def api_resolve_conflict(conflict_group_id):
     """Resolve a conflict by selecting which transactions to keep."""
     data = request.json

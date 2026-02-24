@@ -1,7 +1,12 @@
 import os
+import shutil
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 from cas_parser.webapp import data as db
+from cas_parser.webapp.db.connection import DB_PATH, BACKUP_DIR, init_db
+from cas_parser.webapp.auth import admin_required
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -14,6 +19,7 @@ def api_get_config(key):
 
 
 @admin_bp.route('/api/config/<key>', methods=['PUT'])
+@admin_required
 def api_set_config(key):
     """Set a config value."""
     data = request.json
@@ -24,6 +30,7 @@ def api_set_config(key):
 
 
 @admin_bp.route('/api/backup', methods=['POST'])
+@admin_required
 def api_backup():
     """Create a backup of static tables."""
     try:
@@ -43,6 +50,7 @@ def api_list_backups():
 
 
 @admin_bp.route('/api/restore', methods=['POST'])
+@admin_required
 def api_restore():
     """Restore static tables from backup."""
     data = request.json or {}
@@ -60,7 +68,7 @@ def api_restore():
 @admin_bp.route('/api/backups/download/<filename>')
 def api_download_backup(filename):
     """Download a backup file."""
-    backup_dir = Path(__file__).parent / 'backups'
+    backup_dir = BACKUP_DIR
     backup_file = backup_dir / filename
 
     if not backup_file.exists():
@@ -78,7 +86,128 @@ def api_download_backup(filename):
     )
 
 
+@admin_bp.route('/api/backup/full-db')
+@admin_required
+def api_download_full_db():
+    """Download the entire database file as a backup."""
+    if not DB_PATH.exists():
+        return jsonify({'error': 'Database file not found'}), 404
+
+    timestamp = datetime.now().strftime('%Y%m%d')
+    return send_file(
+        str(DB_PATH),
+        as_attachment=True,
+        download_name=f'famfolioz_backup_{timestamp}.db'
+    )
+
+
+@admin_bp.route('/api/backup/full-db/size')
+def api_full_db_size():
+    """Get the size of the database file."""
+    if not DB_PATH.exists():
+        return jsonify({'size_bytes': 0, 'size_mb': '0'})
+
+    size_bytes = DB_PATH.stat().st_size
+    size_mb = round(size_bytes / (1024 * 1024), 1)
+    return jsonify({'size_bytes': size_bytes, 'size_mb': f'{size_mb}'})
+
+
+@admin_bp.route('/api/restore/full-db', methods=['POST'])
+@admin_required
+def api_restore_full_db():
+    """Restore from an uploaded .db file. Replaces the entire database."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+    uploaded = request.files['file']
+    if not uploaded.filename or not uploaded.filename.endswith('.db'):
+        return jsonify({'success': False, 'error': 'File must be a .db file'}), 400
+
+    # Save to a temp location first for validation
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    temp_path = BACKUP_DIR / f'_upload_temp_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+
+    try:
+        uploaded.save(str(temp_path))
+
+        # Validate: check it's a valid SQLite file
+        try:
+            conn = sqlite3.connect(str(temp_path))
+            conn.execute('SELECT count(*) FROM sqlite_master')
+            conn.close()
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            return jsonify({'success': False, 'error': 'Invalid SQLite database file'}), 400
+
+        # Safety: backup current database before replacing
+        safety_name = f'pre_restore_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+        safety_path = BACKUP_DIR / safety_name
+        if DB_PATH.exists():
+            shutil.copy2(str(DB_PATH), str(safety_path))
+
+        # Replace database with uploaded file
+        shutil.move(str(temp_path), str(DB_PATH))
+
+        # Run init_db() for any schema migrations the uploaded DB might lack
+        init_db()
+
+        return jsonify({
+            'success': True,
+            'message': 'Database restored successfully',
+            'safety_backup': safety_name
+        })
+
+    except Exception as e:
+        temp_path.unlink(missing_ok=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/api/restore/config-upload', methods=['POST'])
+@admin_required
+def api_restore_config_upload():
+    """Restore config from an uploaded .json backup file."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+    uploaded = request.files['file']
+    if not uploaded.filename or not uploaded.filename.endswith('.json'):
+        return jsonify({'success': False, 'error': 'File must be a .json file'}), 400
+
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Save with timestamp prefix to avoid collisions
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    saved_name = f'uploaded_{timestamp}_{uploaded.filename}'
+    saved_path = BACKUP_DIR / saved_name
+
+    try:
+        uploaded.save(str(saved_path))
+
+        # Validate it's valid JSON with expected structure
+        import json
+        with open(saved_path) as f:
+            data = json.load(f)
+        if not isinstance(data, dict) or 'version' not in data:
+            saved_path.unlink(missing_ok=True)
+            return jsonify({'success': False, 'error': 'Invalid backup file format'}), 400
+
+        # Use existing restore function
+        result = db.restore_static_tables(str(saved_path))
+        return jsonify(result)
+
+    except json.JSONDecodeError:
+        saved_path.unlink(missing_ok=True)
+        return jsonify({'success': False, 'error': 'Invalid JSON file'}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @admin_bp.route('/api/reset-database', methods=['POST'])
+@admin_required
 def api_reset_database():
     """Reset the entire database. WARNING: Destructive!"""
     data = request.json or {}
@@ -118,6 +247,7 @@ def api_get_quarantine_stats():
 
 
 @admin_bp.route('/api/quarantine/resolve', methods=['POST'])
+@admin_required
 def api_resolve_quarantine():
     """Resolve quarantined items by providing the correct ISIN."""
     data = request.json
@@ -136,6 +266,7 @@ def api_resolve_quarantine():
 
 
 @admin_bp.route('/api/quarantine/<partial_isin>', methods=['DELETE'])
+@admin_required
 def api_delete_quarantine(partial_isin):
     """Delete quarantined items for a partial ISIN."""
     result = db.delete_quarantine_items(partial_isin)
@@ -143,6 +274,7 @@ def api_delete_quarantine(partial_isin):
 
 
 @admin_bp.route('/api/quarantine/delete', methods=['POST'])
+@admin_required
 def api_delete_quarantine_post():
     """Delete quarantined items (POST version for when scheme_name is needed)."""
     data = request.json
@@ -163,6 +295,7 @@ def api_get_validation_issues():
 
 
 @admin_bp.route('/api/validation/run', methods=['POST'])
+@admin_required
 def api_run_validation():
     """Run validation on all folios or for a specific investor."""
     data = request.json or {}
@@ -179,6 +312,7 @@ def api_validate_folio(folio_id):
 
 
 @admin_bp.route('/api/validation/issues/<int:issue_id>/resolve', methods=['POST'])
+@admin_required
 def api_resolve_validation_issue(issue_id):
     """Mark a validation issue as resolved."""
     result = db.resolve_validation_issue(issue_id)

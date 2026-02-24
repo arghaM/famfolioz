@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from cas_parser.webapp import data as db
 from cas_parser.webapp.routes import DecimalEncoder
+from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_asset
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ def api_get_manual_assets():
     if not investor_id:
         return jsonify({'error': 'investor_id is required'}), 400
 
+    check_investor_access(investor_id)
     include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
     assets = db.get_manual_assets_by_investor(investor_id, include_inactive)
     return jsonify(assets)
@@ -29,6 +31,7 @@ def api_get_manual_assets_summary():
     if not investor_id:
         return jsonify({'error': 'investor_id is required'}), 400
 
+    check_investor_access(investor_id)
     summary = db.get_manual_assets_summary(investor_id)
     return jsonify(summary)
 
@@ -40,6 +43,7 @@ def api_get_combined_portfolio():
     if not investor_id:
         return jsonify({'error': 'investor_id is required'}), 400
 
+    check_investor_access(investor_id)
     combined = db.get_combined_portfolio_value(investor_id)
     return jsonify(combined)
 
@@ -53,6 +57,8 @@ def api_create_manual_asset():
     for field in required:
         if not data.get(field):
             return jsonify({'error': f'{field} is required'}), 400
+
+    check_investor_access(data['investor_id'])
 
     # Validate asset_class
     valid_classes = ['equity', 'debt', 'commodity', 'cash', 'others']
@@ -106,6 +112,7 @@ def api_create_manual_asset():
 @manual_assets_bp.route('/api/manual-assets/<int:asset_id>', methods=['GET'])
 def api_get_manual_asset(asset_id):
     """Get a single manual asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
     asset = db.get_manual_asset(asset_id)
     if not asset:
         return jsonify({'error': 'Asset not found'}), 404
@@ -115,6 +122,7 @@ def api_get_manual_asset(asset_id):
 @manual_assets_bp.route('/api/manual-assets/<int:asset_id>', methods=['PUT'])
 def api_update_manual_asset(asset_id):
     """Update a manual asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
     data = request.json
     result = db.update_manual_asset(asset_id, **data)
     if result.get('success'):
@@ -125,6 +133,7 @@ def api_update_manual_asset(asset_id):
 @manual_assets_bp.route('/api/manual-assets/<int:asset_id>', methods=['DELETE'])
 def api_delete_manual_asset(asset_id):
     """Delete a manual asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
     result = db.delete_manual_asset(asset_id)
     if result.get('success'):
         return jsonify(result)
@@ -231,6 +240,8 @@ def api_upload_fd_csv():
     investor_id = request.form.get('investor_id', type=int)
     if not investor_id:
         return jsonify({'error': 'investor_id is required'}), 400
+
+    check_investor_access(investor_id)
 
     try:
         # Read CSV content
@@ -354,6 +365,8 @@ def api_import_fd():
     if not investor_id:
         return jsonify({'error': 'investor_id is required'}), 400
 
+    check_investor_access(investor_id)
+
     # Filter only valid rows
     valid_rows = [r for r in rows if r.get('is_valid', False)]
 
@@ -425,6 +438,7 @@ def api_import_fd():
 
 
 @manual_assets_bp.route('/api/fd/maturing', methods=['GET'])
+@admin_required
 def api_get_maturing_fds():
     """Get FDs maturing within next N days."""
     days = request.args.get('days', 30, type=int)
@@ -433,6 +447,7 @@ def api_get_maturing_fds():
 
 
 @manual_assets_bp.route('/api/fd/matured', methods=['GET'])
+@admin_required
 def api_get_matured_fds():
     """Get FDs past maturity that aren't closed."""
     fds = db.get_matured_fds()
@@ -442,6 +457,7 @@ def api_get_matured_fds():
 @manual_assets_bp.route('/api/fd/<int:asset_id>/close', methods=['POST'])
 def api_close_fd(asset_id):
     """Mark FD as closed with money received status."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
     data = request.get_json() or {}
     money_received = data.get('money_received', True)
     success = db.close_fd(asset_id, money_received)

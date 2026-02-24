@@ -1,0 +1,11 @@
+{% if current_user %}
+<div class="d-flex align-items-center gap-2">
+    <span class="text-white-50 small">
+        <i class="bi bi-person-circle"></i> {{ current_user.display_name }}
+        {% if current_user.role == 'admin' %}<span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">Admin</span>{% endif %}
+    </span>
+    <a href="/logout" class="btn btn-outline-light btn-sm py-0 px-2" style="font-size: 0.75rem;">
+        <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+</div>
+{% endif %}

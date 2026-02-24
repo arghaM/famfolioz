@@ -71,15 +71,32 @@
     <!-- Header -->
     <div class="header">
         <div class="container">
-            <a href="/" class="text-white text-decoration-none">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-            <h1 class="mt-3"><i class="bi bi-cloud-arrow-up"></i> Upload CAS PDF</h1>
-            <p class="mb-0">Import your CDSL Consolidated Account Statement</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <a href="/" class="text-white text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <h1 class="mt-3"><i class="bi bi-cloud-arrow-up"></i> Upload CAS PDF</h1>
+                    <p class="mb-0">Import your CDSL Consolidated Account Statement</p>
+                </div>
+                {% include '_auth_nav.html' %}
+            </div>
         </div>
     </div>
 
     <div class="container">
+        <!-- Sync Status -->
+        <div class="row justify-content-center mb-3" id="syncStatusSection">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0" id="syncStatusCard" style="display:none;">
+                    <div class="card-body py-3">
+                        <h6 class="mb-2"><i class="bi bi-clock-history text-primary"></i> Last Synced Transactions</h6>
+                        <div id="syncStatusBody"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Upload Section -->
         <div class="row justify-content-center" id="uploadSection">
             <div class="col-md-8">
@@ -265,6 +282,68 @@
             }
         }
 
+        // Load sync status
+        async function loadSyncStatus() {
+            try {
+                const res = await fetch('/api/investors/sync-status');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.length === 0) return;
+
+                const card = document.getElementById('syncStatusCard');
+                const body = document.getElementById('syncStatusBody');
+
+                const rows = data.map(inv => {
+                    const lastTx = inv.last_tx_date;
+                    const lastUpload = inv.last_cas_upload;
+                    let dateStr, badgeClass, hint;
+
+                    if (lastTx) {
+                        const txDate = new Date(lastTx);
+                        const today = new Date();
+                        const daysDiff = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
+                        dateStr = txDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                        if (daysDiff <= 7) {
+                            badgeClass = 'bg-success';
+                            hint = 'Up to date';
+                        } else if (daysDiff <= 30) {
+                            badgeClass = 'bg-warning text-dark';
+                            hint = `${daysDiff} days ago`;
+                        } else {
+                            badgeClass = 'bg-danger';
+                            hint = `${daysDiff} days ago`;
+                        }
+                    } else {
+                        dateStr = 'Never';
+                        badgeClass = 'bg-secondary';
+                        hint = 'No transactions yet';
+                    }
+
+                    const downloadFrom = lastTx
+                        ? `Download CAS from <strong>${dateStr}</strong> onwards`
+                        : 'Upload first CAS statement';
+
+                    return `<div class="d-flex justify-content-between align-items-center py-1 ${data.length > 1 ? 'border-bottom' : ''}">
+                        <div>
+                            <strong>${inv.name}</strong>
+                            <small class="text-muted ms-2">${inv.tx_count} transactions</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge ${badgeClass}">${dateStr}</span>
+                            <div class="small text-muted">${downloadFrom}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                body.innerHTML = rows;
+                card.style.display = '';
+            } catch(e) {
+                console.error('Failed to load sync status:', e);
+            }
+        }
+        loadSyncStatus();
+
         // Upload another button
         document.getElementById('uploadAnotherBtn').addEventListener('click', () => {
             resultsSection.style.display = 'none';
@@ -275,5 +354,15 @@
         });
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

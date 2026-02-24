@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Famfolio - Backup & Restore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .action-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .action-card:hover {
+            transform: translateY(-2px);
+        }
+        .action-card.danger { border-left-color: #dc3545; }
+        .action-card.success { border-left-color: #28a745; }
+        .action-card.warning { border-left-color: #ffc107; }
+        .action-card.info { border-left-color: #0dcaf0; }
+        .backup-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .backup-item:hover { background: #e9ecef; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <a href="/settings" class="text-white text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Settings
+                    </a>
+                    <h1 class="mt-3"><i class="bi bi-shield-check"></i> Backup & Restore</h1>
+                    <p class="mb-0">Protect your data with full database or config-only backups</p>
+                </div>
+                {% include '_auth_nav.html' %}
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- ===== Backup Cards (side by side) ===== -->
+        <div class="row mb-4">
+            <!-- Full Database Backup -->
+            <div class="col-md-6 mb-4">
+                <div class="card action-card info shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-database-down text-info"></i> Full Database Backup</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Downloads the <strong>entire database</strong> as a single file. Includes everything:
+                        </p>
+                        <ul class="small text-muted">
+                            <li>All transactions, holdings, and folios</li>
+                            <li>NAV history and portfolio snapshots</li>
+                            <li>Manual assets (FD, SGB, stocks, PPF)</li>
+                            <li>NPS data (subscribers, schemes, transactions)</li>
+                            <li>Goals, notes, investor profiles, fund master</li>
+                        </ul>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted small" id="dbSizeInfo">
+                                <span class="spinner-border spinner-border-sm"></span> Loading size...
+                            </span>
+                            <button class="btn btn-info text-white" onclick="downloadFullDb()" id="fullDbBtn">
+                                <i class="bi bi-download"></i> Download Full Backup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config-Only Backup -->
+            <div class="col-md-6 mb-4">
+                <div class="card action-card success shadow-sm h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-zip text-success"></i> Config-Only Backup</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Lightweight JSON backup of <strong>configuration data</strong>:
+                        </p>
+                        <ul class="small text-muted">
+                            <li>Investor profiles (name, PAN, contact)</li>
+                            <li>Fund master (AMFI mappings, asset allocations)</li>
+                            <li>Goals, linked folios, and journal notes</li>
+                            <li>Manual ISIN mappings</li>
+                        </ul>
+                        <p class="small text-muted mb-3">
+                            <i class="bi bi-lightbulb"></i> Useful for the reset-then-restore workflow.
+                        </p>
+                        <button class="btn btn-success w-100" onclick="createConfigBackup()" id="configBackupBtn">
+                            <i class="bi bi-cloud-upload"></i> Create Config Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Restore Section ===== -->
+        <div class="card action-card warning shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-arrow-counterclockwise text-warning"></i> Restore</h5>
+            </div>
+            <div class="card-body">
+                <!-- Radio selection -->
+                <div class="mb-3">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="restoreType" id="restoreTypeDb" value="full-db" checked onchange="toggleRestorePanel()">
+                        <label class="form-check-label fw-semibold" for="restoreTypeDb">
+                            <i class="bi bi-database-up"></i> Full Database (.db file)
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="restoreType" id="restoreTypeConfig" value="config" onchange="toggleRestorePanel()">
+                        <label class="form-check-label fw-semibold" for="restoreTypeConfig">
+                            <i class="bi bi-file-earmark-zip"></i> Config-Only (.json file)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Full DB Restore Panel -->
+                <div id="restorePanelDb">
+                    <div class="alert alert-danger mb-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will <strong>replace your entire database</strong> with the uploaded file. All current data will be lost.
+                        A safety backup of your current database is created automatically before restore.
+                    </div>
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label small">Upload .db file</label>
+                            <input type="file" class="form-control" id="dbFileInput" accept=".db">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-warning w-100" onclick="confirmFullDbRestore()" id="restoreDbBtn" disabled>
+                                <i class="bi bi-database-up"></i> Restore Full Database
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Config Restore Panel -->
+                <div id="restorePanelConfig" style="display:none;">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        Restores investor profiles, fund mappings, goals, and ISIN mappings.
+                        A safety backup is created automatically before restore.
+                    </div>
+                    <div class="row align-items-end mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label small">Upload .json backup file</label>
+                            <input type="file" class="form-control" id="configFileInput" accept=".json">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-warning w-100" onclick="restoreConfigUpload()" id="restoreConfigUploadBtn" disabled>
+                                <i class="bi bi-upload"></i> Restore from Upload
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-center text-muted small mb-2">-- or --</div>
+                    <button class="btn btn-outline-warning w-100" onclick="restoreLatestOnServer()" id="restoreLatestBtn">
+                        <i class="bi bi-cloud-download"></i> Restore Latest Config Backup on Server
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Server Backups List ===== -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-archive"></i> Server Config Backups</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadBackups()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="backupsList">
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        Loading backups...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Danger Zone (Collapsible) ===== -->
+        <div class="card action-card danger shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <a class="text-decoration-none text-danger fw-semibold d-flex justify-content-between align-items-center"
+                   data-bs-toggle="collapse" href="#dangerZone" role="button" aria-expanded="false">
+                    <span><i class="bi bi-exclamation-triangle"></i> Danger Zone</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+            </div>
+            <div class="collapse" id="dangerZone">
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <strong>Reset Database</strong> will delete ALL data including transactions, holdings, folios, and everything else.
+                        Only config data can be restored from a config backup.
+                    </div>
+                    <p class="text-muted small">
+                        <strong>Recommended workflow:</strong>
+                        1. Create a full database backup &rarr;
+                        2. Create a config backup &rarr;
+                        3. Reset the database &rarr;
+                        4. Restore config &rarr;
+                        5. Re-import your CAS PDFs
+                    </p>
+                    <button class="btn btn-outline-danger" onclick="confirmReset()" id="resetBtn">
+                        <i class="bi bi-trash"></i> Reset Database
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Log -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-terminal"></i> Activity Log</h5>
+            </div>
+            <div class="card-body">
+                <div id="logArea" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
+                    <div class="text-muted">Ready.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full DB Restore Confirmation Modal -->
+    <div class="modal fade" id="restoreDbModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Full Database Restore</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success mb-3">
+                        <i class="bi bi-shield-check"></i> <strong>Safety:</strong> Your current database will be backed up automatically before restore.
+                    </div>
+                    <p class="text-danger fw-bold">This will replace your ENTIRE database. All current data will be overwritten.</p>
+                    <p>Type <strong>RESTORE</strong> to confirm:</p>
+                    <input type="text" class="form-control" id="restoreDbConfirmInput" placeholder="Type RESTORE here">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="executeFullDbRestore()" id="executeRestoreDbBtn">
+                        <i class="bi bi-database-up"></i> Restore Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div class="modal fade" id="resetModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Database Reset</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success mb-3">
+                        <i class="bi bi-shield-check"></i> <strong>Safety:</strong> A config backup will be created automatically before reset.
+                    </div>
+                    <p class="text-danger fw-bold">This will delete the following (re-import CAS to restore):</p>
+                    <ul>
+                        <li>All transactions</li>
+                        <li>All holdings</li>
+                        <li>All folios</li>
+                        <li>All NAV history</li>
+                        <li>All portfolio snapshots</li>
+                    </ul>
+                    <p class="text-success"><strong>What will be preserved (via auto-restore):</strong></p>
+                    <ul class="text-muted">
+                        <li>Investor profiles</li>
+                        <li>Fund mappings & allocations</li>
+                        <li>Goals & journal notes</li>
+                        <li>ISIN mappings</li>
+                    </ul>
+                    <p>Type <strong>RESET</strong> to confirm:</p>
+                    <input type="text" class="form-control" id="resetConfirmInput" placeholder="Type RESET here">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="executeReset()" id="executeResetBtn">
+                        <i class="bi bi-trash"></i> Reset Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ==================== Utility ====================
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'text-danger' : (type === 'success' ? 'text-success' : 'text-info');
+            logArea.innerHTML += `<div class="${colorClass}">[${timestamp}] ${message}</div>`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // ==================== Full DB Backup ====================
+
+        async function loadDbSize() {
+            try {
+                const res = await fetch('/api/backup/full-db/size');
+                const data = await res.json();
+                document.getElementById('dbSizeInfo').innerHTML =
+                    `<i class="bi bi-database"></i> Database size: <strong>${data.size_mb} MB</strong>`;
+            } catch {
+                document.getElementById('dbSizeInfo').textContent = 'Could not load size';
+            }
+        }
+
+        function downloadFullDb() {
+            const btn = document.getElementById('fullDbBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Preparing...';
+            log('Downloading full database backup...');
+
+            const link = document.createElement('a');
+            link.href = '/api/backup/full-db';
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            log('Full database download started', 'success');
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-download"></i> Download Full Backup';
+            }, 2000);
+        }
+
+        // ==================== Config Backup ====================
+
+        async function createConfigBackup() {
+            const btn = document.getElementById('configBackupBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating backup...';
+            log('Creating config backup...');
+
+            try {
+                const res = await fetch('/api/backup', { method: 'POST' });
+                const result = await res.json();
+
+                if (result.success) {
+                    log(`Config backup created: ${result.file}`, 'success');
+                    const counts = result.counts || {};
+                    let summary = `Backed up: ${counts.investors || 0} investors, ${counts.mutual_fund_master || 0} funds, ${counts.goals || 0} goals`;
+                    if (counts.goal_notes) summary += `, ${counts.goal_notes} notes`;
+                    if (counts.isin_mappings) summary += `, ${counts.isin_mappings} mappings`;
+                    if (result.size_kb) summary += ` (${result.size_kb} KB)`;
+                    log(summary, 'success');
+                    await loadBackups();
+                } else {
+                    log('Backup failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Backup failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Create Config Backup';
+            }
+        }
+
+        // ==================== Restore ====================
+
+        function toggleRestorePanel() {
+            const isDb = document.getElementById('restoreTypeDb').checked;
+            document.getElementById('restorePanelDb').style.display = isDb ? '' : 'none';
+            document.getElementById('restorePanelConfig').style.display = isDb ? 'none' : '';
+        }
+
+        // Enable restore buttons when files are selected
+        document.getElementById('dbFileInput').addEventListener('change', function() {
+            document.getElementById('restoreDbBtn').disabled = !this.files.length;
+        });
+        document.getElementById('configFileInput').addEventListener('change', function() {
+            document.getElementById('restoreConfigUploadBtn').disabled = !this.files.length;
+        });
+
+        // Full DB restore
+        function confirmFullDbRestore() {
+            const file = document.getElementById('dbFileInput').files[0];
+            if (!file) { alert('Please select a .db file first'); return; }
+            document.getElementById('restoreDbConfirmInput').value = '';
+            new bootstrap.Modal(document.getElementById('restoreDbModal')).show();
+        }
+
+        async function executeFullDbRestore() {
+            if (document.getElementById('restoreDbConfirmInput').value !== 'RESTORE') {
+                alert('Please type RESTORE to confirm');
+                return;
+            }
+
+            const btn = document.getElementById('executeRestoreDbBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
+            log('Uploading and restoring full database...', 'info');
+
+            const file = document.getElementById('dbFileInput').files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/restore/full-db', { method: 'POST', body: formData });
+                const result = await res.json();
+
+                if (result.success) {
+                    log('Full database restored successfully!', 'success');
+                    if (result.safety_backup) {
+                        log(`Safety backup of previous DB saved as: ${result.safety_backup}`, 'info');
+                    }
+                    bootstrap.Modal.getInstance(document.getElementById('restoreDbModal')).hide();
+                    await loadDbSize();
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-database-up"></i> Restore Database';
+            }
+        }
+
+        // Config upload restore
+        async function restoreConfigUpload() {
+            const file = document.getElementById('configFileInput').files[0];
+            if (!file) { alert('Please select a .json file first'); return; }
+
+            const btn = document.getElementById('restoreConfigUploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
+            log('Uploading and restoring config backup...');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/restore/config-upload', { method: 'POST', body: formData });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    }
+                    log('Config restore complete!', 'success');
+                    const r = result.restored || {};
+                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
+                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
+                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
+                    log(summary, 'success');
+                    await loadBackups();
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-upload"></i> Restore from Upload';
+            }
+        }
+
+        // Restore latest on server
+        async function restoreLatestOnServer() {
+            if (!confirm('Restore from the latest config backup on the server?\n\nA safety backup will be created first.')) return;
+
+            const btn = document.getElementById('restoreLatestBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
+            log('Restoring from latest server backup...');
+
+            try {
+                const res = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    }
+                    log(`Restore complete from: ${result.backup_file}`, 'success');
+                    const r = result.restored || {};
+                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
+                    if (r.goal_folios) summary += `, ${r.goal_folios} goal links`;
+                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
+                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
+                    log(summary, 'success');
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-download"></i> Restore Latest Config Backup on Server';
+            }
+        }
+
+        // Restore from specific server backup
+        async function restoreFromFile(backupFile) {
+            log(`Restoring from: ${backupFile}...`);
+
+            try {
+                const res = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ backup_file: backupFile })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    }
+                    log('Restore complete!', 'success');
+                    const r = result.restored || {};
+                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
+                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
+                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
+                    log(summary, 'success');
+                } else {
+                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Restore failed: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Server Backups List ====================
+
+        async function loadBackups() {
+            const container = document.getElementById('backupsList');
+
+            try {
+                const res = await fetch('/api/backups');
+                const backups = await res.json();
+
+                if (backups.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-archive" style="font-size:2rem;"></i>
+                            <p class="mt-2">No config backups found</p>
+                            <p class="small">Create one using the "Create Config Backup" button above</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = backups.map(b => {
+                    const hasNotes = (b.counts.goal_notes || 0) > 0;
+                    const hasMappings = (b.isin_mappings || 0) > 0;
+                    return `
+                    <div class="backup-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="bi bi-file-earmark-zip"></i> ${b.filename}</strong>
+                            <span class="badge bg-secondary ms-2">${b.size_kb || '?'} KB</span>
+                            ${b.version === '2.0' ? '<span class="badge bg-success ms-1">v2</span>' : ''}
+                            <br>
+                            <small class="text-muted">
+                                ${b.counts.investors || 0} investors |
+                                ${b.counts.mutual_fund_master || 0} funds |
+                                ${b.counts.goals || 0} goals
+                                ${hasNotes ? `| ${b.counts.goal_notes} notes` : ''}
+                                ${hasMappings ? `| ${b.isin_mappings} mappings` : ''}
+                            </small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-1" onclick="downloadBackup('${b.file}')" title="Download">
+                                <i class="bi bi-download"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="confirmRestore('${b.file}', ${JSON.stringify(b).replace(/"/g, '&quot;')})">
+                                <i class="bi bi-cloud-download"></i> Restore
+                            </button>
+                        </div>
+                    </div>
+                `}).join('');
+
+            } catch (error) {
+                container.innerHTML = `<div class="text-danger">Failed to load backups: ${error.message}</div>`;
+            }
+        }
+
+        function downloadBackup(filePath) {
+            const filename = filePath.split('/').pop();
+            log(`Downloading: ${filename}...`);
+            const link = document.createElement('a');
+            link.href = `/api/backups/download/${filename}`;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            log(`Download started: ${filename}`, 'success');
+        }
+
+        function confirmRestore(filePath, backupInfo) {
+            const info = typeof backupInfo === 'string' ? JSON.parse(backupInfo.replace(/&quot;/g, '"')) : backupInfo;
+            const counts = info.counts || {};
+            const details = [
+                `Investors: ${counts.investors || 0}`,
+                `Funds: ${counts.mutual_fund_master || 0}`,
+                `Goals: ${counts.goals || 0}`,
+                counts.goal_notes ? `Notes: ${counts.goal_notes}` : null,
+                info.isin_mappings ? `ISIN Mappings: ${info.isin_mappings}` : null
+            ].filter(Boolean).join(', ');
+
+            const message = `Restore from this config backup?\n\nFile: ${info.filename}\nSize: ${info.size_kb || '?'} KB\nContents: ${details}\n\nA safety backup will be created automatically.`;
+
+            if (confirm(message)) {
+                restoreFromFile(filePath);
+            }
+        }
+
+        // ==================== Reset ====================
+
+        function confirmReset() {
+            document.getElementById('resetConfirmInput').value = '';
+            new bootstrap.Modal(document.getElementById('resetModal')).show();
+        }
+
+        async function executeReset() {
+            if (document.getElementById('resetConfirmInput').value !== 'RESET') {
+                alert('Please type RESET to confirm');
+                return;
+            }
+
+            const btn = document.getElementById('executeResetBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
+            log('Resetting database...', 'error');
+
+            try {
+                const res = await fetch('/api/reset-database', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: 'RESET' })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    if (result.auto_backup_created) {
+                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'success');
+                    }
+                    log('Database reset complete!', 'success');
+                    log(`Dropped tables: ${result.dropped_tables.join(', ')}`, 'info');
+                    log('All tables have been recreated empty.', 'info');
+                    log('Tip: Restore from a config backup, then re-import CAS', 'info');
+                    bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+                    await loadBackups();
+                    await loadDbSize();
+                } else {
+                    log('Reset failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                log('Reset failed: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i> Reset Database';
+            }
+        }
+
+        // ==================== Init ====================
+        loadDbSize();
+        loadBackups();
+    </script>
+    {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
+</body>
+</html>

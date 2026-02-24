@@ -1,7 +1,11 @@
 import os
 import tempfile
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from cas_parser.webapp import data as db
+from cas_parser.webapp.auth import (
+    admin_required, check_investor_access,
+    get_investor_id_for_nps_subscriber, get_investor_id_for_nps_tx,
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -11,18 +15,29 @@ nps_bp = Blueprint('nps', __name__)
 
 @nps_bp.route('/api/nps/subscribers', methods=['GET'])
 def api_get_nps_subscribers():
-    """Get all NPS subscribers."""
+    """Get all NPS subscribers (filtered by access for members)."""
     investor_id = request.args.get('investor_id', type=int)
     if investor_id:
+        check_investor_access(investor_id)
         subscribers = db.get_nps_subscribers_by_investor(investor_id)
     else:
-        subscribers = db.get_all_nps_subscribers()
+        user = g.get('current_user')
+        if user and user['role'] != 'admin':
+            # Members see only their accessible subscribers
+            accessible = set(db.get_accessible_investor_ids(user['id']))
+            all_subs = db.get_all_nps_subscribers()
+            subscribers = [s for s in all_subs if s.get('investor_id') in accessible]
+        else:
+            subscribers = db.get_all_nps_subscribers()
     return jsonify(subscribers)
 
 
 @nps_bp.route('/api/nps/subscribers/<int:subscriber_id>', methods=['GET'])
 def api_get_nps_subscriber(subscriber_id):
     """Get a single NPS subscriber."""
+    inv_id = get_investor_id_for_nps_subscriber(subscriber_id)
+    if inv_id:
+        check_investor_access(inv_id)
     subscriber = db.get_nps_subscriber(subscriber_id=subscriber_id)
     if not subscriber:
         return jsonify({'error': 'Subscriber not found'}), 404
@@ -32,6 +47,9 @@ def api_get_nps_subscriber(subscriber_id):
 @nps_bp.route('/api/nps/subscribers/<int:subscriber_id>/schemes', methods=['GET'])
 def api_get_nps_schemes(subscriber_id):
     """Get NPS schemes for a subscriber."""
+    inv_id = get_investor_id_for_nps_subscriber(subscriber_id)
+    if inv_id:
+        check_investor_access(inv_id)
     schemes = db.get_nps_schemes(subscriber_id)
     return jsonify(schemes)
 
@@ -39,6 +57,9 @@ def api_get_nps_schemes(subscriber_id):
 @nps_bp.route('/api/nps/subscribers/<int:subscriber_id>/transactions', methods=['GET'])
 def api_get_nps_transactions(subscriber_id):
     """Get NPS transactions for a subscriber."""
+    inv_id = get_investor_id_for_nps_subscriber(subscriber_id)
+    if inv_id:
+        check_investor_access(inv_id)
     limit = request.args.get('limit', 100, type=int)
     offset = request.args.get('offset', 0, type=int)
     scheme_type = request.args.get('scheme_type')
@@ -57,6 +78,9 @@ def api_get_nps_transactions(subscriber_id):
 @nps_bp.route('/api/nps/transactions/<int:transaction_id>/notes', methods=['PUT'])
 def api_update_nps_transaction_notes(transaction_id):
     """Update notes for an NPS transaction."""
+    inv_id = get_investor_id_for_nps_tx(transaction_id)
+    if inv_id:
+        check_investor_access(inv_id)
     data = request.json
     notes = data.get('notes', '')
 
@@ -69,6 +93,9 @@ def api_update_nps_transaction_notes(transaction_id):
 @nps_bp.route('/api/nps/transactions/<int:transaction_id>', methods=['GET'])
 def api_get_nps_transaction(transaction_id):
     """Get a single NPS transaction."""
+    inv_id = get_investor_id_for_nps_tx(transaction_id)
+    if inv_id:
+        check_investor_access(inv_id)
     transaction = db.get_nps_transaction(transaction_id)
     if not transaction:
         return jsonify({'error': 'Transaction not found'}), 404
@@ -78,11 +105,15 @@ def api_get_nps_transaction(transaction_id):
 @nps_bp.route('/api/nps/subscribers/<int:subscriber_id>/summary', methods=['GET'])
 def api_get_nps_summary(subscriber_id):
     """Get NPS portfolio summary for a subscriber."""
+    inv_id = get_investor_id_for_nps_subscriber(subscriber_id)
+    if inv_id:
+        check_investor_access(inv_id)
     summary = db.get_nps_portfolio_summary(subscriber_id)
     return jsonify(summary)
 
 
 @nps_bp.route('/api/nps/upload', methods=['POST'])
+@admin_required
 def api_upload_nps():
     """Upload and parse NPS statement PDF."""
     import sys
@@ -146,6 +177,7 @@ def api_upload_nps():
 
 
 @nps_bp.route('/api/nps/link', methods=['POST'])
+@admin_required
 def api_link_nps_to_investor():
     """Link an NPS account to an investor."""
     data = request.json
@@ -170,6 +202,7 @@ def api_get_nps_nav(pfm_name, scheme_type):
 
 
 @nps_bp.route('/api/nps/nav', methods=['POST'])
+@admin_required
 def api_save_nps_nav():
     """Save NPS NAV data."""
     data = request.json
@@ -190,6 +223,7 @@ def api_save_nps_nav():
 
 
 @nps_bp.route('/api/nps/unmapped', methods=['GET'])
+@admin_required
 def api_get_unmapped_nps():
     """Get all NPS accounts not linked to any investor."""
     subscribers = db.get_unmapped_nps_subscribers()
@@ -197,6 +231,7 @@ def api_get_unmapped_nps():
 
 
 @nps_bp.route('/api/nps/unlink', methods=['POST'])
+@admin_required
 def api_unlink_nps():
     """Unlink an NPS account from its investor."""
     data = request.json

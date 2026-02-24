@@ -110,8 +110,13 @@
     <!-- Header -->
     <div class="header">
         <div class="container">
-            <h1><i class="bi bi-file-earmark-pdf"></i> CAS PDF Parser</h1>
-            <p class="mb-0">Upload your CDSL Consolidated Account Statement to view your mutual fund portfolio</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1><i class="bi bi-file-earmark-pdf"></i> CAS PDF Parser</h1>
+                    <p class="mb-0">Upload your CDSL Consolidated Account Statement to view your mutual fund portfolio</p>
+                </div>
+                {% include '_auth_nav.html' %}
+            </div>
         </div>
     </div>
 
@@ -701,5 +706,15 @@
         }
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

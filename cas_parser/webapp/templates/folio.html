@@ -70,9 +70,12 @@
                         </button>
                     </div>
                 </div>
-                <button class="btn btn-outline-light" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
-                    <i class="bi bi-eye" id="maskIcon"></i>
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-light" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
+                        <i class="bi bi-eye" id="maskIcon"></i>
+                    </button>
+                    {% include '_auth_nav.html' %}
+                </div>
             </div>
         </div>
     </div>
@@ -686,5 +689,15 @@
         loadFolioInfo();
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

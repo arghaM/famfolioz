@@ -30,7 +30,12 @@ def create_app():
     from cas_parser import __version__ as APP_VERSION
     app.jinja_env.globals['app_version'] = APP_VERSION
 
+    # Initialize authentication (before_request, context_processor, secret key)
+    from cas_parser.webapp.auth import init_auth
+    init_auth(app)
+
     # Register all blueprints
+    from cas_parser.webapp.routes.auth import auth_bp
     from cas_parser.webapp.routes.pages import pages_bp
     from cas_parser.webapp.routes.investors import investors_bp
     from cas_parser.webapp.routes.folios import folios_bp
@@ -42,6 +47,7 @@ def create_app():
     from cas_parser.webapp.routes.manual_assets import manual_assets_bp
     from cas_parser.webapp.routes.admin import admin_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(pages_bp)
     app.register_blueprint(investors_bp)
     app.register_blueprint(folios_bp)

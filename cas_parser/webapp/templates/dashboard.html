@@ -367,12 +367,15 @@
                     <button class="btn btn-outline-light btn-sm me-2" id="maskToggle" onclick="toggleMask()" title="Toggle amount visibility">
                         <i class="bi bi-eye" id="maskIcon"></i>
                     </button>
+                    {% if current_user and current_user.role == 'admin' %}
                     <a href="/settings" class="btn btn-outline-light btn-sm me-2">
                         <i class="bi bi-gear"></i>
                     </a>
+                    {% endif %}
                     <a href="/mutual-funds" class="btn btn-outline-light btn-sm me-2">
                         <i class="bi bi-bank"></i>
                     </a>
+                    {% if current_user and current_user.role == 'admin' %}
                     <div class="dropdown">
                         <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                             <i class="bi bi-cloud-arrow-up"></i> Upload
@@ -384,6 +387,8 @@
                             <li><a class="dropdown-item" href="#" onclick="openFdUpload()"><i class="bi bi-safe"></i> FD Statement (CSV)</a></li>
                         </ul>
                     </div>
+                    {% endif %}
+                    {% include '_auth_nav.html' %}
                 </div>
             </div>
         </div>
@@ -925,34 +930,40 @@
                 const investorsRes = await fetch('/api/investors');
                 investors = await investorsRes.json();
 
-                // Load unmapped folios
-                const unmappedRes = await fetch('/api/unmapped-folios');
-                const unmappedFolios = await unmappedRes.json();
+                {% if current_user and current_user.role == 'admin' %}
+                // Admin-only alerts
+                try {
+                    const unmappedRes = await fetch('/api/unmapped-folios');
+                    if (unmappedRes.ok) {
+                        const unmappedFolios = await unmappedRes.json();
+                        if (unmappedFolios.length > 0) {
+                            document.getElementById('unmappedAlert').style.display = 'block';
+                            document.getElementById('unmappedCount').textContent = unmappedFolios.length;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
 
-                // Show unmapped folios alert if needed
-                if (unmappedFolios.length > 0) {
-                    document.getElementById('unmappedAlert').style.display = 'block';
-                    document.getElementById('unmappedCount').textContent = unmappedFolios.length;
-                }
+                try {
+                    const unmappedNpsRes = await fetch('/api/nps/unmapped');
+                    if (unmappedNpsRes.ok) {
+                        unmappedNps = await unmappedNpsRes.json();
+                        if (unmappedNps.length > 0) {
+                            document.getElementById('unmappedNpsAlert').style.display = 'block';
+                            document.getElementById('unmappedNpsCount').textContent = unmappedNps.length;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
 
-                // Load unmapped NPS accounts
-                const unmappedNpsRes = await fetch('/api/nps/unmapped');
-                unmappedNps = await unmappedNpsRes.json();
-
-                // Show unmapped NPS alert if needed
-                if (unmappedNps.length > 0) {
-                    document.getElementById('unmappedNpsAlert').style.display = 'block';
-                    document.getElementById('unmappedNpsCount').textContent = unmappedNps.length;
-                }
-
-                // Load conflict stats
-                const conflictsRes = await fetch('/api/conflicts/stats');
-                const conflictStats = await conflictsRes.json();
-
-                if (conflictStats.pending_groups > 0) {
-                    document.getElementById('conflictsAlert').style.display = 'block';
-                    document.getElementById('conflictCount').textContent = conflictStats.pending_groups;
-                }
+                try {
+                    const conflictsRes = await fetch('/api/conflicts/stats');
+                    if (conflictsRes.ok) {
+                        const conflictStats = await conflictsRes.json();
+                        if (conflictStats.pending_groups > 0) {
+                            document.getElementById('conflictsAlert').style.display = 'block';
+                            document.getElementById('conflictCount').textContent = conflictStats.pending_groups;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
 
                 // Load FD maturity alerts
                 await loadFdAlerts();
@@ -960,12 +971,15 @@
                 // Load allocation review alerts
                 try {
                     const reviewRes = await fetch('/api/mutual-funds/review-alerts');
-                    const reviewData = await reviewRes.json();
-                    if (reviewData.count > 0) {
-                        document.getElementById('allocReviewAlert').style.display = 'block';
-                        document.getElementById('allocReviewCount').textContent = reviewData.count;
+                    if (reviewRes.ok) {
+                        const reviewData = await reviewRes.json();
+                        if (reviewData.count > 0) {
+                            document.getElementById('allocReviewAlert').style.display = 'block';
+                            document.getElementById('allocReviewCount').textContent = reviewData.count;
+                        }
                     }
                 } catch (e) { /* ignore */ }
+                {% endif %}
 
                 // Load FD values for each investor
                 for (const inv of investors) {
@@ -1728,5 +1742,15 @@
         }
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

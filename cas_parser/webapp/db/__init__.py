@@ -87,6 +87,11 @@ __all__ = [
     "restore_static_tables", "reset_database", "get_xirr_data_for_folio",
     "get_xirr_data_for_investor", "create_feature_request", "get_investor_alerts",
     "get_feature_requests",
+    # auth
+    "create_user", "get_user_by_id", "get_user_by_username", "get_all_users",
+    "update_user", "update_password", "count_active_admins", "user_count",
+    "record_login", "grant_custodian_access", "revoke_custodian_access",
+    "get_custodians_for_investor", "is_custodian", "get_accessible_investor_ids",
 ]
 
 # === Leaf modules (no cross-deps) ===
@@ -111,6 +116,7 @@ from cas_parser.webapp.db.manual_assets import *  # noqa: F401,F403
 # === Most connected modules (import last) ===
 from cas_parser.webapp.db.import_engine import *  # noqa: F401,F403
 from cas_parser.webapp.db.admin import *  # noqa: F401,F403
+from cas_parser.webapp.db.auth import *  # noqa: F401,F403
 
 
 # Initialize database on package import (same as original data.py lines 6514-6516)

@@ -45,111 +45,150 @@
     <!-- Header -->
     <div class="header">
         <div class="container">
-            <a href="/" class="text-white text-decoration-none">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </a>
-            <h1 class="mt-3"><i class="bi bi-gear"></i> Settings & Backup</h1>
-            <p class="mb-0">Manage backups and database operations</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <a href="/" class="text-white text-decoration-none">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <h1 class="mt-3"><i class="bi bi-gear"></i> Settings</h1>
+                    <p class="mb-0">Manage folios, ISIN resolution, quarantine, and more</p>
+                </div>
+                {% include '_auth_nav.html' %}
+            </div>
         </div>
     </div>
 
     <div class="container">
-        <div class="row">
-            <!-- Backup Section -->
-            <div class="col-md-6 mb-4">
-                <div class="card action-card success shadow-sm h-100">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="bi bi-cloud-upload text-success"></i> Create Backup</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted">
-                            Backup all your important data:
-                        </p>
-                        <ul class="small text-muted">
-                            <li>Investors (name, PAN, contact, CAS upload history)</li>
-                            <li>Mutual Fund Master (AMFI mappings, asset allocations)</li>
-                            <li>Goals, linked folios, and journal notes</li>
-                            <li>Manual ISIN mappings</li>
-                        </ul>
-                        <button class="btn btn-success w-100" onclick="createBackup()" id="backupBtn">
-                            <i class="bi bi-cloud-upload"></i> Create Backup Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Restore Section -->
-            <div class="col-md-6 mb-4">
-                <div class="card action-card warning shadow-sm h-100">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="bi bi-cloud-download text-warning"></i> Restore from Backup</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="text-muted">
-                            Restore your static data after a database reset. This will:
-                        </p>
-                        <ul class="small text-muted">
-                            <li>Restore investor profiles</li>
-                            <li>Restore AMFI mappings & asset allocations</li>
-                            <li>Restore goals (folio links restored if folios exist)</li>
-                        </ul>
-                        <button class="btn btn-warning w-100" onclick="restoreLatest()" id="restoreBtn">
-                            <i class="bi bi-cloud-download"></i> Restore Latest Backup
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reset Database Section -->
+        <!-- Backup & Restore Link Card -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card action-card danger shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> Reset Database</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-danger">
-                            <strong>Warning:</strong> This will delete ALL data including transactions, holdings, folios, and everything else.
-                            Only static data can be restored from backup.
-                        </div>
-                        <p class="text-muted">
-                            Use this when you want to reimport CAS files from scratch while preserving your mappings and goals.
-                        </p>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Recommended workflow:</strong>
-                                <ol class="small text-muted">
-                                    <li>Create a backup first</li>
-                                    <li>Reset the database</li>
-                                    <li>Restore from backup</li>
-                                    <li>Re-import your CAS PDFs</li>
-                                </ol>
+                <a href="/settings/backup" class="text-decoration-none">
+                    <div class="card action-card shadow-sm" style="border-left-color: #0dcaf0;">
+                        <div class="card-body d-flex align-items-center justify-content-between py-3">
+                            <div>
+                                <h5 class="mb-1 text-dark"><i class="bi bi-shield-check text-info"></i> Backup & Restore</h5>
+                                <p class="text-muted mb-0 small">Full database backups, config-only backups, restore from file upload, and database reset</p>
                             </div>
-                            <div class="col-md-6 d-flex align-items-center">
-                                <button class="btn btn-outline-danger w-100" onclick="confirmReset()" id="resetBtn">
-                                    <i class="bi bi-trash"></i> Reset Database
-                                </button>
-                            </div>
+                            <i class="bi bi-chevron-right text-muted fs-4"></i>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
 
-        <!-- Available Backups -->
+        <!-- User Management Section -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-archive"></i> Available Backups</h5>
-                <button class="btn btn-sm btn-outline-primary" onclick="loadBackups()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                <h5 class="mb-0"><i class="bi bi-people"></i> User Management</h5>
+                <button class="btn btn-sm btn-success" onclick="showAddUserModal()">
+                    <i class="bi bi-person-plus"></i> Add User
                 </button>
             </div>
             <div class="card-body">
-                <div id="backupsList">
-                    <div class="text-center py-3">
-                        <div class="spinner-border spinner-border-sm" role="status"></div>
-                        Loading backups...
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover align-middle mb-0" id="usersTable" style="display:none;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Role</th>
+                                <th>Accessible Investors</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody"></tbody>
+                    </table>
+                </div>
+                <div id="usersLoading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    Loading users...
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit User Modal -->
+        <div class="modal fade" id="userModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="userModalTitle">Add User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="userModalError" class="alert alert-danger py-2" style="display:none;"></div>
+                        <input type="hidden" id="editUserId">
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" id="userUsername" pattern="[a-zA-Z0-9_]+" required>
+                            <div class="form-text">Letters, numbers, underscores only</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Display Name</label>
+                            <input type="text" class="form-control" id="userDisplayName" required>
+                        </div>
+                        <div class="mb-3" id="passwordGroup">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" id="userPassword">
+                            <div class="form-text">Minimum 4 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" id="userRole">
+                                <option value="member">Member</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Own Portfolio <small class="text-muted">(the investor this user represents)</small></label>
+                            <select class="form-select" id="userInvestorId">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="custodianGroup" style="display:none;">
+                            <label class="form-label">Additional Investor Access <small class="text-muted">(custodian)</small></label>
+                            <div id="custodianList" class="mb-2"></div>
+                            <div class="input-group input-group-sm">
+                                <select class="form-select" id="addCustodianSelect">
+                                    <option value="">Grant access to...</option>
+                                </select>
+                                <button class="btn btn-outline-success" type="button" onclick="addCustodianAccess()">
+                                    <i class="bi bi-plus"></i> Add
+                                </button>
+                            </div>
+                            <div class="form-text">This user can view and manage these additional portfolios</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="userModalSave" onclick="saveUser()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reset Password Modal -->
+        <div class="modal fade" id="resetPwModal" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reset Password</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="resetPwError" class="alert alert-danger py-2" style="display:none;"></div>
+                        <input type="hidden" id="resetPwUserId">
+                        <p class="mb-2">Reset password for <strong id="resetPwUsername"></strong></p>
+                        <div class="mb-3">
+                            <label class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="resetPwInput">
+                            <div class="form-text">Minimum 4 characters</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="resetPassword()">Reset Password</button>
                     </div>
                 </div>
             </div>
@@ -348,50 +387,8 @@
         </div>
     </div>
 
-    <!-- Confirm Reset Modal -->
-    <div class="modal fade" id="resetModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Database Reset</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-success mb-3">
-                        <i class="bi bi-shield-check"></i> <strong>Safety:</strong> A backup will be created automatically before reset.
-                    </div>
-                    <p class="text-danger fw-bold">This will delete the following (re-import CAS to restore):</p>
-                    <ul>
-                        <li>All transactions</li>
-                        <li>All holdings</li>
-                        <li>All folios</li>
-                        <li>All NAV history</li>
-                        <li>All portfolio snapshots</li>
-                    </ul>
-                    <p class="text-success"><strong>What will be preserved (via auto-restore):</strong></p>
-                    <ul class="text-muted">
-                        <li>Investor profiles</li>
-                        <li>Fund mappings & allocations</li>
-                        <li>Goals & journal notes</li>
-                        <li>ISIN mappings</li>
-                    </ul>
-                    <p>Type <strong>RESET</strong> to confirm:</p>
-                    <input type="text" class="form-control" id="resetConfirmInput" placeholder="Type RESET here">
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" onclick="executeReset()" id="executeResetBtn">
-                        <i class="bi bi-trash"></i> Reset Database
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let resetModal;
-
         function log(message, type = 'info') {
             const logArea = document.getElementById('logArea');
             const timestamp = new Date().toLocaleTimeString();
@@ -400,236 +397,330 @@
             logArea.scrollTop = logArea.scrollHeight;
         }
 
-        async function createBackup() {
-            const btn = document.getElementById('backupBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating backup...';
-            log('Creating backup...');
+        // ==================== User Management Functions ====================
+
+        let usersData = [];
+        let investorsForUsers = [];
+        let custodianData = {}; // userId -> [{investor_id, investor_name, custodian_user_id, id}]
+
+        async function loadUsers() {
+            const loading = document.getElementById('usersLoading');
+            const table = document.getElementById('usersTable');
+            loading.style.display = '';
+            table.style.display = 'none';
 
             try {
-                const res = await fetch('/api/backup', { method: 'POST' });
-                const result = await res.json();
+                const [usersRes, investorsRes] = await Promise.all([
+                    fetch('/api/users'),
+                    fetch('/api/investors')
+                ]);
+                usersData = await usersRes.json();
+                investorsForUsers = await investorsRes.json();
 
-                if (result.success) {
-                    log(`Backup created: ${result.file}`, 'success');
-                    const counts = result.counts || {};
-                    let summary = `Backed up: ${counts.investors || 0} investors, ${counts.mutual_fund_master || 0} funds, ${counts.goals || 0} goals`;
-                    if (counts.goal_notes) summary += `, ${counts.goal_notes} notes`;
-                    if (counts.isin_mappings) summary += `, ${counts.isin_mappings} mappings`;
-                    if (result.size_kb) summary += ` (${result.size_kb} KB)`;
-                    log(summary, 'success');
-                    await loadBackups();
-                } else {
-                    log('Backup failed: ' + (result.error || 'Unknown error'), 'error');
-                }
-            } catch (error) {
-                log('Backup failed: ' + error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Create Backup Now';
+                // Load custodian access for each user
+                custodianData = {};
+                await Promise.all(investorsForUsers.map(async inv => {
+                    try {
+                        const res = await fetch(`/api/investors/${inv.id}/custodians`);
+                        if (res.ok) {
+                            const custodians = await res.json();
+                            for (const c of custodians) {
+                                if (!custodianData[c.custodian_user_id]) custodianData[c.custodian_user_id] = [];
+                                custodianData[c.custodian_user_id].push({
+                                    id: c.id,
+                                    investor_id: inv.id,
+                                    investor_name: inv.name
+                                });
+                            }
+                        }
+                    } catch(e) {}
+                }));
+
+                loading.style.display = 'none';
+                renderUsersTable();
+                table.style.display = '';
+
+                // Populate investor dropdowns in modal
+                const invOptions = investorsForUsers.map(inv =>
+                    `<option value="${inv.id}">${inv.name}${inv.pan ? ' (' + inv.pan + ')' : ''}</option>`
+                ).join('');
+                document.getElementById('userInvestorId').innerHTML = '<option value="">None</option>' + invOptions;
+                document.getElementById('addCustodianSelect').innerHTML = '<option value="">Grant access to...</option>' + invOptions;
+            } catch(e) {
+                loading.innerHTML = '<span class="text-danger">Failed to load users</span>';
             }
         }
 
-        async function restoreLatest() {
-            const btn = document.getElementById('restoreBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Restoring...';
-            log('Restoring from latest backup...');
+        function renderUsersTable() {
+            const tbody = document.getElementById('usersBody');
+            let html = '';
+            for (const u of usersData) {
+                const roleBadge = u.role === 'admin'
+                    ? '<span class="badge bg-warning text-dark">Admin</span>'
+                    : '<span class="badge bg-info">Member</span>';
+                const statusBadge = u.is_active
+                    ? '<span class="badge bg-success">Active</span>'
+                    : '<span class="badge bg-secondary">Disabled</span>';
+                const lastLogin = u.last_login
+                    ? new Date(u.last_login).toLocaleDateString()
+                    : '<span class="text-muted">Never</span>';
 
-            try {
-                const res = await fetch('/api/restore', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                });
-                const result = await res.json();
-
-                if (result.success) {
-                    if (result.auto_backup_created) {
-                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                // Build accessible investors list
+                let investorBadges = '';
+                if (u.role === 'admin') {
+                    investorBadges = '<span class="badge bg-warning text-dark">All (admin)</span>';
+                } else {
+                    const badges = [];
+                    if (u.investor_id) {
+                        const own = investorsForUsers.find(i => i.id === u.investor_id);
+                        badges.push(`<span class="badge bg-primary">${own ? own.name : '#' + u.investor_id}</span>`);
                     }
-                    log(`Restore complete from: ${result.backup_file}`, 'success');
-                    const r = result.restored || {};
-                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
-                    if (r.goal_folios) summary += `, ${r.goal_folios} goal links`;
-                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
-                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
-                    log(summary, 'success');
-                } else {
-                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
-                }
-            } catch (error) {
-                log('Restore failed: ' + error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-cloud-download"></i> Restore Latest Backup';
-            }
-        }
-
-        async function restoreFromFile(backupFile) {
-            log(`Restoring from: ${backupFile}...`);
-
-            try {
-                const res = await fetch('/api/restore', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ backup_file: backupFile })
-                });
-                const result = await res.json();
-
-                if (result.success) {
-                    if (result.auto_backup_created) {
-                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'info');
+                    const custodians = custodianData[u.id] || [];
+                    for (const c of custodians) {
+                        badges.push(`<span class="badge bg-outline-secondary border">${c.investor_name}</span>`);
                     }
-                    log(`Restore complete!`, 'success');
-                    const r = result.restored || {};
-                    let summary = `Restored: ${r.investors || 0} investors, ${r.mutual_fund_master || 0} funds, ${r.goals || 0} goals`;
-                    if (r.goal_notes) summary += `, ${r.goal_notes} notes`;
-                    if (r.isin_mappings) summary += `, ${r.isin_mappings} mappings`;
-                    log(summary, 'success');
-                } else {
-                    log('Restore failed: ' + (result.error || 'Unknown error'), 'error');
+                    investorBadges = badges.length > 0 ? badges.join(' ') : '<span class="text-muted">—</span>';
                 }
-            } catch (error) {
-                log('Restore failed: ' + error.message, 'error');
+
+                html += `<tr${!u.is_active ? ' class="table-secondary"' : ''}>
+                    <td><code>${u.username}</code></td>
+                    <td>${u.display_name}</td>
+                    <td>${roleBadge}</td>
+                    <td>${investorBadges}</td>
+                    <td>${statusBadge}</td>
+                    <td><small>${lastLogin}</small></td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="editUser(${u.id})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="showResetPw(${u.id}, '${u.username}')" title="Reset Password">
+                                <i class="bi bi-key"></i>
+                            </button>
+                            <button class="btn btn-outline-${u.is_active ? 'danger' : 'success'}"
+                                    onclick="toggleUserActive(${u.id}, ${u.is_active ? 0 : 1})"
+                                    title="${u.is_active ? 'Disable' : 'Enable'}">
+                                <i class="bi bi-${u.is_active ? 'person-x' : 'person-check'}"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
             }
+            tbody.innerHTML = html || '<tr><td colspan="7" class="text-center text-muted">No users</td></tr>';
         }
 
-        function confirmReset() {
-            document.getElementById('resetConfirmInput').value = '';
-            resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
-            resetModal.show();
+        function showAddUserModal() {
+            document.getElementById('editUserId').value = '';
+            document.getElementById('userModalTitle').textContent = 'Add User';
+            document.getElementById('userUsername').value = '';
+            document.getElementById('userUsername').disabled = false;
+            document.getElementById('userDisplayName').value = '';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('passwordGroup').style.display = '';
+            document.getElementById('userRole').value = 'member';
+            document.getElementById('userInvestorId').value = '';
+            document.getElementById('userModalError').style.display = 'none';
+            document.getElementById('custodianGroup').style.display = 'none';
+            document.getElementById('custodianList').innerHTML = '';
+            new bootstrap.Modal(document.getElementById('userModal')).show();
         }
 
-        async function executeReset() {
-            const confirmInput = document.getElementById('resetConfirmInput').value;
-            if (confirmInput !== 'RESET') {
-                alert('Please type RESET to confirm');
+        function editUser(userId) {
+            const u = usersData.find(x => x.id === userId);
+            if (!u) return;
+            document.getElementById('editUserId').value = u.id;
+            document.getElementById('userModalTitle').textContent = 'Edit User';
+            document.getElementById('userUsername').value = u.username;
+            document.getElementById('userUsername').disabled = true;
+            document.getElementById('userDisplayName').value = u.display_name;
+            document.getElementById('userPassword').value = '';
+            document.getElementById('passwordGroup').style.display = 'none';
+            document.getElementById('userRole').value = u.role;
+            document.getElementById('userInvestorId').value = u.investor_id || '';
+            document.getElementById('userModalError').style.display = 'none';
+
+            // Show custodian access section for existing users
+            document.getElementById('custodianGroup').style.display = '';
+            renderCustodianList(u.id);
+
+            new bootstrap.Modal(document.getElementById('userModal')).show();
+        }
+
+        function renderCustodianList(userId) {
+            const container = document.getElementById('custodianList');
+            const custodians = custodianData[userId] || [];
+            if (custodians.length === 0) {
+                container.innerHTML = '<small class="text-muted">No additional access granted</small>';
                 return;
             }
+            container.innerHTML = custodians.map(c =>
+                `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.85rem;">
+                    ${c.investor_name}
+                    <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.5rem;"
+                            onclick="removeCustodianAccess(${c.investor_id}, ${userId})" title="Remove access"></button>
+                </span>`
+            ).join('');
+        }
 
-            const btn = document.getElementById('executeResetBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
-            log('Resetting database...', 'error');
+        async function addCustodianAccess() {
+            const userId = document.getElementById('editUserId').value;
+            if (!userId) return;
+            const investorId = document.getElementById('addCustodianSelect').value;
+            if (!investorId) return;
 
             try {
-                const res = await fetch('/api/reset-database', {
+                const res = await fetch(`/api/investors/${investorId}/custodians`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ confirm: 'RESET' })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: parseInt(userId) })
                 });
                 const result = await res.json();
-
-                if (result.success) {
-                    if (result.auto_backup_created) {
-                        log(`Safety backup created: ${result.auto_backup_created.split('/').pop()}`, 'success');
-                    }
-                    log('Database reset complete!', 'success');
-                    log(`Dropped tables: ${result.dropped_tables.join(', ')}`, 'info');
-                    log('All tables have been recreated empty.', 'info');
-                    log('Tip: Click "Restore Latest Backup" to recover your settings, then re-import CAS', 'info');
-                    resetModal.hide();
-                    await loadBackups();
+                if (res.ok) {
+                    // Update local data
+                    if (!custodianData[userId]) custodianData[userId] = [];
+                    const inv = investorsForUsers.find(i => i.id == investorId);
+                    custodianData[userId].push({
+                        id: result.id,
+                        investor_id: parseInt(investorId),
+                        investor_name: inv ? inv.name : '#' + investorId
+                    });
+                    renderCustodianList(parseInt(userId));
+                    renderUsersTable();
+                    document.getElementById('addCustodianSelect').value = '';
+                    log('Custodian access granted', 'success');
                 } else {
-                    log('Reset failed: ' + (result.error || 'Unknown error'), 'error');
+                    alert(result.error || 'Failed to grant access');
                 }
-            } catch (error) {
-                log('Reset failed: ' + error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-trash"></i> Reset Database';
+            } catch(e) {
+                alert('Error: ' + e.message);
             }
         }
 
-        async function loadBackups() {
-            const container = document.getElementById('backupsList');
+        async function removeCustodianAccess(investorId, userId) {
+            if (!confirm('Remove this investor access?')) return;
+            try {
+                const res = await fetch(`/api/investors/${investorId}/custodians/${userId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.success) {
+                    // Update local data
+                    if (custodianData[userId]) {
+                        custodianData[userId] = custodianData[userId].filter(c => c.investor_id !== investorId);
+                    }
+                    renderCustodianList(userId);
+                    renderUsersTable();
+                    log('Custodian access revoked', 'success');
+                } else {
+                    alert(result.error || 'Failed');
+                }
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function saveUser() {
+            const errorEl = document.getElementById('userModalError');
+            errorEl.style.display = 'none';
+            const editId = document.getElementById('editUserId').value;
+            const isEdit = !!editId;
+
+            const data = {
+                display_name: document.getElementById('userDisplayName').value.trim(),
+                role: document.getElementById('userRole').value,
+                investor_id: document.getElementById('userInvestorId').value || null
+            };
+
+            if (!isEdit) {
+                data.username = document.getElementById('userUsername').value.trim();
+                data.password = document.getElementById('userPassword').value;
+                if (!data.username) { errorEl.textContent = 'Username is required'; errorEl.style.display = ''; return; }
+                if (data.password.length < 4) { errorEl.textContent = 'Password must be at least 4 characters'; errorEl.style.display = ''; return; }
+            }
+            if (!data.display_name) { errorEl.textContent = 'Display name is required'; errorEl.style.display = ''; return; }
 
             try {
-                const res = await fetch('/api/backups');
-                const backups = await res.json();
-
-                if (backups.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <i class="bi bi-archive" style="font-size:2rem;"></i>
-                            <p class="mt-2">No backups found</p>
-                            <p class="small">Create your first backup using the button above</p>
-                        </div>
-                    `;
-                    return;
+                const url = isEdit ? `/api/users/${editId}` : '/api/users';
+                const method = isEdit ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (res.ok && (result.success || result.id)) {
+                    bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+                    loadUsers();
+                    log(isEdit ? 'User updated' : 'User created', 'success');
+                } else {
+                    errorEl.textContent = result.error || 'Failed to save';
+                    errorEl.style.display = '';
                 }
-
-                container.innerHTML = backups.map(b => {
-                    const hasNotes = (b.counts.goal_notes || 0) > 0;
-                    const hasMappings = (b.isin_mappings || 0) > 0;
-                    return `
-                    <div class="backup-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong><i class="bi bi-file-earmark-zip"></i> ${b.filename}</strong>
-                            <span class="badge bg-secondary ms-2">${b.size_kb || '?'} KB</span>
-                            ${b.version === '2.0' ? '<span class="badge bg-success ms-1">v2</span>' : ''}
-                            <br>
-                            <small class="text-muted">
-                                ${b.counts.investors || 0} investors |
-                                ${b.counts.mutual_fund_master || 0} funds |
-                                ${b.counts.goals || 0} goals
-                                ${hasNotes ? `| ${b.counts.goal_notes} notes` : ''}
-                                ${hasMappings ? `| ${b.isin_mappings} mappings` : ''}
-                            </small>
-                        </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary me-1" onclick="downloadBackup('${b.file}')" title="Download">
-                                <i class="bi bi-download"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="confirmRestore('${b.file}', ${JSON.stringify(b).replace(/"/g, '&quot;')})">
-                                <i class="bi bi-cloud-download"></i> Restore
-                            </button>
-                        </div>
-                    </div>
-                `}).join('');
-
-            } catch (error) {
-                container.innerHTML = `<div class="text-danger">Failed to load backups: ${error.message}</div>`;
+            } catch(e) {
+                errorEl.textContent = 'Error: ' + e.message;
+                errorEl.style.display = '';
             }
         }
 
-        function downloadBackup(filePath) {
-            // Create a link to download the backup file
-            const filename = filePath.split('/').pop();
-            log(`Downloading: ${filename}...`);
-
-            // Download via API endpoint
-            const link = document.createElement('a');
-            link.href = `/api/backups/download/${filename}`;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            log(`Download started: ${filename}`, 'success');
+        function showResetPw(userId, username) {
+            document.getElementById('resetPwUserId').value = userId;
+            document.getElementById('resetPwUsername').textContent = username;
+            document.getElementById('resetPwInput').value = '';
+            document.getElementById('resetPwError').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('resetPwModal')).show();
         }
 
-        function confirmRestore(filePath, backupInfo) {
-            const info = typeof backupInfo === 'string' ? JSON.parse(backupInfo.replace(/&quot;/g, '"')) : backupInfo;
-            const counts = info.counts || {};
-            const details = [
-                `Investors: ${counts.investors || 0}`,
-                `Funds: ${counts.mutual_fund_master || 0}`,
-                `Goals: ${counts.goals || 0}`,
-                counts.goal_notes ? `Notes: ${counts.goal_notes}` : null,
-                info.isin_mappings ? `ISIN Mappings: ${info.isin_mappings}` : null
-            ].filter(Boolean).join(', ');
-
-            const message = `Restore from backup?\n\nFile: ${info.filename}\nSize: ${info.size_kb || '?'} KB\nContents: ${details}\n\nA safety backup will be created automatically before restore.`;
-
-            if (confirm(message)) {
-                restoreFromFile(filePath);
+        async function resetPassword() {
+            const errorEl = document.getElementById('resetPwError');
+            errorEl.style.display = 'none';
+            const userId = document.getElementById('resetPwUserId').value;
+            const password = document.getElementById('resetPwInput').value;
+            if (password.length < 4) {
+                errorEl.textContent = 'Password must be at least 4 characters';
+                errorEl.style.display = '';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ password })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('resetPwModal')).hide();
+                    log('Password reset successfully', 'success');
+                } else {
+                    errorEl.textContent = result.error || 'Failed';
+                    errorEl.style.display = '';
+                }
+            } catch(e) {
+                errorEl.textContent = 'Error: ' + e.message;
+                errorEl.style.display = '';
             }
         }
 
-        // Load backups on page load
-        loadBackups();
+        async function toggleUserActive(userId, newActive) {
+            const action = newActive ? 'enable' : 'disable';
+            if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+            try {
+                const res = await fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ is_active: newActive })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    loadUsers();
+                    log(`User ${action}d`, 'success');
+                } else {
+                    alert(result.error || 'Failed');
+                }
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // Load users on page load
+        loadUsers();
 
         // ==================== Folio Management Functions ====================
 
@@ -1265,5 +1356,15 @@
         loadFeatureRequests();
     </script>
     {% include '_feature_request_widget.html' %}
+<script>
+// Auth: redirect to login on 401
+const _origFetch = window.fetch;
+window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(resp => {
+        if (resp.status === 401) window.location.href = '/login';
+        return resp;
+    });
+};
+</script>
 </body>
 </html>

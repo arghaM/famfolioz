@@ -620,6 +620,38 @@ def init_db():
             )
         """)
 
+        # Users table (authentication)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+                investor_id INTEGER,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                last_login TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (investor_id) REFERENCES investors(id)
+            )
+        """)
+
+        # Custodian access table (delegated portfolio access)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS custodian_access (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                investor_id INTEGER NOT NULL,
+                custodian_user_id INTEGER NOT NULL,
+                granted_by_user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (investor_id) REFERENCES investors(id),
+                FOREIGN KEY (custodian_user_id) REFERENCES users(id),
+                FOREIGN KEY (granted_by_user_id) REFERENCES users(id),
+                UNIQUE(investor_id, custodian_user_id)
+            )
+        """)
+
         # Create indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_folios_investor ON folios(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_folio ON transactions(folio_id)")
@@ -662,3 +694,9 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_benchmarks_investor ON benchmarks(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_benchmark_data_scheme ON benchmark_data(scheme_code)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_benchmark_data_date ON benchmark_data(scheme_code, data_date)")
+
+        # Auth indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_investor ON users(investor_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_custodian_access_investor ON custodian_access(investor_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_custodian_access_user ON custodian_access(custodian_user_id)")

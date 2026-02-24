@@ -3,6 +3,7 @@ import urllib.request
 import urllib.parse
 from flask import Blueprint, jsonify, request
 from cas_parser.webapp import data as db
+from cas_parser.webapp.auth import admin_required
 
 mutual_funds_bp = Blueprint('mutual_funds', __name__)
 
@@ -29,6 +30,7 @@ def api_get_mutual_fund_stats():
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/map', methods=['POST'])
+@admin_required
 def api_map_mutual_fund(mf_id):
     """Map a mutual fund to AMFI code."""
     data = request.json
@@ -43,6 +45,7 @@ def api_map_mutual_fund(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/name', methods=['PUT'])
+@admin_required
 def api_update_fund_name(mf_id):
     """Update display name for a mutual fund."""
     data = request.json
@@ -55,6 +58,7 @@ def api_update_fund_name(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/allocation', methods=['POST'])
+@admin_required
 def api_update_fund_allocation(mf_id):
     """Update asset allocation for a mutual fund."""
     data = request.json
@@ -77,6 +81,7 @@ def api_update_fund_allocation(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/classification', methods=['PUT'])
+@admin_required
 def api_update_fund_classification(mf_id):
     """Update fund category and geography classification."""
     data = request.json
@@ -99,6 +104,7 @@ def api_get_fund_detail(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/holdings', methods=['PUT'])
+@admin_required
 def api_update_fund_holdings(mf_id):
     """Replace all stock holdings for a fund."""
     data = request.json
@@ -110,6 +116,7 @@ def api_update_fund_holdings(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/sectors', methods=['PUT'])
+@admin_required
 def api_update_fund_sectors(mf_id):
     """Replace all sector allocations for a fund."""
     data = request.json
@@ -121,6 +128,7 @@ def api_update_fund_sectors(mf_id):
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/review', methods=['PUT'])
+@admin_required
 def api_confirm_fund_review(mf_id):
     """Confirm allocation review for a fund (resets 30-day timer)."""
     success = db.confirm_fund_allocation_review(mf_id)
@@ -149,6 +157,7 @@ def api_search_amfi():
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:mf_id>/exit-load', methods=['PUT'])
+@admin_required
 def api_update_exit_load(mf_id):
     """Update exit load percentage for a mutual fund."""
     data = request.json
@@ -164,6 +173,7 @@ def api_update_exit_load(mf_id):
 # ==================== ISIN Resolver Routes ====================
 
 @mutual_funds_bp.route('/api/isin-resolver/refresh-amfi', methods=['POST'])
+@admin_required
 def api_refresh_amfi():
     """Refresh AMFI scheme database."""
     try:
@@ -206,6 +216,7 @@ def api_get_isin_mappings():
 
 
 @mutual_funds_bp.route('/api/isin-resolver/mappings', methods=['POST'])
+@admin_required
 def api_add_isin_mapping():
     """Add a manual ISIN mapping."""
     try:
@@ -227,6 +238,7 @@ def api_add_isin_mapping():
 
 
 @mutual_funds_bp.route('/api/isin-resolver/mappings/<path:scheme_pattern>', methods=['DELETE'])
+@admin_required
 def api_delete_isin_mapping(scheme_pattern):
     """Delete a manual ISIN mapping."""
     try:
@@ -316,6 +328,7 @@ def api_search_isin():
 
 
 @mutual_funds_bp.route('/api/mutual-funds/<int:fund_id>/update-isin', methods=['POST'])
+@admin_required
 def api_update_fund_isin(fund_id):
     """Manually update a mutual fund's ISIN."""
     try:
