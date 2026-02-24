@@ -17,6 +17,10 @@ __all__ = [
     "link_folio_to_goal",
     "unlink_folio_from_goal",
     "get_unlinked_folios_for_goal",
+    "link_asset_to_goal",
+    "unlink_asset_from_goal",
+    "get_goal_linked_assets",
+    "get_unlinked_assets_for_goal",
     "create_goal_note",
     "get_goal_notes",
     "get_goal_note_by_id",
@@ -27,6 +31,9 @@ __all__ = [
     "save_goal_phases",
     "delete_goal_phase",
     "get_goal_allocation_detail",
+    "link_nps_to_goal",
+    "unlink_nps_from_goal",
+    "get_unlinked_nps_for_goal",
 ]
 
 
@@ -104,12 +111,18 @@ def update_goal(goal_id: int, name: str = None, target_amount: float = None,
 
 
 def delete_goal(goal_id: int) -> dict:
-    """Delete a goal and its folio links."""
+    """Delete a goal and its folio/asset/NPS links."""
     with get_db() as conn:
         cursor = conn.cursor()
 
         # Delete folio links first
         cursor.execute("DELETE FROM goal_folios WHERE goal_id = ?", (goal_id,))
+
+        # Delete asset links
+        cursor.execute("DELETE FROM goal_assets WHERE goal_id = ?", (goal_id,))
+
+        # Delete NPS links
+        cursor.execute("DELETE FROM goal_nps WHERE goal_id = ?", (goal_id,))
 
         # Delete the goal
         cursor.execute("DELETE FROM goals WHERE id = ?", (goal_id,))
@@ -157,7 +170,9 @@ def get_goals_by_investor(investor_id: int) -> List[dict]:
 
 
 def _calculate_goal_values(cursor, goal_id: int) -> dict:
-    """Calculate current value and allocation for a goal based on linked folios."""
+    """Calculate current value and allocation for a goal based on linked folios and assets."""
+    from cas_parser.webapp.db.manual_assets import _enrich_manual_asset
+
     # Get linked folios with their values
     cursor.execute("""
         SELECT
@@ -210,9 +225,86 @@ def _calculate_goal_values(cursor, goal_id: int) -> dict:
             'value': value
         })
 
+    # Get linked manual assets
+    cursor.execute("""
+        SELECT ma.*
+        FROM goal_assets ga
+        JOIN manual_assets ma ON ma.id = ga.asset_id
+        WHERE ga.goal_id = ?
+    """, (goal_id,))
+
+    linked_assets = []
+    for row in cursor.fetchall():
+        asset = _enrich_manual_asset(dict(row))
+        value = asset.get('calculated_value') or 0
+        total_value += value
+
+        # Use per-asset allocation percentages
+        a_equity = asset.get('equity_pct') or 0
+        a_debt = asset.get('debt_pct') or 0
+        a_commodity = asset.get('commodity_pct') or 0
+        a_cash = asset.get('cash_pct') or 0
+        a_others = asset.get('others_pct') or 0
+        alloc_sum = a_equity + a_debt + a_commodity + a_cash + a_others
+        if alloc_sum >= 1:
+            equity_value += value * a_equity / 100
+            debt_value += value * a_debt / 100
+            commodity_value += value * a_commodity / 100
+            cash_value += value * a_cash / 100
+            others_value += value * a_others / 100
+
+        linked_assets.append({
+            'asset_id': asset['id'],
+            'name': asset['name'],
+            'asset_type': asset['asset_type'],
+            'value': value,
+            'exclude_from_xirr': bool(asset.get('exclude_from_xirr')),
+        })
+
+    # Get linked NPS accounts
+    cursor.execute("""
+        SELECT ns.id, ns.pran, ns.name, ns.total_value
+        FROM goal_nps gn
+        JOIN nps_subscribers ns ON ns.id = gn.subscriber_id
+        WHERE gn.goal_id = ?
+    """, (goal_id,))
+
+    linked_nps = []
+    for row in cursor.fetchall():
+        sub = dict(row)
+        # Get scheme-level breakdown for allocation
+        cursor.execute("""
+            SELECT scheme_type, current_value
+            FROM nps_schemes
+            WHERE subscriber_id = ?
+        """, (sub['id'],))
+
+        nps_value = 0
+        for scheme in cursor.fetchall():
+            sv = scheme['current_value'] or 0
+            nps_value += sv
+            st = (scheme['scheme_type'] or '').upper()
+            if st == 'E':
+                equity_value += sv
+            elif st in ('C', 'G'):
+                debt_value += sv
+            elif st == 'A':
+                equity_value += sv * 0.75
+                debt_value += sv * 0.25
+
+        total_value += nps_value
+        linked_nps.append({
+            'subscriber_id': sub['id'],
+            'pran': sub['pran'],
+            'name': sub['name'],
+            'value': nps_value,
+        })
+
     return {
         'linked_folios': linked_folios,
-        'linked_count': len(linked_folios),
+        'linked_assets': linked_assets,
+        'linked_nps': linked_nps,
+        'linked_count': len(linked_folios) + len(linked_assets) + len(linked_nps),
         'current_value': total_value,
         'actual_allocation': {
             'equity': equity_value,
@@ -274,6 +366,103 @@ def get_unlinked_folios_for_goal(goal_id: int, investor_id: int) -> List[dict]:
             ORDER BY f.scheme_name
         """, (investor_id, goal_id))
 
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# ==================== Goal-Asset Linking Functions ====================
+
+def link_asset_to_goal(goal_id: int, asset_id: int) -> dict:
+    """Link a manual asset to a goal."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO goal_assets (goal_id, asset_id) VALUES (?, ?)
+            """, (goal_id, asset_id))
+            return {'success': True}
+        except sqlite3.IntegrityError:
+            return {'success': False, 'error': 'Asset already linked to this goal'}
+
+
+def unlink_asset_from_goal(goal_id: int, asset_id: int) -> dict:
+    """Unlink a manual asset from a goal."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM goal_assets WHERE goal_id = ? AND asset_id = ?
+        """, (goal_id, asset_id))
+        return {'success': cursor.rowcount > 0}
+
+
+def get_goal_linked_assets(goal_id: int) -> list:
+    """Get manual assets linked to a goal, enriched with calculated values."""
+    from cas_parser.webapp.db.manual_assets import _enrich_manual_asset
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ma.*
+            FROM goal_assets ga
+            JOIN manual_assets ma ON ma.id = ga.asset_id
+            WHERE ga.goal_id = ?
+            ORDER BY ma.name
+        """, (goal_id,))
+        return [_enrich_manual_asset(dict(row)) for row in cursor.fetchall()]
+
+
+def get_unlinked_assets_for_goal(goal_id: int, investor_id: int) -> list:
+    """Get manual assets not yet linked to a goal."""
+    from cas_parser.webapp.db.manual_assets import _enrich_manual_asset
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ma.*
+            FROM manual_assets ma
+            WHERE ma.investor_id = ?
+              AND ma.is_active = 1
+              AND ma.id NOT IN (SELECT asset_id FROM goal_assets WHERE goal_id = ?)
+            ORDER BY ma.name
+        """, (investor_id, goal_id))
+        return [_enrich_manual_asset(dict(row)) for row in cursor.fetchall()]
+
+
+# ==================== Goal-NPS Linking Functions ====================
+
+def link_nps_to_goal(goal_id: int, subscriber_id: int) -> dict:
+    """Link an NPS subscriber account to a goal."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO goal_nps (goal_id, subscriber_id) VALUES (?, ?)
+            """, (goal_id, subscriber_id))
+            return {'success': True}
+        except sqlite3.IntegrityError:
+            return {'success': False, 'error': 'NPS account already linked to this goal'}
+
+
+def unlink_nps_from_goal(goal_id: int, subscriber_id: int) -> dict:
+    """Unlink an NPS subscriber account from a goal."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM goal_nps WHERE goal_id = ? AND subscriber_id = ?
+        """, (goal_id, subscriber_id))
+        return {'success': cursor.rowcount > 0}
+
+
+def get_unlinked_nps_for_goal(goal_id: int, investor_id: int) -> list:
+    """Get NPS subscriber accounts not yet linked to a goal."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, pran, name, total_value
+            FROM nps_subscribers
+            WHERE investor_id = ?
+              AND id NOT IN (SELECT subscriber_id FROM goal_nps WHERE goal_id = ?)
+            ORDER BY name
+        """, (investor_id, goal_id))
         return [dict(row) for row in cursor.fetchall()]
 
 
@@ -489,7 +678,10 @@ def get_goal_allocation_detail(goal_id: int) -> dict:
     Groups funds by asset class and equity sub-category, showing each
     fund's contribution with its value, allocation percentages, and
     market cap split — so the user can see exactly how each number is derived.
+    Includes manual assets linked to the goal.
     """
+    from cas_parser.webapp.db.manual_assets import _enrich_manual_asset
+
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -540,27 +732,148 @@ def get_goal_allocation_detail(goal_id: int) -> dict:
 
             funds.append(fund)
 
+        # Get linked manual assets and add to the funds list
+        cursor.execute("""
+            SELECT ma.*
+            FROM goal_assets ga
+            JOIN manual_assets ma ON ma.id = ga.asset_id
+            WHERE ga.goal_id = ?
+        """, (goal_id,))
+
+        manual_asset_entries = []
+        for row in cursor.fetchall():
+            asset = _enrich_manual_asset(dict(row))
+            value = asset.get('calculated_value') or 0
+            total_value += value
+
+            a_equity = asset.get('equity_pct') or 0
+            a_debt = asset.get('debt_pct') or 0
+            a_commodity = asset.get('commodity_pct') or 0
+            a_cash = asset.get('cash_pct') or 0
+            a_others = asset.get('others_pct') or 0
+            alloc_sum = a_equity + a_debt + a_commodity + a_cash + a_others
+            has_alloc = alloc_sum >= 1
+
+            type_label = (asset.get('asset_type') or 'other').upper()
+            entry = {
+                'scheme_name': f"[{type_label}] {asset['name']}",
+                'folio_number': None,
+                'folio_id': None,
+                'mf_id': None,
+                'asset_id': asset['id'],
+                'is_manual_asset': True,
+                'asset_type': asset.get('asset_type'),
+                'value': value,
+                'equity_pct': a_equity,
+                'debt_pct': a_debt,
+                'commodity_pct': a_commodity,
+                'cash_pct': a_cash,
+                'others_pct': a_others,
+                'equity_value': value * a_equity / 100 if has_alloc else 0,
+                'debt_value': value * a_debt / 100 if has_alloc else 0,
+                'commodity_value': value * a_commodity / 100 if has_alloc else 0,
+                'cash_value': value * a_cash / 100 if has_alloc else 0,
+                'others_value': value * a_others / 100 if has_alloc else 0,
+                'large_cap_pct': 0,
+                'mid_cap_pct': 0,
+                'small_cap_pct': 0,
+                'fund_category': None,
+                'geography': None,
+                'equity_sub_category': None,
+                'exclude_from_xirr': bool(asset.get('exclude_from_xirr')),
+            }
+            manual_asset_entries.append(entry)
+
+        # Get linked NPS accounts and their schemes
+        cursor.execute("""
+            SELECT ns.id, ns.pran, ns.name
+            FROM goal_nps gn
+            JOIN nps_subscribers ns ON ns.id = gn.subscriber_id
+            WHERE gn.goal_id = ?
+        """, (goal_id,))
+
+        nps_entries = []
+        for sub_row in cursor.fetchall():
+            sub = dict(sub_row)
+            cursor.execute("""
+                SELECT scheme_type, current_value
+                FROM nps_schemes
+                WHERE subscriber_id = ?
+            """, (sub['id'],))
+
+            for scheme in cursor.fetchall():
+                sv = scheme['current_value'] or 0
+                if sv <= 0:
+                    continue
+                st = (scheme['scheme_type'] or '').upper()
+                total_value += sv
+
+                # Derive allocation from scheme type
+                if st == 'E':
+                    eq_pct, dt_pct = 100, 0
+                elif st in ('C', 'G'):
+                    eq_pct, dt_pct = 0, 100
+                elif st == 'A':
+                    eq_pct, dt_pct = 75, 25
+                else:
+                    eq_pct, dt_pct = 0, 0
+
+                label = f"[NPS-{st}] {sub['name']} ({sub['pran']})"
+                entry = {
+                    'scheme_name': label,
+                    'folio_number': None,
+                    'folio_id': None,
+                    'mf_id': None,
+                    'asset_id': None,
+                    'is_manual_asset': False,
+                    'is_nps': True,
+                    'subscriber_id': sub['id'],
+                    'value': sv,
+                    'equity_pct': eq_pct,
+                    'debt_pct': dt_pct,
+                    'commodity_pct': 0,
+                    'cash_pct': 0,
+                    'others_pct': 0,
+                    'equity_value': sv * eq_pct / 100,
+                    'debt_value': sv * dt_pct / 100,
+                    'commodity_value': 0,
+                    'cash_value': 0,
+                    'others_value': 0,
+                    'large_cap_pct': 0,
+                    'mid_cap_pct': 0,
+                    'small_cap_pct': 0,
+                    'fund_category': None,
+                    'geography': None,
+                    'equity_sub_category': None,
+                }
+                nps_entries.append(entry)
+
+        # Combine funds, manual assets, and NPS for unified allocation calculation
+        all_entries = funds + manual_asset_entries + nps_entries
+
         # Build per-category summaries
         # 1. Asset class breakdown (equity / debt / commodity / cash / others)
         asset_classes = {}
         for ac in ['equity', 'debt', 'commodity', 'cash', 'others']:
             ac_funds = []
             ac_total = 0
-            for f in funds:
+            for f in all_entries:
                 contrib = f[f'{ac}_value']
                 if contrib > 0.01:
                     ac_total += contrib
                     ac_funds.append({
                         'scheme_name': f['scheme_name'],
-                        'folio_number': f['folio_number'],
-                        'folio_id': f['folio_id'],
-                        'mf_id': f['mf_id'],
+                        'folio_number': f.get('folio_number'),
+                        'folio_id': f.get('folio_id'),
+                        'mf_id': f.get('mf_id'),
+                        'asset_id': f.get('asset_id'),
+                        'is_manual_asset': f.get('is_manual_asset', False),
                         'total_value': f['value'] or 0,
                         'contribution': contrib,
                         'fund_alloc_pct': f[f'{ac}_pct'],
-                        'fund_category': f['fund_category'],
-                        'geography': f['geography'],
-                        'equity_sub_category': f['equity_sub_category'],
+                        'fund_category': f.get('fund_category'),
+                        'geography': f.get('geography'),
+                        'equity_sub_category': f.get('equity_sub_category'),
                     })
             asset_classes[ac] = {
                 'total': ac_total,

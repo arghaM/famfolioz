@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from cas_parser.webapp import data as db
 from cas_parser.webapp.routes import DecimalEncoder
-from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_asset
+from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_asset, get_investor_id_for_asset_tx
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def api_create_manual_asset():
         return jsonify({'error': f'asset_class must be one of: {valid_classes}'}), 400
 
     # Validate asset_type
-    valid_types = ['fd', 'sgb', 'stock', 'ppf', 'nps', 'other']
+    valid_types = ['fd', 'sgb', 'stock', 'ppf', 'nps', 'house', 'car', 'gold', 'other']
     if data['asset_type'] not in valid_types:
         return jsonify({'error': f'asset_type must be one of: {valid_types}'}), 400
 
@@ -102,7 +102,17 @@ def api_create_manual_asset():
             stock_avg_price=data.get('stock_avg_price'),
             # PPF/NPS fields
             ppf_account_number=data.get('ppf_account_number'),
-            ppf_maturity_date=data.get('ppf_maturity_date')
+            ppf_maturity_date=data.get('ppf_maturity_date'),
+            ppf_interest_rate=data.get('ppf_interest_rate'),
+            ppf_compounding=data.get('ppf_compounding'),
+            ppf_opening_balance=data.get('ppf_opening_balance'),
+            # Allocation fields
+            equity_pct=data.get('equity_pct'),
+            debt_pct=data.get('debt_pct'),
+            commodity_pct=data.get('commodity_pct'),
+            cash_pct=data.get('cash_pct'),
+            others_pct=data.get('others_pct'),
+            exclude_from_xirr=data.get('exclude_from_xirr'),
         )
         return jsonify({'success': True, 'id': asset_id})
     except Exception as e:
@@ -189,6 +199,26 @@ def api_calculate_sgb():
         interest_rate=data.get('interest_rate', 2.5),
         purchase_date=data['purchase_date'],
         current_gold_price=data.get('current_gold_price')
+    )
+
+    return jsonify(result)
+
+
+@manual_assets_bp.route('/api/manual-assets/calculate/ppf', methods=['POST'])
+def api_calculate_ppf():
+    """Calculate PPF current value with compound interest."""
+    data = request.json
+
+    required = ['purchase_date']
+    for field in required:
+        if not data.get(field):
+            return jsonify({'error': f'{field} is required'}), 400
+
+    result = db.calculate_ppf_value(
+        opening_balance=float(data.get('opening_balance', 0) or 0),
+        interest_rate=float(data.get('interest_rate', 7.1) or 7.1),
+        purchase_date=data['purchase_date'],
+        purchase_value=float(data.get('purchase_value', 0) or 0),
     )
 
     return jsonify(result)
@@ -464,3 +494,179 @@ def api_close_fd(asset_id):
     if success:
         return jsonify({'success': True})
     return jsonify({'error': 'FD not found'}), 404
+
+
+# ---------------------------------------------------------------------------
+# Manual asset types configuration
+# ---------------------------------------------------------------------------
+
+@manual_assets_bp.route('/api/manual-asset-types', methods=['GET'])
+def api_get_manual_asset_types():
+    """Get configured manual asset types."""
+    types = db.get_manual_asset_types()
+    return jsonify(types)
+
+
+@manual_assets_bp.route('/api/manual-asset-types', methods=['PUT'])
+@admin_required
+def api_set_manual_asset_types():
+    """Update manual asset types (admin only)."""
+    data = request.get_json()
+    if not isinstance(data, list):
+        return jsonify({'error': 'Expected a list of asset types'}), 400
+    result = db.set_manual_asset_types(data)
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# PPF / EPF transaction-based endpoints
+# ---------------------------------------------------------------------------
+
+@manual_assets_bp.route('/api/ppf-epf-assets', methods=['GET'])
+def api_get_ppf_epf_assets():
+    """Get PPF/EPF assets for an investor (LOV dropdown)."""
+    investor_id = request.args.get('investor_id', type=int)
+    if not investor_id:
+        return jsonify({'error': 'investor_id is required'}), 400
+    check_investor_access(investor_id)
+    assets = db.get_ppf_epf_assets(investor_id)
+    return jsonify(assets)
+
+
+@manual_assets_bp.route('/api/ppf-epf-assets', methods=['POST'])
+def api_create_ppf_epf_asset():
+    """Create a new PPF/EPF master record."""
+    data = request.get_json()
+    investor_id = data.get('investor_id')
+    if not investor_id:
+        return jsonify({'error': 'investor_id is required'}), 400
+    check_investor_access(investor_id)
+
+    sub_type = data.get('sub_type', 'ppf')
+    if sub_type not in ('ppf', 'epf'):
+        return jsonify({'error': 'sub_type must be ppf or epf'}), 400
+
+    result = db.create_ppf_epf_asset(
+        investor_id=investor_id,
+        sub_type=sub_type,
+        bank=data.get('bank'),
+        ref_no=data.get('ref_no'),
+    )
+    return jsonify(result)
+
+
+@manual_assets_bp.route('/api/manual-assets/<int:asset_id>/transactions', methods=['GET'])
+def api_get_asset_transactions(asset_id):
+    """Get transactions for an asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
+    txns = db.get_asset_transactions(asset_id)
+    return jsonify(txns)
+
+
+@manual_assets_bp.route('/api/manual-assets/<int:asset_id>/transactions', methods=['POST'])
+def api_add_asset_transaction(asset_id):
+    """Add a transaction to an asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
+    data = request.get_json()
+
+    tx_type = data.get('tx_type')
+    if tx_type not in ('investment', 'interest', 'withdrawal', 'buy', 'sell'):
+        return jsonify({'error': 'tx_type must be investment, interest, withdrawal, buy, or sell'}), 400
+
+    tx_date = data.get('tx_date')
+    if not tx_date:
+        return jsonify({'error': 'tx_date is required'}), 400
+
+    amount = data.get('amount')
+    if not amount or float(amount) <= 0:
+        return jsonify({'error': 'amount must be positive'}), 400
+
+    result = db.add_asset_transaction(
+        asset_id=asset_id,
+        tx_type=tx_type,
+        tx_date=tx_date,
+        amount=float(amount),
+        narration=data.get('narration'),
+        quantity=float(data['quantity']) if data.get('quantity') else None,
+        rate=float(data['rate']) if data.get('rate') else None,
+    )
+    return jsonify(result)
+
+
+@manual_assets_bp.route('/api/manual-assets/transactions/<int:tx_id>', methods=['DELETE'])
+def api_delete_asset_transaction(tx_id):
+    """Delete an asset transaction."""
+    check_investor_access(get_investor_id_for_asset_tx(tx_id))
+    result = db.delete_asset_transaction(tx_id)
+    if result.get('success'):
+        return jsonify(result)
+    return jsonify(result), 404
+
+
+# ---------------------------------------------------------------------------
+# Gold lot endpoints
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Manual asset price history (for gold price tracking)
+# ---------------------------------------------------------------------------
+
+@manual_assets_bp.route('/api/manual-assets/<int:asset_id>/prices', methods=['GET'])
+def api_get_asset_prices(asset_id):
+    """Get price history for an asset."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
+    limit = request.args.get('limit', 20, type=int)
+    prices = db.get_asset_prices(asset_id, limit=limit)
+    return jsonify(prices)
+
+
+@manual_assets_bp.route('/api/manual-assets/<int:asset_id>/prices', methods=['POST'])
+def api_add_asset_price(asset_id):
+    """Record a price for an asset (e.g. gold price per gram)."""
+    check_investor_access(get_investor_id_for_asset(asset_id))
+    data = request.get_json()
+
+    price_date = data.get('price_date')
+    if not price_date:
+        return jsonify({'error': 'price_date is required'}), 400
+
+    price_per_unit = data.get('price_per_unit')
+    if not price_per_unit or float(price_per_unit) <= 0:
+        return jsonify({'error': 'price_per_unit must be positive'}), 400
+
+    result = db.add_asset_price(asset_id, price_date, float(price_per_unit))
+    return jsonify(result)
+
+
+@manual_assets_bp.route('/api/gold-assets', methods=['GET'])
+def api_get_gold_assets():
+    """Get gold lots for an investor (LOV dropdown)."""
+    investor_id = request.args.get('investor_id', type=int)
+    if not investor_id:
+        return jsonify({'error': 'investor_id is required'}), 400
+    check_investor_access(investor_id)
+    lots = db.get_gold_lots(investor_id)
+    return jsonify(lots)
+
+
+@manual_assets_bp.route('/api/gold-assets', methods=['POST'])
+def api_create_gold_asset():
+    """Create a new gold lot."""
+    data = request.get_json()
+    investor_id = data.get('investor_id')
+    if not investor_id:
+        return jsonify({'error': 'investor_id is required'}), 400
+    check_investor_access(investor_id)
+
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+
+    result = db.create_gold_lot(
+        investor_id=investor_id,
+        name=name,
+        ref_no=data.get('ref_no'),
+        seller=data.get('seller'),
+        broker=data.get('broker'),
+    )
+    return jsonify(result)

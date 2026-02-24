@@ -121,6 +121,22 @@ def get_investor_id_for_asset(asset_id):
     return asset['investor_id']
 
 
+def get_investor_id_for_asset_tx(tx_id):
+    from cas_parser.webapp.db.connection import get_db
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ma.investor_id
+            FROM manual_asset_transactions mat
+            JOIN manual_assets ma ON mat.asset_id = ma.id
+            WHERE mat.id = ?
+        """, (tx_id,))
+        row = cursor.fetchone()
+        if not row:
+            abort(404)
+        return row['investor_id']
+
+
 def get_investor_id_for_nps_subscriber(subscriber_id):
     from cas_parser.webapp.db.nps import get_nps_subscriber
     sub = get_nps_subscriber(subscriber_id=subscriber_id)

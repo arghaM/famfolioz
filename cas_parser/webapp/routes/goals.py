@@ -123,6 +123,90 @@ def api_get_available_folios(goal_id):
     return jsonify(folios)
 
 
+# ==================== Goal-Asset Linking Routes ====================
+
+@goals_bp.route('/api/goals/<int:goal_id>/link-asset', methods=['POST'])
+def api_link_asset_to_goal(goal_id):
+    """Link a manual asset to a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
+    data = request.json
+    asset_id = data.get('asset_id')
+
+    if not asset_id:
+        return jsonify({'error': 'asset_id is required'}), 400
+
+    result = db.link_asset_to_goal(goal_id, asset_id)
+    if result.get('success'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/unlink-asset', methods=['POST'])
+def api_unlink_asset_from_goal(goal_id):
+    """Unlink a manual asset from a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
+    data = request.json
+    asset_id = data.get('asset_id')
+
+    if not asset_id:
+        return jsonify({'error': 'asset_id is required'}), 400
+
+    result = db.unlink_asset_from_goal(goal_id, asset_id)
+    return jsonify(result)
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/available-assets', methods=['GET'])
+def api_get_available_assets(goal_id):
+    """Get manual assets that can be linked to this goal."""
+    investor_id = get_investor_id_for_goal(goal_id)
+    check_investor_access(investor_id)
+
+    assets = db.get_unlinked_assets_for_goal(goal_id, investor_id)
+    return jsonify(assets)
+
+
+# ==================== Goal-NPS Linking Routes ====================
+
+@goals_bp.route('/api/goals/<int:goal_id>/link-nps', methods=['POST'])
+def api_link_nps_to_goal(goal_id):
+    """Link an NPS subscriber account to a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
+    data = request.json
+    subscriber_id = data.get('subscriber_id')
+
+    if not subscriber_id:
+        return jsonify({'error': 'subscriber_id is required'}), 400
+
+    result = db.link_nps_to_goal(goal_id, subscriber_id)
+    if result.get('success'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/unlink-nps', methods=['POST'])
+def api_unlink_nps_from_goal(goal_id):
+    """Unlink an NPS subscriber account from a goal."""
+    check_investor_access(get_investor_id_for_goal(goal_id))
+    data = request.json
+    subscriber_id = data.get('subscriber_id')
+
+    if not subscriber_id:
+        return jsonify({'error': 'subscriber_id is required'}), 400
+
+    result = db.unlink_nps_from_goal(goal_id, subscriber_id)
+    return jsonify(result)
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/available-nps', methods=['GET'])
+def api_get_available_nps(goal_id):
+    """Get NPS subscriber accounts that can be linked to this goal."""
+    investor_id = get_investor_id_for_goal(goal_id)
+    check_investor_access(investor_id)
+
+    accounts = db.get_unlinked_nps_for_goal(goal_id, investor_id)
+    return jsonify(accounts)
+
+
 # ==================== Goal Notes Routes ====================
 
 @goals_bp.route('/api/goals/<int:goal_id>/notes', methods=['GET'])
@@ -232,8 +316,19 @@ def api_get_goal_xirr(goal_id):
         return jsonify({'error': 'Goal not found'}), 404
 
     linked_folios = goal.get('linked_folios', [])
+    linked_assets = goal.get('linked_assets', [])
+    linked_nps = goal.get('linked_nps', [])
+
+    # Report excluded (non-XIRR) manual assets
+    excluded_assets = [a for a in linked_assets if a.get('exclude_from_xirr')]
+
     if not linked_folios:
-        return jsonify({'goal_xirr': None, 'funds': [], 'message': 'No linked investments'})
+        return jsonify({
+            'goal_xirr': None, 'funds': [],
+            'message': 'No linked mutual fund investments',
+            'excluded_assets': excluded_assets,
+            'linked_nps': linked_nps,
+        })
 
     today = date.today()
     all_cashflows = []
@@ -307,4 +402,6 @@ def api_get_goal_xirr(goal_id):
         'funds': funds,
         'young_fund_count': sum(1 for f in funds if f['is_young']),
         'mature_fund_count': sum(1 for f in funds if not f['is_young']),
+        'excluded_assets': excluded_assets,
+        'linked_nps': linked_nps,
     })

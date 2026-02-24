@@ -219,6 +219,7 @@
         .asset-bar .mf-segment { background: #667eea; }
         .asset-bar .nps-segment { background: #11998e; }
         .asset-bar .fd-segment { background: #fd7e14; }
+        .asset-bar .other-segment { background: #6f42c1; }
 
         .badge-mf { background-color: #667eea; }
         .badge-nps { background-color: #11998e; }
@@ -530,6 +531,12 @@
                         <div class="summary-card">
                             <small class="text-muted text-uppercase"><i class="bi bi-safe"></i> Fixed Deposits</small>
                             <h4 class="mb-0 mask-amount" id="totalFdValue" style="color: #fd7e14;">-</h4>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3" id="otherAssetsCard" style="display: none;">
+                        <div class="summary-card">
+                            <small class="text-muted text-uppercase"><i class="bi bi-wallet2"></i> Other Assets</small>
+                            <h4 class="mb-0 mask-amount" id="totalOtherValue" style="color: #6f42c1;">-</h4>
                         </div>
                     </div>
                 </div>
@@ -981,26 +988,32 @@
                 } catch (e) { /* ignore */ }
                 {% endif %}
 
-                // Load FD values for each investor
+                // Load manual asset values for each investor (FDs + other assets)
                 for (const inv of investors) {
                     try {
-                        const fdRes = await fetch(`/api/manual-assets?investor_id=${inv.id}`);
-                        const assets = await fdRes.json();
+                        const maRes = await fetch(`/api/manual-assets?investor_id=${inv.id}`);
+                        const assets = await maRes.json();
                         const fdAssets = assets.filter(a => a.asset_type === 'fd');
-                        inv.fd_value = fdAssets.reduce((sum, fd) => sum + (fd.calculated_value || fd.fd_principal || 0), 0);
+                        const otherAssets = assets.filter(a => a.asset_type !== 'fd');
+                        inv.fd_value = fdAssets.reduce((sum, a) => sum + (a.calculated_value || a.fd_principal || 0), 0);
                         inv.fd_count = fdAssets.length;
+                        inv.ma_other_value = otherAssets.reduce((sum, a) => sum + (a.calculated_value || a.current_value || a.purchase_value || 0), 0);
+                        inv.ma_other_count = otherAssets.length;
                     } catch (e) {
                         inv.fd_value = 0;
                         inv.fd_count = 0;
+                        inv.ma_other_value = 0;
+                        inv.ma_other_count = 0;
                     }
                 }
 
                 // Calculate totals
-                let totalMf = 0, totalNps = 0, totalFd = 0;
+                let totalMf = 0, totalNps = 0, totalFd = 0, totalOther = 0;
                 investors.forEach(inv => {
                     totalMf += inv.mf_value || 0;
                     totalNps += inv.nps_value || 0;
                     totalFd += inv.fd_value || 0;
+                    totalOther += inv.ma_other_value || 0;
                 });
 
                 // Add unmapped NPS to total
@@ -1008,12 +1021,16 @@
                     totalNps += nps.total_value || 0;
                 });
 
-                const totalAll = totalMf + totalNps + totalFd;
+                const totalAll = totalMf + totalNps + totalFd + totalOther;
                 document.getElementById('totalPortfolioValue').textContent = formatCurrency(totalAll);
                 document.getElementById('totalPortfolioValue2').textContent = formatCurrency(totalAll);
                 document.getElementById('totalMfValue').textContent = formatCurrency(totalMf);
                 document.getElementById('totalNpsValue').textContent = formatCurrency(totalNps);
                 document.getElementById('totalFdValue').textContent = formatCurrency(totalFd);
+                if (totalOther > 0) {
+                    document.getElementById('totalOtherValue').textContent = formatCurrency(totalOther);
+                    document.getElementById('otherAssetsCard').style.display = 'block';
+                }
 
                 // Render sidebar and views
                 renderSidebar();
@@ -1058,7 +1075,7 @@
             investors.forEach((inv, idx) => {
                 const initials = getInitials(inv.name || 'U');
                 const color = avatarColors[idx % avatarColors.length];
-                const totalValue = (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0);
+                const totalValue = (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0) + (inv.ma_other_value || 0);
 
                 html += `
                     <div class="member-item ${activeMemberId === inv.id ? 'active' : ''}" onclick="showMemberTree(${inv.id})">
@@ -1081,7 +1098,7 @@
         function getTotalWealth() {
             let total = 0;
             investors.forEach(inv => {
-                total += (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0);
+                total += (inv.mf_value || 0) + (inv.nps_value || 0) + (inv.fd_value || 0) + (inv.ma_other_value || 0);
             });
             unmappedNps.forEach(nps => {
                 total += nps.total_value || 0;
@@ -1111,10 +1128,12 @@
                 const mfValue = inv.mf_value || 0;
                 const npsValue = inv.nps_value || 0;
                 const fdValue = inv.fd_value || 0;
-                const totalValue = mfValue + npsValue + fdValue;
+                const otherValue = inv.ma_other_value || 0;
+                const totalValue = mfValue + npsValue + fdValue + otherValue;
                 const mfPct = totalValue > 0 ? (mfValue / totalValue * 100) : 0;
                 const npsPct = totalValue > 0 ? (npsValue / totalValue * 100) : 0;
                 const fdPct = totalValue > 0 ? (fdValue / totalValue * 100) : 0;
+                const otherPct = totalValue > 0 ? (otherValue / totalValue * 100) : 0;
                 const initials = getInitials(inv.name || 'U');
                 const color = avatarColors[idx % avatarColors.length];
 
@@ -1136,11 +1155,13 @@
                             ${mfPct > 0 ? `<div class="mf-segment" style="width: ${mfPct}%;" title="MF: ${formatCurrency(mfValue)}"></div>` : ''}
                             ${npsPct > 0 ? `<div class="nps-segment" style="width: ${npsPct}%;" title="NPS: ${formatCurrency(npsValue)}"></div>` : ''}
                             ${fdPct > 0 ? `<div class="fd-segment" style="width: ${fdPct}%;" title="FD: ${formatCurrency(fdValue)}"></div>` : ''}
+                            ${otherPct > 0 ? `<div class="other-segment" style="width: ${otherPct}%;" title="Other: ${formatCurrency(otherValue)}"></div>` : ''}
                         </div>
                         <div class="value-breakdown mt-2">
                             ${mfValue > 0 ? `<div class="value-item"><span class="badge badge-mf" style="font-size: 0.65rem;">MF</span><small class="text-muted mask-amount">${formatCurrency(mfValue)}</small></div>` : ''}
                             ${npsValue > 0 ? `<div class="value-item"><span class="badge badge-nps" style="font-size: 0.65rem;">NPS</span><small class="text-muted mask-amount">${formatCurrency(npsValue)}</small></div>` : ''}
                             ${fdValue > 0 ? `<div class="value-item"><span class="badge badge-fd" style="font-size: 0.65rem;">FD</span><small class="text-muted mask-amount">${formatCurrency(fdValue)}</small></div>` : ''}
+                            ${otherValue > 0 ? `<div class="value-item"><span class="badge" style="font-size: 0.65rem; background: #6f42c1; color: white;">Other</span><small class="text-muted mask-amount">${formatCurrency(otherValue)}</small></div>` : ''}
                         </div>
                         ` : ''}
                     </div>
@@ -1162,7 +1183,8 @@
             const mfValue = inv.mf_value || 0;
             const npsValue = inv.nps_value || 0;
             const fdValue = inv.fd_value || 0;
-            const totalValue = mfValue + npsValue + fdValue;
+            const otherValue = inv.ma_other_value || 0;
+            const totalValue = mfValue + npsValue + fdValue + otherValue;
 
             document.getElementById('treeMemberName').textContent = inv.name || 'Unknown';
             document.getElementById('treeMemberPan').textContent = inv.pan ? `PAN: ${inv.pan}` : '';
@@ -1213,6 +1235,19 @@
                     meta: `${inv.fd_count || 0} FDs`,
                     value: fdValue,
                     valueColor: '#fd7e14',
+                    linkUrl: `/investor/${investorId}#fd-tab`
+                });
+            }
+
+            // Other Assets node (SGBs, PPF, stocks, house, car, gold, etc.)
+            if ((inv.ma_other_count || 0) > 0 || otherValue > 0) {
+                nodesHtml += buildTreeNode({
+                    icon: 'bi-wallet2',
+                    iconBg: '#6f42c1',
+                    label: 'Other Assets',
+                    meta: `${inv.ma_other_count || 0} assets`,
+                    value: otherValue,
+                    valueColor: '#6f42c1',
                     linkUrl: `/investor/${investorId}#fd-tab`
                 });
             }

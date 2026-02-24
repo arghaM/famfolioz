@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_file
 from flask import current_app
 from cas_parser.webapp import data as db
-from cas_parser.webapp.xirr import build_cashflows_for_folio, xirr
+from cas_parser.webapp.xirr import build_cashflows_for_folio, xirr, _parse_date
 from cas_parser.webapp.routes import DecimalEncoder
 from cas_parser.webapp.auth import admin_required, check_investor_access, get_investor_id_for_folio
 
@@ -413,6 +413,29 @@ def api_get_investor_xirr(investor_id):
                 if folio_isin not in isin_cashflows:
                     isin_cashflows[folio_isin] = []
                 isin_cashflows[folio_isin].extend(cashflows)
+
+    # Include manual assets (PPF/EPF etc.) in portfolio XIRR
+    manual_asset_data = db.get_manual_asset_xirr_data(investor_id)
+    for asset_data in manual_asset_data:
+        # Convert string dates to date objects for xirr()
+        asset_cashflows = []
+        for date_str, amount in asset_data['cashflows']:
+            d = _parse_date(date_str)
+            if d is not None:
+                asset_cashflows.append((d, amount))
+
+        asset_xirr_val = xirr(asset_cashflows) if len(asset_cashflows) >= 2 else None
+        folios.append({
+            'folio_id': f"manual_{asset_data['asset_id']}",
+            'scheme_name': asset_data['asset_name'],
+            'folio_number': asset_data['asset_type'].upper(),
+            'isin': None,
+            'xirr': round(asset_xirr_val * 100, 2) if asset_xirr_val is not None else None,
+            'current_value': asset_data['current_value'],
+            'cashflow_count': len(asset_cashflows),
+        })
+        if asset_xirr_val is not None:
+            all_cashflows.extend(asset_cashflows)
 
     # Compute per-ISIN aggregated XIRR
     isin_xirr = {}

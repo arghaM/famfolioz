@@ -1,5 +1,6 @@
 """Database connection, schema initialization, and context manager."""
 
+import json
 import logging
 import os
 import sqlite3
@@ -333,6 +334,32 @@ def init_db():
             )
         """)
 
+        # Goal-Asset linking table (manual assets linked to goals)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goal_assets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                asset_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+                FOREIGN KEY (asset_id) REFERENCES manual_assets(id),
+                UNIQUE(goal_id, asset_id)
+            )
+        """)
+
+        # Goal-NPS linking table (NPS subscribers linked to goals)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goal_nps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                subscriber_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+                FOREIGN KEY (subscriber_id) REFERENCES nps_subscribers(id),
+                UNIQUE(goal_id, subscriber_id)
+            )
+        """)
+
         # Goal Notes/Journal table - for tracking thoughts over time
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS goal_notes (
@@ -478,6 +505,20 @@ def init_db():
             )
         """)
 
+        # Manual asset transactions table — for PPF/EPF transaction-based tracking
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS manual_asset_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id INTEGER NOT NULL,
+                tx_type TEXT NOT NULL,
+                tx_date DATE NOT NULL,
+                amount REAL NOT NULL,
+                narration TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (asset_id) REFERENCES manual_assets(id) ON DELETE CASCADE
+            )
+        """)
+
         # NPS Subscribers table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS nps_subscribers (
@@ -561,6 +602,48 @@ def init_db():
                 cursor.execute(f"ALTER TABLE manual_assets ADD COLUMN {col} {col_type}")
             except sqlite3.OperationalError:
                 pass  # Column already exists
+
+        # Add asset allocation, PPF calc, and XIRR exclusion columns (migration)
+        for col, col_type in [('equity_pct', 'REAL DEFAULT 0'),
+                               ('debt_pct', 'REAL DEFAULT 0'),
+                               ('commodity_pct', 'REAL DEFAULT 0'),
+                               ('cash_pct', 'REAL DEFAULT 0'),
+                               ('others_pct', 'REAL DEFAULT 0'),
+                               ('exclude_from_xirr', 'INTEGER DEFAULT 0'),
+                               ('ppf_interest_rate', 'REAL DEFAULT 7.1'),
+                               ('ppf_compounding', "TEXT DEFAULT 'yearly'"),
+                               ('ppf_opening_balance', 'REAL DEFAULT 0')]:
+            try:
+                cursor.execute(f"ALTER TABLE manual_assets ADD COLUMN {col} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+        # Gold columns on manual_assets (migration)
+        for col, col_type in [('gold_ref_no', 'TEXT'), ('gold_seller', 'TEXT'), ('gold_broker', 'TEXT')]:
+            try:
+                cursor.execute(f"ALTER TABLE manual_assets ADD COLUMN {col} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+        # Quantity/rate on manual_asset_transactions (for gold Buy/Sell)
+        for col, col_type in [('quantity', 'REAL'), ('rate', 'REAL')]:
+            try:
+                cursor.execute(f"ALTER TABLE manual_asset_transactions ADD COLUMN {col} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
+        # Manual asset price history (for gold price tracking)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS manual_asset_prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id INTEGER NOT NULL,
+                price_date DATE NOT NULL,
+                price_per_unit REAL NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (asset_id) REFERENCES manual_assets(id) ON DELETE CASCADE,
+                UNIQUE(asset_id, price_date)
+            )
+        """)
 
         # NPS NAV History table
         cursor.execute("""
@@ -669,6 +752,10 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goals_investor ON goals(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_folios_goal ON goal_folios(goal_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_folios_folio ON goal_folios(folio_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_assets_goal ON goal_assets(goal_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_assets_asset ON goal_assets(asset_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_nps_goal ON goal_nps(goal_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_nps_subscriber ON goal_nps(subscriber_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_notes_goal ON goal_notes(goal_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_notes_created ON goal_notes(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_phases_goal ON goal_phases(goal_id)")
@@ -680,6 +767,13 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_assets_investor ON manual_assets(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_assets_type ON manual_assets(asset_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_assets_class ON manual_assets(asset_class)")
+
+        # Manual asset transactions indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mat_asset ON manual_asset_transactions(asset_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mat_date ON manual_asset_transactions(tx_date)")
+
+        # Manual asset prices indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_manual_asset_prices_asset ON manual_asset_prices(asset_id)")
 
         # NPS indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_nps_subscribers_pran ON nps_subscribers(pran)")
@@ -700,3 +794,37 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_investor ON users(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_custodian_access_investor ON custodian_access(investor_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_custodian_access_user ON custodian_access(custodian_user_id)")
+
+        # Seed default manual asset types if not already configured
+        cursor.execute("SELECT value FROM app_config WHERE key = 'manual_asset_types'")
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO app_config (key, value) VALUES (?, ?)",
+                ('manual_asset_types', json.dumps([
+                    {"key": "fd",          "label": "Fixed Deposit (FD)",  "icon": "bi-bank",            "status": "coming_soon"},
+                    {"key": "ppf_epf",     "label": "PPF / EPF",          "icon": "bi-piggy-bank",      "status": "active"},
+                    {"key": "gold",        "label": "Gold",               "icon": "bi-gem",             "status": "active"},
+                    {"key": "silver",      "label": "Silver",             "icon": "bi-gem",             "status": "coming_soon"},
+                    {"key": "post_office", "label": "Post Office",        "icon": "bi-mailbox",         "status": "coming_soon"},
+                    {"key": "insurance",   "label": "Insurance",          "icon": "bi-shield-check",    "status": "coming_soon"},
+                    {"key": "stocks",      "label": "Stocks",             "icon": "bi-graph-up-arrow",  "status": "coming_soon"},
+                    {"key": "loan",        "label": "Loan",               "icon": "bi-cash-coin",       "status": "coming_soon"},
+                    {"key": "jewellery",   "label": "Jewellery",          "icon": "bi-diamond",         "status": "coming_soon"},
+                ])))
+
+        # Migration: activate gold asset type in existing databases
+        cursor.execute("SELECT value FROM app_config WHERE key = 'manual_asset_types'")
+        row = cursor.fetchone()
+        if row and row['value']:
+            try:
+                types = json.loads(row['value'])
+                updated = False
+                for t in types:
+                    if t.get('key') == 'gold' and t.get('status') != 'active':
+                        t['status'] = 'active'
+                        updated = True
+                if updated:
+                    cursor.execute(
+                        "UPDATE app_config SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'manual_asset_types'",
+                        (json.dumps(types),))
+            except (json.JSONDecodeError, TypeError):
+                pass

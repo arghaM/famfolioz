@@ -586,13 +586,42 @@
                 <div class="modal-body">
                     <input type="hidden" id="linkGoalId">
                     <h6 id="linkGoalName">-</h6>
+
+                    <!-- Mutual Funds Section -->
+                    <h6 class="text-muted mt-3"><i class="bi bi-briefcase"></i> Mutual Funds</h6>
+                    <div class="mb-3">
+                        <small class="text-muted">Currently Linked</small>
+                        <div id="linkedFolios"><p class="text-muted small">No mutual funds linked</p></div>
+                    </div>
                     <div class="mb-4">
-                        <h6 class="text-muted"><i class="bi bi-check-circle"></i> Currently Linked</h6>
-                        <div id="linkedFolios"><p class="text-muted">No assets linked yet</p></div>
+                        <small class="text-muted">Available to Link</small>
+                        <div id="availableFolios"><p class="text-muted small">Loading...</p></div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Other Assets Section -->
+                    <h6 class="text-muted"><i class="bi bi-wallet2"></i> Other Assets</h6>
+                    <div class="mb-3">
+                        <small class="text-muted">Currently Linked</small>
+                        <div id="linkedManualAssets"><p class="text-muted small">No other assets linked</p></div>
+                    </div>
+                    <div class="mb-4">
+                        <small class="text-muted">Available to Link</small>
+                        <div id="availableManualAssets"><p class="text-muted small">Loading...</p></div>
+                    </div>
+
+                    <hr>
+
+                    <!-- NPS Accounts Section -->
+                    <h6 class="text-muted"><i class="bi bi-shield-check"></i> NPS Accounts</h6>
+                    <div class="mb-3">
+                        <small class="text-muted">Currently Linked</small>
+                        <div id="linkedNpsAccounts"><p class="text-muted small">No NPS accounts linked</p></div>
                     </div>
                     <div>
-                        <h6 class="text-muted"><i class="bi bi-plus-circle"></i> Available to Link</h6>
-                        <div id="availableFolios"><p class="text-muted">Loading...</p></div>
+                        <small class="text-muted">Available to Link</small>
+                        <div id="availableNpsAccounts"><p class="text-muted small">Loading...</p></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -853,10 +882,15 @@
             bar.style.width = progress + '%';
             bar.className = 'progress-bar ' + (progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning'));
 
-            // Linked assets
+            // Linked assets (folios + manual assets + NPS)
             const linkedList = document.getElementById('dtlLinkedList');
-            if (goal.linked_folios && goal.linked_folios.length > 0) {
-                linkedList.innerHTML = `<table class="table table-sm table-hover mb-0">
+            let linkedHtml = '';
+            const hasFolios = goal.linked_folios && goal.linked_folios.length > 0;
+            const hasAssets = goal.linked_assets && goal.linked_assets.length > 0;
+            const hasNps = goal.linked_nps && goal.linked_nps.length > 0;
+
+            if (hasFolios) {
+                linkedHtml += `<table class="table table-sm table-hover mb-2">
                     <thead><tr><th>Scheme</th><th>Folio</th><th class="text-end">Value</th></tr></thead>
                     <tbody>${goal.linked_folios.map(f => `
                         <tr>
@@ -865,9 +899,37 @@
                             <td class="text-end mask-amount">${formatCurrency(f.value || 0)}</td>
                         </tr>`).join('')}
                     </tbody></table>`;
-            } else {
-                linkedList.innerHTML = '<p class="text-muted small">No assets linked. Click "Manage" to link investments.</p>';
             }
+
+            if (hasAssets) {
+                linkedHtml += `<table class="table table-sm table-hover mb-2">
+                    <thead><tr><th>Asset</th><th>Type</th><th class="text-end">Value</th></tr></thead>
+                    <tbody>${goal.linked_assets.map(a => `
+                        <tr>
+                            <td>${a.name} ${a.exclude_from_xirr ? '<span class="badge bg-warning text-dark" style="font-size:0.65rem;">non-XIRR</span>' : ''}</td>
+                            <td><span class="badge" style="background:${getAssetTypeBadgeColor(a.asset_type)};font-size:0.7rem;">${(a.asset_type || '').toUpperCase()}</span></td>
+                            <td class="text-end mask-amount">${formatCurrency(a.value || 0)}</td>
+                        </tr>`).join('')}
+                    </tbody></table>`;
+            }
+
+            if (hasNps) {
+                linkedHtml += `<table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>Account</th><th>PRAN</th><th class="text-end">Value</th></tr></thead>
+                    <tbody>${goal.linked_nps.map(n => `
+                        <tr>
+                            <td><span class="badge me-1" style="background:#11998e;font-size:0.7rem;"><i class="bi bi-shield-check"></i> NPS</span> ${n.name}</td>
+                            <td><code>${n.pran}</code></td>
+                            <td class="text-end mask-amount">${formatCurrency(n.value || 0)}</td>
+                        </tr>`).join('')}
+                    </tbody></table>`;
+            }
+
+            if (!hasFolios && !hasAssets && !hasNps) {
+                linkedHtml = '<p class="text-muted small">No assets linked. Click "Manage" to link investments.</p>';
+            }
+
+            linkedList.innerHTML = linkedHtml;
         }
 
         // ==================== PHASES TAB ====================
@@ -2379,6 +2441,7 @@
             document.getElementById('linkGoalId').value = goalId;
             document.getElementById('linkGoalName').textContent = goal.name;
 
+            // Linked Mutual Funds
             const linkedContainer = document.getElementById('linkedFolios');
             if (goal.linked_folios && goal.linked_folios.length > 0) {
                 linkedContainer.innerHTML = goal.linked_folios.map(f => `
@@ -2392,15 +2455,61 @@
                         </button>
                     </div>`).join('');
             } else {
-                linkedContainer.innerHTML = '<p class="text-muted">No assets linked yet</p>';
+                linkedContainer.innerHTML = '<p class="text-muted small">No mutual funds linked</p>';
+            }
+
+            // Linked Manual Assets
+            const linkedAssetsContainer = document.getElementById('linkedManualAssets');
+            if (goal.linked_assets && goal.linked_assets.length > 0) {
+                linkedAssetsContainer.innerHTML = goal.linked_assets.map(a => `
+                    <div class="linked-folio d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge me-1" style="background:${getAssetTypeBadgeColor(a.asset_type)};font-size:0.7rem;">${(a.asset_type || '').toUpperCase()}</span>
+                            <strong>${a.name}</strong>
+                            ${a.exclude_from_xirr ? '<span class="badge bg-warning text-dark" style="font-size:0.6rem;">non-XIRR</span>' : ''}
+                            <br><small class="text-muted">${formatCurrency(a.value || 0)}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="unlinkAsset(${goalId}, ${a.asset_id})">
+                            <i class="bi bi-x-lg"></i> Unlink
+                        </button>
+                    </div>`).join('');
+            } else {
+                linkedAssetsContainer.innerHTML = '<p class="text-muted small">No other assets linked</p>';
+            }
+
+            // Linked NPS Accounts
+            const linkedNpsContainer = document.getElementById('linkedNpsAccounts');
+            if (goal.linked_nps && goal.linked_nps.length > 0) {
+                linkedNpsContainer.innerHTML = goal.linked_nps.map(n => `
+                    <div class="linked-folio d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge me-1" style="background:#11998e;font-size:0.7rem;"><i class="bi bi-shield-check"></i> NPS</span>
+                            <strong>${n.name}</strong>
+                            <br><small class="text-muted">PRAN: ${n.pran} | ${formatCurrency(n.value || 0)}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="unlinkNps(${goalId}, ${n.subscriber_id})">
+                            <i class="bi bi-x-lg"></i> Unlink
+                        </button>
+                    </div>`).join('');
+            } else {
+                linkedNpsContainer.innerHTML = '<p class="text-muted small">No NPS accounts linked</p>';
             }
 
             try {
-                const res = await fetch(`/api/goals/${goalId}/available-folios`);
-                const available = await res.json();
+                // Load available folios, assets, and NPS in parallel
+                const [folioRes, assetRes, npsRes] = await Promise.all([
+                    fetch(`/api/goals/${goalId}/available-folios`),
+                    fetch(`/api/goals/${goalId}/available-assets`),
+                    fetch(`/api/goals/${goalId}/available-nps`)
+                ]);
+                const availableFolios = await folioRes.json();
+                const availableAssets = await assetRes.json();
+                const availableNps = await npsRes.json();
+
+                // Available Mutual Funds
                 const availableContainer = document.getElementById('availableFolios');
-                if (available.length > 0) {
-                    availableContainer.innerHTML = available.map(f => `
+                if (availableFolios.length > 0) {
+                    availableContainer.innerHTML = availableFolios.map(f => `
                         <div class="linked-folio d-flex justify-content-between align-items-center">
                             <div>
                                 <strong>${f.scheme_name}</strong><br>
@@ -2411,10 +2520,48 @@
                             </button>
                         </div>`).join('');
                 } else {
-                    availableContainer.innerHTML = '<p class="text-muted">All assets already linked</p>';
+                    availableContainer.innerHTML = '<p class="text-muted small">All mutual funds already linked</p>';
+                }
+
+                // Available Manual Assets
+                const availableAssetsContainer = document.getElementById('availableManualAssets');
+                if (availableAssets.length > 0) {
+                    availableAssetsContainer.innerHTML = availableAssets.map(a => `
+                        <div class="linked-folio d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge me-1" style="background:${getAssetTypeBadgeColor(a.asset_type)};font-size:0.7rem;">${(a.asset_type || '').toUpperCase()}</span>
+                                <strong>${a.name}</strong><br>
+                                <small class="text-muted">${formatCurrency(a.calculated_value || 0)}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="linkAsset(${goalId}, ${a.id})">
+                                <i class="bi bi-plus-lg"></i> Link
+                            </button>
+                        </div>`).join('');
+                } else {
+                    availableAssetsContainer.innerHTML = '<p class="text-muted small">All assets already linked</p>';
+                }
+
+                // Available NPS Accounts
+                const availableNpsContainer = document.getElementById('availableNpsAccounts');
+                if (availableNps.length > 0) {
+                    availableNpsContainer.innerHTML = availableNps.map(n => `
+                        <div class="linked-folio d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge me-1" style="background:#11998e;font-size:0.7rem;"><i class="bi bi-shield-check"></i> NPS</span>
+                                <strong>${n.name}</strong><br>
+                                <small class="text-muted">PRAN: ${n.pran} | ${formatCurrency(n.total_value || 0)}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="linkNps(${goalId}, ${n.id})">
+                                <i class="bi bi-plus-lg"></i> Link
+                            </button>
+                        </div>`).join('');
+                } else {
+                    availableNpsContainer.innerHTML = '<p class="text-muted small">All NPS accounts already linked</p>';
                 }
             } catch (error) {
                 document.getElementById('availableFolios').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+                document.getElementById('availableManualAssets').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+                document.getElementById('availableNpsAccounts').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
             }
 
             linkModalInstance = new bootstrap.Modal(document.getElementById('linkModal'));
@@ -2454,6 +2601,82 @@
                     openLinkModal(goalId);
                 } else { alert('Error: ' + (result.error || 'Unknown error')); }
             } catch (error) { alert('Failed to unlink: ' + error.message); }
+        }
+
+        async function linkAsset(goalId, assetId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/link-asset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ asset_id: assetId })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    linkModalInstance.hide();
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to link asset: ' + error.message); }
+        }
+
+        async function unlinkAsset(goalId, assetId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/unlink-asset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ asset_id: assetId })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    linkModalInstance.hide();
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to unlink asset: ' + error.message); }
+        }
+
+        async function linkNps(goalId, subscriberId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/link-nps`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscriber_id: subscriberId })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    linkModalInstance.hide();
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to link NPS: ' + error.message); }
+        }
+
+        async function unlinkNps(goalId, subscriberId) {
+            try {
+                const res = await fetch(`/api/goals/${goalId}/unlink-nps`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscriber_id: subscriberId })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    await loadGoals();
+                    linkModalInstance.hide();
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to unlink NPS: ' + error.message); }
+        }
+
+        function getAssetTypeBadgeColor(type) {
+            const colors = {
+                fd: '#667eea', sgb: '#f5af19', stock: '#28a745', ppf: '#4facfe',
+                nps: '#a8edea', house: '#ee9ca7', car: '#667eea', gold: '#ffd700', other: '#6c757d'
+            };
+            return colors[type] || '#6c757d';
         }
 
         // ==================== VIEW SWITCHING ====================

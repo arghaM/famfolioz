@@ -96,6 +96,31 @@
         .badge-nps { background-color: #11998e; }
         .badge-fd { background-color: #fd7e14; }
         .badge-sgb { background-color: #ffc107; color: #000; }
+        .badge-ppf { background-color: #198754; }
+        .ppf-card {
+            border-left: 4px solid #198754;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ppf-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .ppf-badge-investment { background-color: #198754; }
+        .ppf-badge-interest { background-color: #0d6efd; }
+        .ppf-badge-withdrawal { background-color: #dc3545; }
+        .badge-gold { background-color: #d4a017; color: #000; }
+        .gold-card {
+            border-left: 4px solid #d4a017;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .gold-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .gold-badge-buy { background-color: #198754; }
+        .gold-badge-sell { background-color: #dc3545; }
 
         .refresh-btn { transition: transform 0.3s; }
         .refresh-btn.spinning { animation: spin 1s linear infinite; }
@@ -116,6 +141,8 @@
         .asset-bar .nps-segment { background: #11998e; }
         .asset-bar .fd-segment { background: #fd7e14; }
         .asset-bar .sgb-segment { background: #ffc107; }
+        .asset-bar .ppf-segment { background: #198754; }
+        .asset-bar .gold-segment { background: #d4a017; }
         .asset-bar .other-segment { background: #6c757d; }
 
         .empty-asset {
@@ -287,6 +314,20 @@
         </div>
     </div>
 
+    <!-- Asset Breakdown Modal -->
+    <div class="modal fade" id="assetBreakdownModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header text-white" id="breakdownModalHeader">
+                    <h5 class="modal-title" id="breakdownModalTitle"></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="breakdownModalBody">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -301,6 +342,22 @@
         let portfolioChart = null;
         let allocationChart = null;
         let isinXirrMap = {};  // isin -> aggregated XIRR %
+        let ppfSelectedAssetId = null;
+        let goldSelectedAssetId = null;
+        let homeAllocSegments = []; // stored for pie chart click handler
+
+        const ASSET_TYPE_CONFIG = {
+            mf:    { label: 'Mutual Funds',    color: '#667eea', icon: 'bi-bank' },
+            nps:   { label: 'NPS',             color: '#11998e', icon: 'bi-shield-check' },
+            fd:    { label: 'Fixed Deposits',  color: '#fd7e14', icon: 'bi-safe' },
+            sgb:   { label: 'Gold Bonds',      color: '#ffc107', icon: 'bi-gem' },
+            ppf:   { label: 'PPF',             color: '#198754', icon: 'bi-piggy-bank' },
+            epf:   { label: 'EPF',             color: '#20c997', icon: 'bi-piggy-bank' },
+            stock: { label: 'Stocks',          color: '#e74c3c', icon: 'bi-graph-up-arrow' },
+            gold:  { label: 'Gold',            color: '#d4a017', icon: 'bi-gem' },
+            silver:{ label: 'Silver',          color: '#c0c0c0', icon: 'bi-gem' },
+        };
+        const FALLBACK_COLORS = ['#6f42c1','#17a2b8','#e83e8c','#795548','#20c997','#6610f2'];
 
         // Mask functionality
         function isMaskEnabled() { return localStorage.getItem('maskAmounts') === 'true'; }
@@ -442,14 +499,16 @@
             });
 
             // Manual assets totals by type
-            let fdValue = 0, sgbValue = 0, otherValue = 0;
-            let fdInvested = 0, sgbInvested = 0, otherInvested = 0;
+            let fdValue = 0, sgbValue = 0, ppfValue = 0, goldValue = 0, otherValue = 0;
+            let fdInvested = 0, sgbInvested = 0, ppfInvested = 0, goldInvested = 0, otherInvested = 0;
             manualAssets.forEach(asset => {
                 // Use calculated_value for enriched assets (FD/SGB), fallback to current_value
                 const val = asset.calculated_value || asset.current_value || 0;
                 const inv = asset.fd_principal || asset.purchase_value || 0;
                 if (asset.asset_type === 'fd') { fdValue += val; fdInvested += inv; }
                 else if (asset.asset_type === 'sgb') { sgbValue += val; sgbInvested += inv; }
+                else if (['ppf', 'epf'].includes(asset.asset_type)) { ppfValue += val; ppfInvested += inv; }
+                else if (asset.asset_type === 'gold') { goldValue += val; goldInvested += inv; }
                 else { otherValue += val; otherInvested += inv; }
             });
 
@@ -459,9 +518,11 @@
                 npsValue, npsContribution,
                 fdValue, fdInvested,
                 sgbValue, sgbInvested,
+                ppfValue, ppfInvested,
+                goldValue, goldInvested,
                 otherValue, otherInvested,
-                totalValue: mfValue + npsValue + fdValue + sgbValue + otherValue,
-                totalInvested: mfInvested + npsContribution + fdInvested + sgbInvested + otherInvested,
+                totalValue: mfValue + npsValue + fdValue + sgbValue + ppfValue + goldValue + otherValue,
+                totalInvested: mfInvested + npsContribution + fdInvested + sgbInvested + ppfInvested + goldInvested + otherInvested,
             };
             computedTotals.totalGain = computedTotals.totalValue - computedTotals.totalInvested;
             computedTotals.gainPct = computedTotals.totalInvested > 0
@@ -534,8 +595,34 @@
                 contentHtml += buildSGBTabContent(sgbAssets, false);
             }
 
+            // PPF/EPF tab
+            const ppfAssets = manualAssets.filter(a => ['ppf', 'epf'].includes(a.asset_type));
+            if (ppfAssets.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ppf-tab" type="button">
+                            <i class="bi bi-piggy-bank"></i> PPF/EPF
+                            <span class="badge badge-ppf">${ppfAssets.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildPPFTabContent(ppfAssets, false);
+            }
+
+            // Gold tab
+            const goldAssets = manualAssets.filter(a => a.asset_type === 'gold');
+            if (goldAssets.length > 0) {
+                tabsHtml += `
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#gold-tab" type="button">
+                            <i class="bi bi-gem"></i> Gold
+                            <span class="badge badge-gold">${goldAssets.length}</span>
+                        </button>
+                    </li>`;
+                contentHtml += buildGoldTabContent(goldAssets, false);
+            }
+
             // Other assets tab
-            const otherAssets = manualAssets.filter(a => !['fd', 'sgb'].includes(a.asset_type));
+            const otherAssets = manualAssets.filter(a => !['fd', 'sgb', 'ppf', 'epf', 'gold'].includes(a.asset_type));
             if (otherAssets.length > 0) {
                 tabsHtml += `
                     <li class="nav-item" role="presentation">
@@ -693,7 +780,7 @@
             loadHomeGrowthChart();
 
             // Widget 3: Overall asset allocation doughnut
-            loadHomeAllocationChart(mfValue, npsValue, maValue);
+            loadHomeAllocationChart();
 
             // Widget 4: Alerts
             loadAlerts();
@@ -758,25 +845,83 @@
             }
         }
 
-        function loadHomeAllocationChart(mfValue, npsValue, maValue) {
+        function loadHomeAllocationChart() {
             const chartEl = document.getElementById('homeAllocChart');
             const emptyEl = document.getElementById('homeAllocEmpty');
 
-            // Break manual assets into sub-types
-            let fdValue = 0, sgbValue = 0, otherValue = 0;
+            // Build segments dynamically
+            const segments = [];
+            let fallbackIdx = 0;
+
+            function getConfig(key) {
+                if (ASSET_TYPE_CONFIG[key]) return ASSET_TYPE_CONFIG[key];
+                const color = FALLBACK_COLORS[fallbackIdx % FALLBACK_COLORS.length];
+                fallbackIdx++;
+                return { label: key.toUpperCase(), color, icon: 'bi-wallet2' };
+            }
+
+            // 1. Mutual Funds segment
+            const mfValue = mfHoldings.reduce((sum, h) => {
+                const val = (h.current_nav && h.current_nav > 0) ? h.current_value_live : h.current_value;
+                return sum + (val || 0);
+            }, 0);
+            if (mfValue > 0) {
+                const cfg = getConfig('mf');
+                segments.push({
+                    key: 'mf', label: cfg.label, value: mfValue, color: cfg.color, icon: cfg.icon,
+                    assets: mfHoldings.filter(h => {
+                        const v = (h.current_nav && h.current_nav > 0) ? h.current_value_live : h.current_value;
+                        return (v || 0) > 0;
+                    }).map(h => ({
+                        name: h.scheme_name || 'Unknown Fund',
+                        detail: `Folio: ${h.folio_number || '-'}`,
+                        value: (h.current_nav && h.current_nav > 0) ? (h.current_value_live || h.current_value || 0) : (h.current_value || 0)
+                    }))
+                });
+            }
+
+            // 2. NPS segment
+            const npsValue = npsAccounts.reduce((sum, n) => sum + (n.total_value || 0), 0);
+            if (npsValue > 0) {
+                const cfg = getConfig('nps');
+                segments.push({
+                    key: 'nps', label: cfg.label, value: npsValue, color: cfg.color, icon: cfg.icon,
+                    assets: npsAccounts.filter(n => (n.total_value || 0) > 0).map(n => ({
+                        name: n.name,
+                        detail: `PRAN: ${n.pran || '-'}`,
+                        value: n.total_value || 0
+                    }))
+                });
+            }
+
+            // 3. Manual assets — group by asset_type dynamically
+            const maGroups = {};
             manualAssets.forEach(asset => {
-                const val = asset.calculated_value || asset.current_value || 0;
-                if (asset.asset_type === 'fd') fdValue += val;
-                else if (asset.asset_type === 'sgb') sgbValue += val;
-                else otherValue += val;
+                const t = asset.asset_type || 'other';
+                if (!maGroups[t]) maGroups[t] = [];
+                maGroups[t].push(asset);
             });
 
-            const segments = [];
-            if (mfValue > 0) segments.push({ label: 'Mutual Funds', value: mfValue, color: '#667eea' });
-            if (npsValue > 0) segments.push({ label: 'NPS', value: npsValue, color: '#11998e' });
-            if (fdValue > 0) segments.push({ label: 'Fixed Deposits', value: fdValue, color: '#fd7e14' });
-            if (sgbValue > 0) segments.push({ label: 'Gold Bonds', value: sgbValue, color: '#ffc107' });
-            if (otherValue > 0) segments.push({ label: 'Other', value: otherValue, color: '#6c757d' });
+            Object.keys(maGroups).sort().forEach(type => {
+                const assets = maGroups[type];
+                const totalVal = assets.reduce((s, a) => s + (a.calculated_value || a.current_value || 0), 0);
+                if (totalVal <= 0) return;
+
+                const cfg = getConfig(type);
+                segments.push({
+                    key: type, label: cfg.label, value: totalVal, color: cfg.color, icon: cfg.icon,
+                    assets: assets.filter(a => (a.calculated_value || a.current_value || 0) > 0).map(a => ({
+                        name: a.name,
+                        detail: a.ppf_account_number ? `A/C: ${a.ppf_account_number}` :
+                                a.fd_maturity_date ? `Maturity: ${a.fd_maturity_date}` :
+                                a.purchase_date ? `Purchased: ${a.purchase_date}` : '',
+                        value: a.calculated_value || a.current_value || 0
+                    }))
+                });
+            });
+
+            // Store for click handler
+            homeAllocSegments = segments;
 
             if (segments.length === 0) {
                 if (chartEl) chartEl.style.display = 'none';
@@ -790,7 +935,7 @@
             const ctx = chartEl.getContext('2d');
             if (homeAllocationChart) homeAllocationChart.destroy();
             homeAllocationChart = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'pie',
                 data: {
                     labels: segments.map(s => s.label),
                     datasets: [{
@@ -810,13 +955,90 @@
                                 label: function(ctx) {
                                     const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                                     const pct = ((ctx.raw / total) * 100).toFixed(1);
-                                    return `${ctx.label}: ${formatCurrency(ctx.raw)} (${pct}%)`;
+                                    return `${ctx.label}: ${formatCurrency(ctx.raw)} (${pct}%) — Click for details`;
                                 }
                             }
                         }
+                    },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            showAssetBreakdown(elements[0].index);
+                        }
+                    },
+                    onHover: (evt, elements) => {
+                        evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                     }
                 }
             });
+        }
+
+        function showAssetBreakdown(index) {
+            const seg = homeAllocSegments[index];
+            if (!seg) return;
+
+            const header = document.getElementById('breakdownModalHeader');
+            const title = document.getElementById('breakdownModalTitle');
+            const body = document.getElementById('breakdownModalBody');
+
+            header.style.background = seg.color;
+            // Ensure readable text for light colors
+            const lightColors = ['#ffc107', '#c0c0c0', '#d4a017'];
+            header.style.color = lightColors.includes(seg.color) ? '#000' : '#fff';
+            const closeBtn = header.querySelector('.btn-close');
+            if (closeBtn) {
+                closeBtn.className = lightColors.includes(seg.color)
+                    ? 'btn-close' : 'btn-close btn-close-white';
+            }
+
+            title.innerHTML = `<i class="bi ${seg.icon} me-2"></i>${seg.label} — ${formatCurrency(seg.value)}`;
+
+            const assets = (seg.assets || []).slice().sort((a, b) => b.value - a.value);
+            const totalVal = seg.value;
+
+            if (assets.length === 0) {
+                body.innerHTML = '<div class="text-center py-4 text-muted">No individual assets to display</div>';
+            } else {
+                let rows = assets.map(a => {
+                    const pct = totalVal > 0 ? ((a.value / totalVal) * 100).toFixed(1) : '0.0';
+                    return `<tr>
+                        <td>
+                            <div class="fw-semibold">${truncate(a.name, 55)}</div>
+                            ${a.detail ? `<small class="text-muted">${a.detail}</small>` : ''}
+                        </td>
+                        <td class="text-end fw-semibold mask-amount">${formatCurrency(a.value)}</td>
+                        <td class="text-end">
+                            <div class="d-flex align-items-center justify-content-end gap-2">
+                                <span>${pct}%</span>
+                                <div style="width:60px; height:6px; background:#e9ecef; border-radius:3px; overflow:hidden;">
+                                    <div style="width:${Math.min(100, pct)}%; height:100%; background:${seg.color}; border-radius:3px;"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+
+                rows += `<tr class="table-light fw-bold">
+                    <td>Total (${assets.length} item${assets.length !== 1 ? 's' : ''})</td>
+                    <td class="text-end mask-amount">${formatCurrency(totalVal)}</td>
+                    <td class="text-end">100%</td>
+                </tr>`;
+
+                body.innerHTML = `
+                    <div class="table-responsive" style="max-height:500px; overflow-y:auto;">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Asset Name</th>
+                                    <th class="text-end">Value</th>
+                                    <th class="text-end" style="width:140px;">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>`;
+            }
+
+            new bootstrap.Modal(document.getElementById('assetBreakdownModal')).show();
         }
 
         async function loadAlerts() {
@@ -1389,6 +1611,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h6 class="card-title mb-1">${asset.name}</h6>
                                 <span class="badge bg-secondary">${asset.asset_type.toUpperCase()}</span>
+                                ${asset.exclude_from_xirr ? '<span class="badge bg-warning text-dark" style="font-size:0.65rem;">non-XIRR</span>' : ''}
                             </div>
                             <h4 class="text-success mask-amount">${formatCurrency(currentVal)}</h4>
                             <div class="d-flex justify-content-between small mt-2">
@@ -1406,6 +1629,740 @@
             <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="other-tab" role="tabpanel">
                 <div class="row">${html}</div>
             </div>`;
+        }
+
+        function buildPPFTabContent(ppfAssets, isActive) {
+            const ppfInterest = computedTotals.ppfValue - computedTotals.ppfInvested;
+
+            let cardsHtml = '';
+            ppfAssets.forEach(asset => {
+                const currentVal = asset.current_value || 0;
+                const invested = asset.purchase_value || 0;
+                const interest = currentVal - invested;
+                const typeBadge = asset.asset_type === 'epf' ? 'EPF' : 'PPF';
+
+                cardsHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card ppf-card h-100" data-folio-id="manual_${asset.id}" onclick="openPpfAccount(${asset.id})">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="card-title mb-1">${asset.name}</h6>
+                                    ${asset.ppf_account_number ? `<small class="text-muted">A/C: ${asset.ppf_account_number}</small>` : ''}
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge badge-ppf">${typeBadge}</span>
+                                    <span class="folio-xirr-badge" data-folio-id="manual_${asset.id}"></span>
+                                </div>
+                            </div>
+                            <h4 class="text-success mask-amount">${formatCurrency(currentVal)}</h4>
+                            <div class="row small mt-2">
+                                <div class="col-6">
+                                    <span class="text-muted">Invested:</span><br>
+                                    <strong class="mask-amount">${formatCurrency(invested)}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Interest Earned:</span><br>
+                                    <strong class="${interest >= 0 ? 'text-success' : 'text-danger'} mask-amount">${interest >= 0 ? '+' : ''}${formatCurrency(interest)}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="ppf-tab" role="tabpanel">
+                <!-- Card Grid View -->
+                <div id="ppfInvCardGrid">
+                    <div class="summary-card mb-3 d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #198754 0%, #38ef7d 100%);">
+                        <div>
+                            <p class="mb-0" style="opacity:0.85; font-size:0.85rem;">Total PPF/EPF Value</p>
+                            <h2 class="mb-0 mask-amount">${formatCurrency(computedTotals.ppfValue)}</h2>
+                        </div>
+                        <div class="text-end">
+                            <p class="mb-0" style="opacity:0.85; font-size:0.85rem;">Interest Earned</p>
+                            <span class="mask-amount" style="font-size:1.3rem; font-weight:700;">${ppfInterest >= 0 ? '+' : ''}${formatCurrency(ppfInterest)}</span>
+                        </div>
+                    </div>
+                    <div class="row">${cardsHtml}</div>
+                    <p class="text-muted text-center mt-2">
+                        <a href="/manual-assets?investor_id=${investorId}" class="text-decoration-none">
+                            <i class="bi bi-plus-circle"></i> Add new account &rarr;
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Transaction Detail View (hidden by default) -->
+                <div id="ppfInvTxDetail" style="display:none;">
+                    <div class="d-flex align-items-center mb-3">
+                        <button class="btn btn-sm btn-outline-secondary me-3" onclick="closePpfAccount()">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </button>
+                        <h5 class="mb-0" id="ppfInvAccountName">Account</h5>
+                        <span class="badge bg-success ms-2 mask-amount" id="ppfInvAccountBalance"></span>
+                    </div>
+
+                    <!-- Transaction Form -->
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add Transaction</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label small">Type</label>
+                                    <select class="form-select form-select-sm" id="ppfInvTxType">
+                                        <option value="investment">Investment</option>
+                                        <option value="interest">Interest</option>
+                                        <option value="withdrawal">Withdrawal</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Date</label>
+                                    <input type="date" class="form-control form-control-sm" id="ppfInvTxDate"
+                                           value="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Amount</label>
+                                    <input type="number" class="form-control form-control-sm" id="ppfInvTxAmount"
+                                           step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Narration</label>
+                                    <input type="text" class="form-control form-control-sm" id="ppfInvTxNarration"
+                                           placeholder="Optional note">
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-sm btn-success w-100" onclick="savePpfInvTransaction()">
+                                        <i class="bi bi-check-lg"></i> Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Table -->
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Narration</th>
+                                            <th class="text-end">Running Balance</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ppfInvTxBody">
+                                        <tr><td colspan="6" class="text-center text-muted py-3">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete Account -->
+                    <div class="text-end">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePpfAccount(ppfSelectedAssetId)">
+                            <i class="bi bi-trash"></i> Delete Account
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function openPpfAccount(assetId) {
+            ppfSelectedAssetId = assetId;
+            const asset = manualAssets.find(a => a.id === assetId);
+            if (!asset) return;
+
+            document.getElementById('ppfInvCardGrid').style.display = 'none';
+            document.getElementById('ppfInvTxDetail').style.display = '';
+            document.getElementById('ppfInvAccountName').textContent = asset.name;
+            document.getElementById('ppfInvAccountBalance').textContent = formatCurrency(asset.current_value || 0);
+
+            loadPpfInvTransactions(assetId);
+        }
+
+        function closePpfAccount() {
+            ppfSelectedAssetId = null;
+            // Rebuild tabs with fresh data and re-activate PPF tab
+            calculateAndDisplayTotals();
+            buildAssetTabs();
+            // Activate the PPF tab
+            const ppfBtn = document.querySelector('button[data-bs-target="#ppf-tab"]');
+            if (ppfBtn) {
+                const activeBtn = document.querySelector('#assetTypeTabs .nav-link.active');
+                if (activeBtn) activeBtn.classList.remove('active');
+                const activePane = document.querySelector('#assetTypeContent .tab-pane.show.active');
+                if (activePane) activePane.classList.remove('show', 'active');
+                ppfBtn.classList.add('active');
+                const pane = document.getElementById('ppf-tab');
+                if (pane) pane.classList.add('show', 'active');
+            }
+            loadXirrData();
+        }
+
+        async function loadPpfInvTransactions(assetId) {
+            const tbody = document.getElementById('ppfInvTxBody');
+            if (!tbody) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/${assetId}/transactions`);
+                const txs = await res.json();
+
+                if (txs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No transactions yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = txs.map(tx => {
+                    const badgeClass = tx.tx_type === 'investment' ? 'ppf-badge-investment'
+                        : tx.tx_type === 'interest' ? 'ppf-badge-interest' : 'ppf-badge-withdrawal';
+                    return `<tr>
+                        <td>${tx.tx_date}</td>
+                        <td><span class="badge ${badgeClass}">${tx.tx_type}</span></td>
+                        <td class="text-end mask-amount">${formatCurrency(tx.amount)}</td>
+                        <td class="text-muted">${tx.narration || '-'}</td>
+                        <td class="text-end fw-bold mask-amount">${formatCurrency(tx.running_balance)}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deletePpfInvTransaction(${tx.id})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                console.error('Failed to load PPF transactions:', e);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load transactions</td></tr>';
+            }
+        }
+
+        async function savePpfInvTransaction() {
+            if (!ppfSelectedAssetId) return;
+
+            const txType = document.getElementById('ppfInvTxType').value;
+            const txDate = document.getElementById('ppfInvTxDate').value;
+            const amount = parseFloat(document.getElementById('ppfInvTxAmount').value);
+            const narration = document.getElementById('ppfInvTxNarration').value.trim();
+
+            if (!txDate || !amount || amount <= 0) {
+                alert('Please enter a valid date and amount.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/manual-assets/${ppfSelectedAssetId}/transactions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tx_type: txType, tx_date: txDate, amount, narration })
+                });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                // Clear form
+                document.getElementById('ppfInvTxAmount').value = '';
+                document.getElementById('ppfInvTxNarration').value = '';
+
+                // Refresh data
+                await refreshPpfAssetData();
+                loadPpfInvTransactions(ppfSelectedAssetId);
+            } catch (e) {
+                alert('Failed to save transaction: ' + e.message);
+            }
+        }
+
+        async function deletePpfInvTransaction(txId) {
+            if (!confirm('Delete this transaction?')) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/transactions/${txId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                await refreshPpfAssetData();
+                loadPpfInvTransactions(ppfSelectedAssetId);
+            } catch (e) {
+                alert('Failed to delete transaction: ' + e.message);
+            }
+        }
+
+        async function deletePpfAccount(assetId) {
+            if (!confirm('Delete this account and all its transactions? This cannot be undone.')) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/${assetId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                ppfSelectedAssetId = null;
+                // Reload all data
+                await loadData();
+            } catch (e) {
+                alert('Failed to delete account: ' + e.message);
+            }
+        }
+
+        async function refreshPpfAssetData() {
+            // Re-fetch manual assets to get updated values
+            try {
+                const assetsRes = await fetch(`/api/manual-assets?investor_id=${investorId}`);
+                manualAssets = await assetsRes.json();
+            } catch (e) { /* keep existing */ }
+
+            // Update balance badge
+            const asset = manualAssets.find(a => a.id === ppfSelectedAssetId);
+            if (asset) {
+                const balEl = document.getElementById('ppfInvAccountBalance');
+                if (balEl) balEl.textContent = formatCurrency(asset.current_value || 0);
+            }
+
+            calculateAndDisplayTotals();
+        }
+
+        // ==================== Gold Tab ====================
+
+        function buildGoldTabContent(goldAssets, isActive) {
+            const goldGain = computedTotals.goldValue - computedTotals.goldInvested;
+
+            let cardsHtml = '';
+            goldAssets.forEach(asset => {
+                const currentVal = asset.calculated_value || asset.current_value || 0;
+                const invested = asset.purchase_value || 0;
+                const gain = currentVal - invested;
+                const grams = asset.units || 0;
+
+                cardsHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card gold-card h-100" data-folio-id="manual_${asset.id}" onclick="openGoldLot(${asset.id})">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="card-title mb-1">${asset.name}</h6>
+                                    ${asset.gold_seller ? `<small class="text-muted">Seller: ${asset.gold_seller}</small>` : ''}
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge badge-gold">${parseFloat(grams).toFixed(2)}g</span>
+                                    <span class="folio-xirr-badge" data-folio-id="manual_${asset.id}"></span>
+                                </div>
+                            </div>
+                            <h4 class="mask-amount" style="color:#d4a017;">${formatCurrency(currentVal)}</h4>
+                            <div class="row small mt-2">
+                                <div class="col-6">
+                                    <span class="text-muted">Invested:</span><br>
+                                    <strong class="mask-amount">${formatCurrency(invested)}</strong>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Gain/Loss:</span><br>
+                                    <strong class="${gain >= 0 ? 'text-success' : 'text-danger'} mask-amount">${gain >= 0 ? '+' : ''}${formatCurrency(gain)}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            return `
+            <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="gold-tab" role="tabpanel">
+                <!-- Card Grid View -->
+                <div id="goldInvCardGrid">
+                    <div class="summary-card mb-3 d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #d4a017 0%, #f5d442 100%);">
+                        <div>
+                            <p class="mb-0" style="opacity:0.85; font-size:0.85rem;">Total Gold Value</p>
+                            <h2 class="mb-0 mask-amount">${formatCurrency(computedTotals.goldValue)}</h2>
+                        </div>
+                        <div class="text-end">
+                            <p class="mb-0" style="opacity:0.85; font-size:0.85rem;">Gain/Loss</p>
+                            <span class="mask-amount" style="font-size:1.3rem; font-weight:700;">${goldGain >= 0 ? '+' : ''}${formatCurrency(goldGain)}</span>
+                        </div>
+                    </div>
+                    <div class="row">${cardsHtml}</div>
+                    <p class="text-muted text-center mt-2">
+                        <a href="/manual-assets?investor_id=${investorId}" class="text-decoration-none">
+                            <i class="bi bi-plus-circle"></i> Add new gold lot &rarr;
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Transaction Detail View (hidden by default) -->
+                <div id="goldInvTxDetail" style="display:none;">
+                    <div class="d-flex align-items-center mb-3">
+                        <button class="btn btn-sm btn-outline-secondary me-3" onclick="closeGoldLot()">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </button>
+                        <h5 class="mb-0" id="goldInvLotName">Lot</h5>
+                        <span class="badge bg-warning text-dark ms-2" id="goldInvLotQty"></span>
+                        <span class="badge bg-success ms-2 mask-amount" id="goldInvLotBalance"></span>
+                    </div>
+
+                    <!-- Price Update Section -->
+                    <div class="card shadow-sm mb-3 border-warning">
+                        <div class="card-body py-2">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div>
+                                    <small class="text-muted">Current Price/g:</small>
+                                    <span class="fw-bold ms-1" id="goldInvCurrentPrice">--</span>
+                                    <small class="text-muted ms-2" id="goldInvPriceDate"></small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary py-0" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#goldInvPriceHistory">
+                                    <i class="bi bi-clock-history"></i> History
+                                </button>
+                            </div>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-auto">
+                                    <label class="form-label small mb-0">Date</label>
+                                    <input type="date" class="form-control form-control-sm" id="goldInvPriceDateInput"
+                                           value="\${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div class="col-auto">
+                                    <label class="form-label small mb-0">Price/g</label>
+                                    <input type="number" class="form-control form-control-sm" id="goldInvPriceInput"
+                                           step="0.01" min="0" placeholder="0.00" style="width:120px;">
+                                </div>
+                                <div class="col-auto">
+                                    <label class="form-label small mb-0">&nbsp;</label>
+                                    <button class="btn btn-sm btn-warning d-block" onclick="saveGoldInvPrice()">
+                                        Update
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="collapse mt-2" id="goldInvPriceHistory">
+                                <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
+                                    <thead class="table-light"><tr><th>Date</th><th class="text-end">Price/g</th></tr></thead>
+                                    <tbody id="goldInvPriceHistoryBody">
+                                        <tr><td colspan="2" class="text-center text-muted">No history</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Form -->
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add Transaction</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label small">Type</label>
+                                    <select class="form-select form-select-sm" id="goldInvTxType">
+                                        <option value="buy">Buy</option>
+                                        <option value="sell">Sell</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Date</label>
+                                    <input type="date" class="form-control form-control-sm" id="goldInvTxDate"
+                                           value="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div class="col-md-1">
+                                    <label class="form-label small">Qty (g)</label>
+                                    <input type="number" class="form-control form-control-sm" id="goldInvTxQty"
+                                           step="0.001" min="0" placeholder="0" oninput="calcGoldInvAmount()">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Rate/g</label>
+                                    <input type="number" class="form-control form-control-sm" id="goldInvTxRate"
+                                           step="0.01" min="0" placeholder="0" oninput="calcGoldInvAmount()">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Amount</label>
+                                    <input type="number" class="form-control form-control-sm" id="goldInvTxAmount"
+                                           step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="row g-1">
+                                        <div class="col-7">
+                                            <label class="form-label small">Narration</label>
+                                            <input type="text" class="form-control form-control-sm" id="goldInvTxNarration" placeholder="Note">
+                                        </div>
+                                        <div class="col-5">
+                                            <label class="form-label small">&nbsp;</label>
+                                            <button class="btn btn-sm btn-warning w-100" onclick="saveGoldInvTransaction()">
+                                                <i class="bi bi-check-lg"></i> Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Table -->
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th class="text-end">Qty (g)</th>
+                                            <th class="text-end">Rate/g</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Narration</th>
+                                            <th class="text-end">Running Qty</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="goldInvTxBody">
+                                        <tr><td colspan="8" class="text-center text-muted py-3">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete Lot -->
+                    <div class="text-end">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteGoldLotInv(goldSelectedAssetId)">
+                            <i class="bi bi-trash"></i> Delete Lot
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function calcGoldInvAmount() {
+            const qty = parseFloat(document.getElementById('goldInvTxQty').value) || 0;
+            const rate = parseFloat(document.getElementById('goldInvTxRate').value) || 0;
+            if (qty > 0 && rate > 0) {
+                document.getElementById('goldInvTxAmount').value = (qty * rate).toFixed(2);
+            }
+        }
+
+        function openGoldLot(assetId) {
+            goldSelectedAssetId = assetId;
+            const asset = manualAssets.find(a => a.id === assetId);
+            if (!asset) return;
+
+            document.getElementById('goldInvCardGrid').style.display = 'none';
+            document.getElementById('goldInvTxDetail').style.display = '';
+            document.getElementById('goldInvLotName').textContent = asset.name;
+            document.getElementById('goldInvLotBalance').textContent = formatCurrency(asset.calculated_value || asset.current_value || 0);
+            document.getElementById('goldInvLotQty').textContent = `${parseFloat(asset.units || 0).toFixed(3)}g`;
+
+            loadGoldInvTransactions(assetId);
+            loadGoldInvPriceHistory(assetId);
+        }
+
+        function closeGoldLot() {
+            goldSelectedAssetId = null;
+            calculateAndDisplayTotals();
+            buildAssetTabs();
+            // Activate the Gold tab
+            const goldBtn = document.querySelector('button[data-bs-target="#gold-tab"]');
+            if (goldBtn) {
+                const activeBtn = document.querySelector('#assetTypeTabs .nav-link.active');
+                if (activeBtn) activeBtn.classList.remove('active');
+                const activePane = document.querySelector('#assetTypeContent .tab-pane.show.active');
+                if (activePane) activePane.classList.remove('show', 'active');
+                goldBtn.classList.add('active');
+                const pane = document.getElementById('gold-tab');
+                if (pane) pane.classList.add('show', 'active');
+            }
+            loadXirrData();
+        }
+
+        async function loadGoldInvTransactions(assetId) {
+            const tbody = document.getElementById('goldInvTxBody');
+            if (!tbody) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/${assetId}/transactions`);
+                const txs = await res.json();
+
+                if (txs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No transactions yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = txs.map(tx => {
+                    const badgeClass = tx.tx_type === 'buy' ? 'gold-badge-buy' : 'gold-badge-sell';
+                    const qty = tx.quantity ? parseFloat(tx.quantity).toFixed(3) : '-';
+                    const rate = tx.rate ? formatCurrency(tx.rate) : '-';
+                    const runQty = parseFloat(tx.running_quantity).toFixed(3);
+                    return `<tr>
+                        <td>${tx.tx_date}</td>
+                        <td><span class="badge ${badgeClass}">${tx.tx_type}</span></td>
+                        <td class="text-end">${qty}</td>
+                        <td class="text-end mask-amount">${rate}</td>
+                        <td class="text-end mask-amount">${formatCurrency(tx.amount)}</td>
+                        <td class="text-muted">${tx.narration || '-'}</td>
+                        <td class="text-end fw-bold">${runQty} g</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGoldInvTransaction(${tx.id})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                console.error('Failed to load gold transactions:', e);
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-3">Failed to load transactions</td></tr>';
+            }
+        }
+
+        async function saveGoldInvTransaction() {
+            if (!goldSelectedAssetId) return;
+
+            const txType = document.getElementById('goldInvTxType').value;
+            const txDate = document.getElementById('goldInvTxDate').value;
+            const qty = parseFloat(document.getElementById('goldInvTxQty').value);
+            const rate = parseFloat(document.getElementById('goldInvTxRate').value);
+            const amount = parseFloat(document.getElementById('goldInvTxAmount').value);
+            const narration = document.getElementById('goldInvTxNarration').value.trim();
+
+            if (!txDate || !qty || qty <= 0 || !amount || amount <= 0) {
+                alert('Please enter a valid date, quantity, and amount.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/manual-assets/${goldSelectedAssetId}/transactions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tx_type: txType, tx_date: txDate, amount, narration, quantity: qty, rate: rate || null })
+                });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                document.getElementById('goldInvTxQty').value = '';
+                document.getElementById('goldInvTxRate').value = '';
+                document.getElementById('goldInvTxAmount').value = '';
+                document.getElementById('goldInvTxNarration').value = '';
+
+                await refreshGoldAssetData();
+                loadGoldInvTransactions(goldSelectedAssetId);
+            } catch (e) {
+                alert('Failed to save transaction: ' + e.message);
+            }
+        }
+
+        async function deleteGoldInvTransaction(txId) {
+            if (!confirm('Delete this transaction?')) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/transactions/${txId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                await refreshGoldAssetData();
+                loadGoldInvTransactions(goldSelectedAssetId);
+            } catch (e) {
+                alert('Failed to delete transaction: ' + e.message);
+            }
+        }
+
+        async function deleteGoldLotInv(assetId) {
+            if (!confirm('Delete this gold lot and all its transactions? This cannot be undone.')) return;
+
+            try {
+                const res = await fetch(`/api/manual-assets/${assetId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                goldSelectedAssetId = null;
+                await loadData();
+            } catch (e) {
+                alert('Failed to delete lot: ' + e.message);
+            }
+        }
+
+        async function refreshGoldAssetData() {
+            try {
+                const assetsRes = await fetch(`/api/manual-assets?investor_id=${investorId}`);
+                manualAssets = await assetsRes.json();
+            } catch (e) { /* keep existing */ }
+
+            const asset = manualAssets.find(a => a.id === goldSelectedAssetId);
+            if (asset) {
+                const balEl = document.getElementById('goldInvLotBalance');
+                if (balEl) balEl.textContent = formatCurrency(asset.calculated_value || asset.current_value || 0);
+                const qtyEl = document.getElementById('goldInvLotQty');
+                if (qtyEl) qtyEl.textContent = `${parseFloat(asset.units || 0).toFixed(3)}g`;
+                updateGoldInvPriceDisplay(asset);
+            }
+
+            calculateAndDisplayTotals();
+        }
+
+        function updateGoldInvPriceDisplay(asset) {
+            const priceEl = document.getElementById('goldInvCurrentPrice');
+            const dateEl = document.getElementById('goldInvPriceDate');
+            if (!priceEl) return;
+
+            if (asset.current_nav) {
+                priceEl.textContent = formatCurrency(asset.current_nav);
+                dateEl.textContent = '';
+            } else {
+                priceEl.innerHTML = '<span class="text-muted fst-italic">No price set — showing cost basis</span>';
+                dateEl.textContent = '';
+            }
+        }
+
+        async function loadGoldInvPriceHistory(assetId) {
+            const tbody = document.getElementById('goldInvPriceHistoryBody');
+            if (!tbody) return;
+
+            // Update the current price display
+            const asset = manualAssets.find(a => a.id === assetId);
+            if (asset) updateGoldInvPriceDisplay(asset);
+
+            try {
+                const res = await fetch(`/api/manual-assets/${assetId}/prices?limit=10`);
+                const prices = await res.json();
+
+                if (prices.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No history</td></tr>';
+                    return;
+                }
+
+                // Update price date display from latest entry
+                const dateEl = document.getElementById('goldInvPriceDate');
+                if (dateEl && prices.length > 0) {
+                    dateEl.textContent = `(as of ${prices[0].price_date})`;
+                }
+
+                tbody.innerHTML = prices.map(p => `<tr>
+                    <td>${p.price_date}</td>
+                    <td class="text-end">${formatCurrency(p.price_per_unit)}</td>
+                </tr>`).join('');
+            } catch (e) {
+                console.error('Failed to load price history:', e);
+            }
+        }
+
+        async function saveGoldInvPrice() {
+            if (!goldSelectedAssetId) return;
+
+            const priceDate = document.getElementById('goldInvPriceDateInput').value;
+            const pricePerUnit = parseFloat(document.getElementById('goldInvPriceInput').value);
+
+            if (!priceDate) { alert('Please enter a date.'); return; }
+            if (!pricePerUnit || pricePerUnit <= 0) { alert('Please enter a valid price.'); return; }
+
+            try {
+                const res = await fetch(`/api/manual-assets/${goldSelectedAssetId}/prices`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ price_date: priceDate, price_per_unit: pricePerUnit })
+                });
+                const result = await res.json();
+                if (result.error) { alert('Error: ' + result.error); return; }
+
+                document.getElementById('goldInvPriceInput').value = '';
+                await refreshGoldAssetData();
+                loadGoldInvPriceHistory(goldSelectedAssetId);
+            } catch (e) {
+                alert('Failed to save price: ' + e.message);
+            }
         }
 
         function initializeSubTabs() {
@@ -1696,8 +2653,17 @@
 
         async function loadAssetAllocation() {
             try {
-                const res = await fetch(`/api/investors/${investorId}/asset-allocation`);
+                const res = await fetch(`/api/manual-assets/combined?investor_id=${investorId}`);
                 const data = await res.json();
+
+                // Remap combined response to match expected format
+                const breakdown = {};
+                let totalValue = data.total_value || 0;
+                ['equity', 'debt', 'commodity', 'cash', 'others'].forEach(cls => {
+                    breakdown[cls] = data.by_asset_class && data.by_asset_class[cls] ? data.by_asset_class[cls].total : 0;
+                });
+                data.breakdown = breakdown;
+                data.total_value = totalValue;
 
                 const emptyEl = document.getElementById('allocEmpty');
                 const chartEl = document.getElementById('allocationChart');

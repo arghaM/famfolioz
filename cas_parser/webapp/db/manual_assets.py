@@ -1,5 +1,6 @@
 """Manual asset management (FD, SGB, stocks, PPF) with calculations."""
 
+import json
 import logging
 import math
 from datetime import date, datetime
@@ -13,6 +14,7 @@ __all__ = [
     "calculate_fd_value",
     "calculate_fd_premature_value",
     "calculate_sgb_value",
+    "calculate_ppf_value",
     "create_manual_asset",
     "update_manual_asset",
     "delete_manual_asset",
@@ -24,6 +26,19 @@ __all__ = [
     "close_fd",
     "import_fd_csv",
     "get_combined_portfolio_value",
+    "get_manual_asset_xirr_data",
+    "get_manual_asset_types",
+    "set_manual_asset_types",
+    "get_ppf_epf_assets",
+    "create_ppf_epf_asset",
+    "get_asset_transactions",
+    "add_asset_transaction",
+    "delete_asset_transaction",
+    "get_gold_lots",
+    "create_gold_lot",
+    "add_asset_price",
+    "get_asset_prices",
+    "get_latest_asset_price",
 ]
 
 
@@ -203,6 +218,56 @@ def calculate_sgb_value(issue_price: float, grams: float, interest_rate: float,
     }
 
 
+def calculate_ppf_value(opening_balance: float, interest_rate: float,
+                        purchase_date: str, purchase_value: float = 0) -> dict:
+    """
+    Calculate PPF current value with yearly compound interest.
+
+    Args:
+        opening_balance: Balance at account opening (before any deposits in this system)
+        interest_rate: Annual interest rate (e.g., 7.1 for 7.1%)
+        purchase_date: PPF account/deposit date (YYYY-MM-DD)
+        purchase_value: Total deposits made (purchase_value from manual_assets)
+
+    Returns:
+        Dict with current_value, interest_earned, years_elapsed
+    """
+    from datetime import datetime, date as date_type
+
+    today = date_type.today()
+    start = datetime.strptime(purchase_date, '%Y-%m-%d').date()
+    days_elapsed = (today - start).days
+
+    if days_elapsed <= 0:
+        total_principal = opening_balance + purchase_value
+        return {
+            'current_value': round(total_principal, 2),
+            'interest_earned': 0,
+            'years_elapsed': 0,
+            'total_principal': round(total_principal, 2),
+        }
+
+    years_elapsed = days_elapsed / 365
+    r = interest_rate / 100
+
+    # Compound interest on opening balance (yearly compounding)
+    opening_grown = opening_balance * ((1 + r) ** years_elapsed)
+
+    # Compound interest on deposits (simplified: treat as lump sum from purchase_date)
+    deposit_grown = purchase_value * ((1 + r) ** years_elapsed)
+
+    current_value = opening_grown + deposit_grown
+    total_principal = opening_balance + purchase_value
+    interest_earned = current_value - total_principal
+
+    return {
+        'current_value': round(current_value, 2),
+        'interest_earned': round(interest_earned, 2),
+        'years_elapsed': round(years_elapsed, 2),
+        'total_principal': round(total_principal, 2),
+    }
+
+
 def create_manual_asset(investor_id: int, asset_type: str, asset_class: str,
                         name: str, **kwargs) -> int:
     """
@@ -257,8 +322,24 @@ def create_manual_asset(investor_id: int, asset_type: str, asset_class: str,
                 values.append(kwargs[field])
 
         # PPF/NPS fields
-        ppf_fields = ['ppf_account_number', 'ppf_maturity_date']
+        ppf_fields = ['ppf_account_number', 'ppf_maturity_date',
+                      'ppf_interest_rate', 'ppf_compounding', 'ppf_opening_balance']
         for field in ppf_fields:
+            if field in kwargs and kwargs[field] is not None:
+                fields.append(field)
+                values.append(kwargs[field])
+
+        # Gold specific fields
+        gold_fields = ['gold_ref_no', 'gold_seller', 'gold_broker']
+        for field in gold_fields:
+            if field in kwargs and kwargs[field] is not None:
+                fields.append(field)
+                values.append(kwargs[field])
+
+        # Allocation fields
+        alloc_fields = ['equity_pct', 'debt_pct', 'commodity_pct', 'cash_pct',
+                        'others_pct', 'exclude_from_xirr']
+        for field in alloc_fields:
             if field in kwargs and kwargs[field] is not None:
                 fields.append(field)
                 values.append(kwargs[field])
@@ -290,7 +371,11 @@ def update_manual_asset(asset_id: int, **kwargs) -> dict:
             'fd_compounding', 'fd_premature_penalty_pct', 'fd_bank_name',
             'sgb_issue_price', 'sgb_interest_rate', 'sgb_maturity_date', 'sgb_grams',
             'stock_symbol', 'stock_exchange', 'stock_quantity', 'stock_avg_price',
-            'ppf_account_number', 'ppf_maturity_date'
+            'ppf_account_number', 'ppf_maturity_date',
+            'ppf_interest_rate', 'ppf_compounding', 'ppf_opening_balance',
+            'gold_ref_no', 'gold_seller', 'gold_broker',
+            'equity_pct', 'debt_pct', 'commodity_pct', 'cash_pct', 'others_pct',
+            'exclude_from_xirr',
         ]
 
         for field in all_fields:
@@ -359,6 +444,30 @@ def get_manual_assets_by_investor(investor_id: int, include_inactive: bool = Fal
         return assets
 
 
+def _derive_allocation_from_class(asset: dict) -> dict:
+    """If all allocation percentages are zero, derive from asset_class."""
+    alloc_sum = (
+        (asset.get('equity_pct') or 0) +
+        (asset.get('debt_pct') or 0) +
+        (asset.get('commodity_pct') or 0) +
+        (asset.get('cash_pct') or 0) +
+        (asset.get('others_pct') or 0)
+    )
+    if alloc_sum < 1:
+        # Map asset_class to 100% in the matching allocation field
+        class_to_field = {
+            'equity': 'equity_pct',
+            'debt': 'debt_pct',
+            'commodity': 'commodity_pct',
+            'cash': 'cash_pct',
+            'others': 'others_pct',
+        }
+        asset_class = asset.get('asset_class', 'others')
+        field = class_to_field.get(asset_class, 'others_pct')
+        asset[field] = 100
+    return asset
+
+
 def _enrich_manual_asset(asset: dict) -> dict:
     """Add calculated values to a manual asset based on its type."""
     asset_type = asset.get('asset_type', '')
@@ -386,6 +495,17 @@ def _enrich_manual_asset(asset: dict) -> dict:
                     compounding=asset.get('fd_compounding', 'quarterly')
                 )
                 asset['premature_details'] = premature
+
+    elif asset_type == 'ppf' and asset.get('purchase_date'):
+        # Calculate PPF current value
+        ppf_calc = calculate_ppf_value(
+            opening_balance=asset.get('ppf_opening_balance') or 0,
+            interest_rate=asset.get('ppf_interest_rate') or 7.1,
+            purchase_date=asset['purchase_date'],
+            purchase_value=asset.get('purchase_value') or 0,
+        )
+        asset['calculated_value'] = ppf_calc['current_value']
+        asset['ppf_details'] = ppf_calc
 
     elif asset_type == 'sgb' and asset.get('sgb_grams'):
         # Calculate SGB current value
@@ -420,6 +540,22 @@ def _enrich_manual_asset(asset: dict) -> dict:
             'gain_loss_pct': ((current_value - invested_value) / invested_value * 100) if invested_value > 0 else 0
         }
 
+    elif asset_type == 'gold':
+        units = asset.get('units') or 0
+        nav = asset.get('current_nav')  # latest manually-set price/gram
+        if units > 0 and nav:
+            market_value = round(units * nav, 2)
+            asset['calculated_value'] = market_value
+            asset['gold_details'] = {
+                'grams': units,
+                'price_per_gram': nav,
+                'market_value': market_value,
+                'invested': asset.get('purchase_value') or 0,
+            }
+        else:
+            # No price set -> value = cost basis from transactions
+            asset['calculated_value'] = asset.get('current_value') or asset.get('purchase_value') or 0
+
     else:
         # For other types, use stored current_value or calculate from units * current_nav
         if asset.get('current_value'):
@@ -428,6 +564,9 @@ def _enrich_manual_asset(asset: dict) -> dict:
             asset['calculated_value'] = asset['units'] * asset['current_nav']
         else:
             asset['calculated_value'] = asset.get('purchase_value', 0)
+
+    # Derive allocation from asset_class if not explicitly set
+    _derive_allocation_from_class(asset)
 
     return asset
 
@@ -672,3 +811,432 @@ def get_combined_portfolio_value(investor_id: int) -> dict:
             combined['by_asset_class'][cls]['pct'] = 0
 
     return combined
+
+
+# ---------------------------------------------------------------------------
+# Asset type configuration (stored in app_config as JSON)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_ASSET_TYPES = [
+    {"key": "fd",          "label": "Fixed Deposit (FD)",  "icon": "bi-bank",            "status": "coming_soon"},
+    {"key": "ppf_epf",     "label": "PPF / EPF",          "icon": "bi-piggy-bank",      "status": "active"},
+    {"key": "gold",        "label": "Gold",               "icon": "bi-gem",             "status": "active"},
+    {"key": "silver",      "label": "Silver",             "icon": "bi-gem",             "status": "coming_soon"},
+    {"key": "post_office", "label": "Post Office",        "icon": "bi-mailbox",         "status": "coming_soon"},
+    {"key": "insurance",   "label": "Insurance",          "icon": "bi-shield-check",    "status": "coming_soon"},
+    {"key": "stocks",      "label": "Stocks",             "icon": "bi-graph-up-arrow",  "status": "coming_soon"},
+    {"key": "loan",        "label": "Loan",               "icon": "bi-cash-coin",       "status": "coming_soon"},
+    {"key": "jewellery",   "label": "Jewellery",          "icon": "bi-diamond",         "status": "coming_soon"},
+]
+
+
+def get_manual_asset_types() -> list:
+    """Read manual asset types from app_config. Returns list of dicts."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM app_config WHERE key = 'manual_asset_types'")
+        row = cursor.fetchone()
+        if row and row['value']:
+            try:
+                return json.loads(row['value'])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return _DEFAULT_ASSET_TYPES
+
+
+def set_manual_asset_types(types: list) -> dict:
+    """Save manual asset types list to app_config."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO app_config (key, value, updated_at)
+            VALUES ('manual_asset_types', ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+        """, (json.dumps(types),))
+        return {'success': True}
+
+
+# ---------------------------------------------------------------------------
+# PPF / EPF transaction-based tracking
+# ---------------------------------------------------------------------------
+
+def get_ppf_epf_assets(investor_id: int) -> list:
+    """Get PPF/EPF assets for the LOV dropdown."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, name, asset_type, current_value, purchase_value
+            FROM manual_assets
+            WHERE investor_id = ? AND asset_type IN ('ppf', 'epf') AND is_active = 1
+            ORDER BY name
+        """, (investor_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def create_ppf_epf_asset(investor_id: int, sub_type: str, bank: str = None,
+                          ref_no: str = None) -> dict:
+    """Create a new PPF/EPF master record.
+
+    Args:
+        investor_id: Investor ID
+        sub_type: 'ppf' or 'epf'
+        bank: Bank name (optional)
+        ref_no: Account/reference number (optional)
+
+    Returns:
+        dict with id and name of the created asset
+    """
+    label = sub_type.upper()
+    parts = [label]
+    if bank:
+        parts.append(bank)
+    if ref_no:
+        parts.append(f"({ref_no})")
+    name = " - ".join(parts[:2])
+    if ref_no:
+        name = name + f" ({ref_no})" if len(parts) == 3 and bank else f"{label} ({ref_no})"
+        # Recalculate cleanly
+        if bank and ref_no:
+            name = f"{label} - {bank} ({ref_no})"
+        elif ref_no:
+            name = f"{label} ({ref_no})"
+        elif bank:
+            name = f"{label} - {bank}"
+
+    asset_id = create_manual_asset(
+        investor_id=investor_id,
+        asset_type=sub_type,
+        asset_class='debt',
+        name=name,
+        purchase_value=0,
+        current_value=0,
+        ppf_account_number=ref_no,
+        debt_pct=100,
+    )
+
+    return {'id': asset_id, 'name': name}
+
+
+def get_asset_transactions(asset_id: int) -> list:
+    """Get transactions for an asset ordered by date ASC with running balance and running quantity."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, asset_id, tx_type, tx_date, amount, narration, quantity, rate, created_at
+            FROM manual_asset_transactions
+            WHERE asset_id = ?
+            ORDER BY tx_date ASC, id ASC
+        """, (asset_id,))
+        rows = [dict(row) for row in cursor.fetchall()]
+
+    balance = 0
+    qty_balance = 0
+    for row in rows:
+        if row['tx_type'] in ('investment', 'interest', 'buy'):
+            balance += row['amount']
+        else:  # withdrawal, sell
+            balance -= row['amount']
+        row['running_balance'] = round(balance, 2)
+
+        # Track running quantity for gold/commodity assets
+        q = row.get('quantity') or 0
+        if row['tx_type'] == 'buy':
+            qty_balance += q
+        elif row['tx_type'] == 'sell':
+            qty_balance -= q
+        row['running_quantity'] = round(qty_balance, 4)
+
+    return rows
+
+
+def add_asset_transaction(asset_id: int, tx_type: str, tx_date: str,
+                           amount: float, narration: str = None,
+                           quantity: float = None, rate: float = None) -> dict:
+    """Insert a transaction and recompute the asset value.
+
+    Args:
+        asset_id: The manual_assets.id
+        tx_type: 'investment', 'interest', 'withdrawal', 'buy', or 'sell'
+        tx_date: Date string (YYYY-MM-DD)
+        amount: Transaction amount (positive)
+        narration: Optional note
+        quantity: Optional quantity (grams for gold)
+        rate: Optional rate per unit
+
+    Returns:
+        dict with success and the new transaction id
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO manual_asset_transactions (asset_id, tx_type, tx_date, amount, narration, quantity, rate)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (asset_id, tx_type, tx_date, amount, narration, quantity, rate))
+        tx_id = cursor.lastrowid
+        _recompute_asset_value(asset_id, cursor)
+        return {'success': True, 'id': tx_id}
+
+
+def delete_asset_transaction(tx_id: int) -> dict:
+    """Delete a transaction and recompute the asset value.
+
+    Returns:
+        dict with success and asset_id for convenience
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT asset_id FROM manual_asset_transactions WHERE id = ?", (tx_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {'success': False, 'error': 'Transaction not found'}
+        asset_id = row['asset_id']
+        cursor.execute("DELETE FROM manual_asset_transactions WHERE id = ?", (tx_id,))
+        _recompute_asset_value(asset_id, cursor)
+        return {'success': True, 'asset_id': asset_id}
+
+
+def _recompute_asset_value(asset_id: int, cursor) -> None:
+    """Recompute current_value and purchase_value from transaction sums."""
+    cursor.execute("""
+        SELECT
+            COALESCE(SUM(CASE WHEN tx_type = 'investment' THEN amount ELSE 0 END), 0) AS total_investment,
+            COALESCE(SUM(CASE WHEN tx_type = 'interest' THEN amount ELSE 0 END), 0) AS total_interest,
+            COALESCE(SUM(CASE WHEN tx_type = 'withdrawal' THEN amount ELSE 0 END), 0) AS total_withdrawal,
+            COALESCE(SUM(CASE WHEN tx_type = 'buy' THEN amount ELSE 0 END), 0) AS total_buy,
+            COALESCE(SUM(CASE WHEN tx_type = 'sell' THEN amount ELSE 0 END), 0) AS total_sell,
+            COALESCE(SUM(CASE WHEN tx_type = 'buy' THEN quantity ELSE 0 END), 0) AS total_buy_qty,
+            COALESCE(SUM(CASE WHEN tx_type = 'sell' THEN quantity ELSE 0 END), 0) AS total_sell_qty
+        FROM manual_asset_transactions
+        WHERE asset_id = ?
+    """, (asset_id,))
+    row = cursor.fetchone()
+    total_investment = row['total_investment']
+    total_interest = row['total_interest']
+    total_withdrawal = row['total_withdrawal']
+    total_buy = row['total_buy']
+    total_sell = row['total_sell']
+    total_buy_qty = row['total_buy_qty']
+    total_sell_qty = row['total_sell_qty']
+
+    current_value = (total_investment + total_interest - total_withdrawal
+                     + total_buy - total_sell)
+    purchase_value = total_investment + total_buy
+    units = total_buy_qty - total_sell_qty
+
+    cursor.execute("""
+        UPDATE manual_assets
+        SET current_value = ?, purchase_value = ?, units = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (round(current_value, 2), round(purchase_value, 2), round(units, 4), asset_id))
+
+
+# ---------------------------------------------------------------------------
+# Gold lot management
+# ---------------------------------------------------------------------------
+
+def get_gold_lots(investor_id: int) -> list:
+    """Get gold lots for the LOV dropdown with calculated_value."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, name, asset_type, current_value, purchase_value,
+                   gold_ref_no, gold_seller, gold_broker, units, current_nav
+            FROM manual_assets
+            WHERE investor_id = ? AND asset_type = 'gold' AND is_active = 1
+            ORDER BY name
+        """, (investor_id,))
+        lots = []
+        for row in cursor.fetchall():
+            lot = dict(row)
+            units = lot.get('units') or 0
+            nav = lot.get('current_nav')
+            if units > 0 and nav:
+                lot['calculated_value'] = round(units * nav, 2)
+            else:
+                lot['calculated_value'] = lot.get('current_value') or lot.get('purchase_value') or 0
+            lots.append(lot)
+        return lots
+
+
+def create_gold_lot(investor_id: int, name: str, ref_no: str = None,
+                    seller: str = None, broker: str = None) -> dict:
+    """Create a new gold lot (manual_asset of type gold).
+
+    Args:
+        investor_id: Investor ID
+        name: Lot description (e.g. "Physical Gold Bar 24K")
+        ref_no: Reference / invoice number
+        seller: Seller name
+        broker: Agent / broker name
+
+    Returns:
+        dict with id and name of the created asset
+    """
+    asset_id = create_manual_asset(
+        investor_id=investor_id,
+        asset_type='gold',
+        asset_class='commodity',
+        name=name,
+        commodity_pct=100,
+        gold_ref_no=ref_no,
+        gold_seller=seller,
+        gold_broker=broker,
+        purchase_value=0,
+        current_value=0,
+    )
+    return {'id': asset_id, 'name': name}
+
+
+def get_manual_asset_xirr_data(investor_id: int) -> list:
+    """Get XIRR-compatible cashflow data for all transaction-based manual assets.
+
+    Returns a list of dicts, one per asset, each with:
+        - asset_id, asset_name, asset_type
+        - current_value
+        - cashflows: list of (date_str, amount) where negative=outflow, positive=inflow
+    """
+    from datetime import date as date_type
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Get all active manual assets that have transactions
+        cursor.execute("""
+            SELECT ma.id, ma.name, ma.asset_type, ma.current_value,
+                   ma.units, ma.current_nav
+            FROM manual_assets ma
+            WHERE ma.investor_id = ? AND ma.is_active = 1
+              AND EXISTS (
+                  SELECT 1 FROM manual_asset_transactions mat WHERE mat.asset_id = ma.id
+              )
+        """, (investor_id,))
+        assets = [dict(r) for r in cursor.fetchall()]
+
+        results = []
+        today_str = date_type.today().isoformat()
+        for asset in assets:
+            asset_id = asset['id']
+            cursor.execute("""
+                SELECT tx_type, tx_date, amount
+                FROM manual_asset_transactions
+                WHERE asset_id = ?
+                ORDER BY tx_date ASC
+            """, (asset_id,))
+            txns = cursor.fetchall()
+
+            cashflows = []
+            for tx in txns:
+                amt = float(tx['amount'])
+                if amt == 0:
+                    continue
+                tx_type = tx['tx_type']
+                if tx_type in ('investment', 'buy'):
+                    cashflows.append((tx['tx_date'], -amt))  # outflow
+                elif tx_type in ('withdrawal', 'sell'):
+                    cashflows.append((tx['tx_date'], amt))    # inflow
+                # interest is internal growth, not an external cashflow — skip
+
+            # Terminal value: use market value (units × nav) for gold if price is set,
+            # otherwise fall back to current_value (cost basis)
+            units = float(asset.get('units') or 0)
+            nav = asset.get('current_nav')
+            if asset['asset_type'] == 'gold' and units > 0 and nav:
+                cv = round(units * float(nav), 2)
+            else:
+                cv = float(asset['current_value'] or 0)
+            if cv > 0:
+                cashflows.append((today_str, cv))
+
+            if cashflows:
+                results.append({
+                    'asset_id': asset['id'],
+                    'asset_name': asset['name'],
+                    'asset_type': asset['asset_type'],
+                    'current_value': cv,
+                    'cashflows': cashflows,
+                })
+        return results
+
+
+# ---------------------------------------------------------------------------
+# Manual asset price history (for gold price tracking)
+# ---------------------------------------------------------------------------
+
+def add_asset_price(asset_id: int, price_date: str, price_per_unit: float) -> dict:
+    """Record a price for a manual asset and update current_nav.
+
+    Uses INSERT OR REPLACE so only one price per date is kept.
+
+    Args:
+        asset_id: The manual_assets.id
+        price_date: Date string (YYYY-MM-DD)
+        price_per_unit: Price per unit (e.g. per gram for gold)
+
+    Returns:
+        dict with success and the row id
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO manual_asset_prices (asset_id, price_date, price_per_unit)
+            VALUES (?, ?, ?)
+            ON CONFLICT(asset_id, price_date)
+            DO UPDATE SET price_per_unit = excluded.price_per_unit,
+                          created_at = CURRENT_TIMESTAMP
+        """, (asset_id, price_date, price_per_unit))
+        row_id = cursor.lastrowid
+
+        # Find the latest price date for this asset to decide whether to update current_nav
+        cursor.execute("""
+            SELECT price_per_unit FROM manual_asset_prices
+            WHERE asset_id = ?
+            ORDER BY price_date DESC LIMIT 1
+        """, (asset_id,))
+        latest = cursor.fetchone()
+        if latest:
+            cursor.execute("""
+                UPDATE manual_assets
+                SET current_nav = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (latest['price_per_unit'], asset_id))
+
+        return {'success': True, 'id': row_id}
+
+
+def get_asset_prices(asset_id: int, limit: int = 20) -> list:
+    """Get price history for an asset, newest first.
+
+    Args:
+        asset_id: The manual_assets.id
+        limit: Max rows to return (default 20)
+
+    Returns:
+        List of dicts with id, price_date, price_per_unit, created_at
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, price_date, price_per_unit, created_at
+            FROM manual_asset_prices
+            WHERE asset_id = ?
+            ORDER BY price_date DESC
+            LIMIT ?
+        """, (asset_id, limit))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_latest_asset_price(asset_id: int) -> Optional[dict]:
+    """Get the most recent price entry for an asset.
+
+    Returns:
+        dict with id, price_date, price_per_unit, created_at or None
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, price_date, price_per_unit, created_at
+            FROM manual_asset_prices
+            WHERE asset_id = ?
+            ORDER BY price_date DESC
+            LIMIT 1
+        """, (asset_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
