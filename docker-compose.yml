@@ -1,0 +1,11 @@
+services:
+  famfolioz:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - famfolioz-data:/data
+    restart: unless-stopped
+
+volumes:
+  famfolioz-data:

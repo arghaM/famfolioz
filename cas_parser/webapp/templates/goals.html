@@ -17,9 +17,11 @@
         .goal-card {
             border-left: 4px solid #667eea;
             transition: transform 0.2s;
+            cursor: pointer;
         }
         .goal-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .progress-thick {
             height: 25px;
@@ -28,33 +30,15 @@
         .progress-thick .progress-bar {
             border-radius: 12px;
         }
-        .allocation-bar {
-            height: 10px;
-            margin-bottom: 5px;
-        }
         .badge-equity { background-color: #28a745; }
         .badge-debt { background-color: #17a2b8; }
         .badge-commodity { background-color: #ffc107; color: #000; }
         .badge-cash { background-color: #6c757d; }
         .badge-others { background-color: #6f42c1; }
-        .linked-folio {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-        }
-        .alloc-comparison {
-            display: flex;
-            gap: 20px;
-        }
-        .alloc-column {
-            flex: 1;
-        }
         body.mask-amounts .mask-amount {
             filter: blur(8px);
             user-select: none;
         }
-        /* Notes/Journal styles */
         .note-card {
             border-left: 3px solid #667eea;
             margin-bottom: 1rem;
@@ -100,6 +84,126 @@
             margin-right: 12px;
             flex-shrink: 0;
         }
+        /* Phase card styles */
+        .phase-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fafbfc;
+        }
+        .phase-card .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .equity-sub-table input[type="number"] {
+            width: 80px;
+            text-align: right;
+        }
+        .equity-sub-table td {
+            padding: 4px 8px;
+            vertical-align: middle;
+        }
+        .equity-sub-table .total-row {
+            font-weight: bold;
+            border-top: 2px solid #dee2e6;
+        }
+        .alloc-total-badge {
+            font-size: 0.85rem;
+            padding: 3px 10px;
+        }
+        /* SIP calculator */
+        .sip-result {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        /* Drift analysis */
+        .drift-bar-container {
+            position: relative;
+            height: 28px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .drift-bar-target {
+            position: absolute;
+            height: 100%;
+            background: rgba(102, 126, 234, 0.25);
+            border-right: 3px dashed #667eea;
+        }
+        .drift-bar-actual {
+            position: absolute;
+            height: 100%;
+            border-radius: 6px 0 0 6px;
+        }
+        .drift-bar-actual.overweight { background: rgba(220, 53, 69, 0.6); }
+        .drift-bar-actual.underweight { background: rgba(255, 193, 7, 0.6); }
+        .drift-bar-actual.aligned { background: rgba(40, 167, 69, 0.6); }
+        .drift-badge { font-size: 0.8rem; padding: 3px 10px; border-radius: 12px; }
+        .drift-badge.overweight { background: #f8d7da; color: #721c24; }
+        .drift-badge.underweight { background: #fff3cd; color: #856404; }
+        .drift-badge.aligned { background: #d4edda; color: #155724; }
+        .drift-summary-card {
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+        .phase-indicator {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border: 1px solid #667eea40;
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: inline-block;
+        }
+        .cursor-pointer { cursor: pointer; }
+        .cursor-pointer:hover { background-color: #f0f4ff !important; }
+        .sip-result-card {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border: 1px solid #667eea30;
+            border-radius: 10px;
+        }
+        /* Linked folio in modal */
+        .linked-folio {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        /* Modal tab styling */
+        #goalTabModal .nav-tabs .nav-link {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        #goalTabModal .tab-content {
+            max-height: 65vh;
+            overflow-y: auto;
+            padding: 1rem 0;
+        }
+        /* SIP Planner */
+        .sip-planner-card {
+            border: 2px solid #667eea40;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+        }
+        .sip-planner-card .card-header {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border-bottom: 1px solid #667eea30;
+            border-radius: 12px 12px 0 0;
+        }
+        .sip-fund-row:hover { background-color: #f0f4ff; }
+        .sip-gap-alert {
+            background: #fff3cd;
+            border: 1px solid #ffc10730;
+            border-radius: 8px;
+            padding: 8px 14px;
+        }
+        .sip-drift-improvement {
+            background: linear-gradient(135deg, #d4edda 0%, #e8f5e9 100%);
+            border: 1px solid #28a74530;
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
     </style>
 </head>
 <body>
@@ -122,7 +226,7 @@
     </div>
 
     <div class="container">
-        <!-- First-Time User Guide (collapsible) -->
+        <!-- First-Time User Guide -->
         <div class="guide-card p-4 mb-4" id="userGuide">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -145,8 +249,8 @@
                     <div class="guide-step">
                         <span class="guide-step-number">2</span>
                         <div>
-                            <strong>Set Target Allocation</strong>
-                            <p class="text-muted small mb-0">Define your ideal asset mix (equity, debt, etc.) based on the goal's time horizon and risk tolerance.</p>
+                            <strong>Plan Allocation Phases</strong>
+                            <p class="text-muted small mb-0">Set phased asset allocation targets that shift from aggressive to conservative as you approach the goal.</p>
                         </div>
                     </div>
                 </div>
@@ -154,15 +258,15 @@
                     <div class="guide-step">
                         <span class="guide-step-number">3</span>
                         <div>
-                            <strong>Link Your Investments</strong>
-                            <p class="text-muted small mb-0">Assign mutual fund folios to goals. One folio can only belong to one goal to avoid overlap.</p>
+                            <strong>Link Investments & Calculate SIP</strong>
+                            <p class="text-muted small mb-0">Assign mutual fund folios to goals and use the SIP calculator to plan required contributions.</p>
                         </div>
                     </div>
                     <div class="guide-step">
                         <span class="guide-step-number">4</span>
                         <div>
                             <strong>Record Your Thoughts</strong>
-                            <p class="text-muted small mb-0">Use the Notes feature to journal your investment decisions. Review how your thinking evolves over time.</p>
+                            <p class="text-muted small mb-0">Use the Review Log to journal your investment decisions. Track how your thinking evolves over time.</p>
                         </div>
                     </div>
                 </div>
@@ -185,7 +289,7 @@
 
         <!-- Add Goal Button -->
         <div class="d-flex justify-content-end mb-4" id="goalsActions">
-            <button class="btn btn-primary" onclick="openCreateModal()">
+            <button class="btn btn-primary" onclick="openGoalModal(null)">
                 <i class="bi bi-plus-lg"></i> Create New Goal
             </button>
         </div>
@@ -198,7 +302,7 @@
             </div>
         </div>
 
-        <!-- Notes Timeline View (hidden by default) -->
+        <!-- Notes Timeline View -->
         <div id="timelineView" style="display: none;">
             <div class="text-center py-5">
                 <div class="spinner-border text-primary" role="status"></div>
@@ -207,82 +311,268 @@
         </div>
     </div>
 
-    <!-- Create/Edit Goal Modal -->
-    <div class="modal fade" id="goalModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- ==================== MAIN GOAL TABBED MODAL ==================== -->
+    <div class="modal fade" id="goalTabModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="goalModalTitle">Create Goal</h5>
+                    <h5 class="modal-title" id="goalTabModalTitle">
+                        <i class="bi bi-flag"></i> <span id="goalTabName">New Goal</span>
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" id="editGoalId">
-                    <div class="row mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label">Goal Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="goalName" placeholder="e.g., Retirement, Child Education">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Target Date</label>
-                            <input type="date" class="form-control" id="goalTargetDate">
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Target Amount</label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                <input type="number" class="form-control" id="goalTargetAmount" min="0" step="1000">
+                <div class="modal-body p-0">
+                    <input type="hidden" id="modalGoalId">
+
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs px-3 pt-2" id="goalTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tab-details" data-bs-toggle="tab" data-bs-target="#pane-details" type="button">
+                                <i class="bi bi-info-circle"></i> Details
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-phases" data-bs-toggle="tab" data-bs-target="#pane-phases" type="button">
+                                <i class="bi bi-pie-chart"></i> Allocation Phases
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-sip" data-bs-toggle="tab" data-bs-target="#pane-sip" type="button">
+                                <i class="bi bi-calculator"></i> SIP Calculator
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-analysis" data-bs-toggle="tab" data-bs-target="#pane-analysis" type="button">
+                                <i class="bi bi-bar-chart-line"></i> Analysis
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tab-log" data-bs-toggle="tab" data-bs-target="#pane-log" type="button">
+                                <i class="bi bi-journal-text"></i> Review Log
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content px-3">
+
+                        <!-- TAB 1: Details -->
+                        <div class="tab-pane fade show active" id="pane-details" role="tabpanel">
+                            <!-- Progress Summary (shown only for existing goals) -->
+                            <div id="detailProgressSection" style="display:none;">
+                                <div class="row text-center mb-3">
+                                    <div class="col">
+                                        <h4 class="text-primary mask-amount" id="dtlCurrentVal">-</h4>
+                                        <small class="text-muted">Current Value</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 class="text-secondary mask-amount" id="dtlTargetVal">-</h4>
+                                        <small class="text-muted">Target</small>
+                                    </div>
+                                    <div class="col">
+                                        <h4 id="dtlProgress">-</h4>
+                                        <small class="text-muted">Progress</small>
+                                    </div>
+                                </div>
+                                <div class="progress progress-thick mb-3">
+                                    <div class="progress-bar" id="dtlProgressBar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Goal Form -->
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">Goal Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="goalName" placeholder="e.g., Retirement, Child Education">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Target Date</label>
+                                    <input type="date" class="form-control" id="goalTargetDate">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Target Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">&#8377;</span>
+                                        <input type="number" class="form-control" id="goalTargetAmount" min="0" step="1000">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" class="form-control" id="goalDescription" placeholder="Optional notes">
+                                </div>
+                            </div>
+
+                            <!-- Linked Assets (shown only for existing goals) -->
+                            <div id="detailLinkedSection" style="display:none;">
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0"><i class="bi bi-briefcase"></i> Linked Assets</h6>
+                                    <button class="btn btn-sm btn-outline-primary" id="btnManageLinks" onclick="openLinkModalFromTab()">
+                                        <i class="bi bi-link"></i> Manage
+                                    </button>
+                                </div>
+                                <div id="dtlLinkedList">
+                                    <p class="text-muted small">No assets linked</p>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Description</label>
-                            <input type="text" class="form-control" id="goalDescription" placeholder="Optional notes">
-                        </div>
-                    </div>
 
-                    <hr>
-                    <h6><i class="bi bi-pie-chart"></i> Target Asset Allocation</h6>
-                    <p class="text-muted small">Define your ideal asset mix for this goal (must sum to 100%)</p>
+                        <!-- TAB 2: Allocation Phases -->
+                        <div class="tab-pane fade" id="pane-phases" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <p class="text-muted small mb-0">Define allocation targets that evolve over time as you approach your goal.</p>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="addPhase()">
+                                    <i class="bi bi-plus-lg"></i> Add Phase
+                                </button>
+                            </div>
+                            <div id="phasesContainer">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-layers" style="font-size:2rem;"></i>
+                                    <p class="mt-2">No phases defined yet. Click "Add Phase" to create your first allocation phase.</p>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div class="row mb-2">
-                        <div class="col">
-                            <label class="form-label small">Equity %</label>
-                            <input type="number" class="form-control" id="goalEquity" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+                        <!-- TAB 3: SIP Calculator -->
+                        <div class="tab-pane fade" id="pane-sip" role="tabpanel">
+                            <div class="row">
+                                <!-- Inputs -->
+                                <div class="col-md-6">
+                                    <h6 class="mb-3"><i class="bi bi-sliders"></i> Parameters</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label small">Target Corpus</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">&#8377;</span>
+                                            <input type="number" class="form-control" id="sipTarget" onchange="updateSipCalc()" oninput="updateSipCalc()">
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">Current Corpus</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">&#8377;</span>
+                                            <input type="number" class="form-control" id="sipCurrent" onchange="updateSipCalc()" oninput="updateSipCalc()">
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">Expected Blended Return (%)</label>
+                                        <input type="number" class="form-control form-control-sm" id="sipReturn" value="12" step="0.5" min="1" max="30" onchange="updateSipCalc()" oninput="updateSipCalc()">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">Investment Horizon (years)</label>
+                                        <input type="number" class="form-control form-control-sm" id="sipYears" step="0.5" min="0.5" max="50" onchange="updateSipCalc()" oninput="updateSipCalc()">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">Annual SIP Step-Up (%)</label>
+                                        <input type="number" class="form-control form-control-sm" id="sipStepUp" value="10" step="1" min="0" max="50" onchange="updateSipCalc()" oninput="updateSipCalc()">
+                                    </div>
+                                </div>
+
+                                <!-- Results -->
+                                <div class="col-md-6">
+                                    <h6 class="mb-3"><i class="bi bi-graph-up-arrow"></i> Results</h6>
+                                    <div class="sip-result-card p-3">
+                                        <table class="table table-sm table-borderless mb-0">
+                                            <tr>
+                                                <td class="text-muted">Future Value of Current Corpus</td>
+                                                <td class="text-end fw-bold mask-amount" id="sipFvCurrent">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="text-muted">Remaining Target</td>
+                                                <td class="text-end fw-bold mask-amount" id="sipRemaining">-</td>
+                                            </tr>
+                                            <tr class="border-top">
+                                                <td class="text-muted">Required Monthly SIP (Flat)</td>
+                                                <td class="text-end sip-result text-primary mask-amount" id="sipFlat">-</td>
+                                            </tr>
+                                            <tr class="border-top">
+                                                <td class="text-muted">Starting SIP with Step-Up</td>
+                                                <td class="text-end sip-result text-success mask-amount" id="sipStepUpResult">-</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <p class="text-muted small mt-2">
+                                        <i class="bi bi-info-circle"></i>
+                                        Flat SIP = same amount every month. Step-Up SIP = starts lower but increases annually, making it easier to begin.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col">
-                            <label class="form-label small">Debt %</label>
-                            <input type="number" class="form-control" id="goalDebt" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+
+                        <!-- TAB: Analysis & Performance -->
+                        <div class="tab-pane fade" id="pane-analysis" role="tabpanel">
+                            <div id="analysisContent">
+                                <p class="text-muted">Save the goal and link investments to see analysis.</p>
+                            </div>
                         </div>
-                        <div class="col">
-                            <label class="form-label small">Commodity %</label>
-                            <input type="number" class="form-control" id="goalCommodity" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
+
+                        <!-- TAB 4: Review Log -->
+                        <div class="tab-pane fade" id="pane-log" role="tabpanel">
+                            <!-- Add New Note Form -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-white py-2">
+                                    <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Note</h6>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row mb-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Type</label>
+                                            <select class="form-select form-select-sm" id="newNoteType">
+                                                <option value="thought">Thought</option>
+                                                <option value="decision">Decision</option>
+                                                <option value="milestone">Milestone</option>
+                                                <option value="review">Review</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Mood</label>
+                                            <select class="form-select form-select-sm" id="newNoteMood">
+                                                <option value="">-- Select --</option>
+                                                <option value="optimistic">Optimistic</option>
+                                                <option value="confident">Confident</option>
+                                                <option value="neutral">Neutral</option>
+                                                <option value="cautious">Cautious</option>
+                                                <option value="worried">Worried</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small">Title (Optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="newNoteTitle" placeholder="Brief title">
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <textarea class="form-control form-control-sm" id="newNoteContent" rows="2" placeholder="What are you thinking about this goal?"></textarea>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" onclick="saveNote()">
+                                        <i class="bi bi-save"></i> Save Note
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Notes List -->
+                            <div id="modalNotesList">
+                                <p class="text-muted">No notes yet</p>
+                            </div>
                         </div>
-                        <div class="col">
-                            <label class="form-label small">Cash %</label>
-                            <input type="number" class="form-control" id="goalCash" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
-                        </div>
-                        <div class="col">
-                            <label class="form-label small">Others %</label>
-                            <input type="number" class="form-control" id="goalOthers" min="0" max="100" step="1" value="0" onchange="updateGoalAllocTotal()">
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span id="goalAllocTotal" class="badge bg-secondary">Total: 0%</span>
-                        <span id="goalAllocError" class="text-danger small" style="display:none;">Must sum to 100%</span>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveGoalBtn" onclick="saveGoal()">
-                        <i class="bi bi-check-lg"></i> Save Goal
+                    <button type="button" class="btn btn-danger me-auto" id="btnDeleteGoal" onclick="deleteGoalFromModal()" style="display:none;">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveGoal" onclick="saveGoalAndPhases()">
+                        <i class="bi bi-check-lg"></i> Save
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Link Folios Modal -->
+    <!-- Link Folios Modal (separate, opens on top of goal modal) -->
     <div class="modal fade" id="linkModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -293,21 +583,13 @@
                 <div class="modal-body">
                     <input type="hidden" id="linkGoalId">
                     <h6 id="linkGoalName">-</h6>
-
-                    <!-- Currently Linked -->
                     <div class="mb-4">
                         <h6 class="text-muted"><i class="bi bi-check-circle"></i> Currently Linked</h6>
-                        <div id="linkedFolios">
-                            <p class="text-muted">No assets linked yet</p>
-                        </div>
+                        <div id="linkedFolios"><p class="text-muted">No assets linked yet</p></div>
                     </div>
-
-                    <!-- Available to Link -->
                     <div>
                         <h6 class="text-muted"><i class="bi bi-plus-circle"></i> Available to Link</h6>
-                        <div id="availableFolios">
-                            <p class="text-muted">Loading...</p>
-                        </div>
+                        <div id="availableFolios"><p class="text-muted">Loading...</p></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -317,165 +599,7 @@
         </div>
     </div>
 
-    <!-- Goal Detail Modal -->
-    <div class="modal fade" id="detailModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="detailGoalName">Goal Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <!-- Progress Section -->
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-white">
-                                    <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Progress</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row text-center mb-3">
-                                        <div class="col">
-                                            <h4 class="text-primary mask-amount" id="detailCurrentValue">-</h4>
-                                            <small class="text-muted">Current Value</small>
-                                        </div>
-                                        <div class="col">
-                                            <h4 class="text-secondary mask-amount" id="detailTargetAmount">-</h4>
-                                            <small class="text-muted">Target</small>
-                                        </div>
-                                        <div class="col">
-                                            <h4 id="detailProgress">-</h4>
-                                            <small class="text-muted">Progress</small>
-                                        </div>
-                                    </div>
-                                    <div class="progress progress-thick">
-                                        <div class="progress-bar" id="detailProgressBar" role="progressbar" style="width: 0%"></div>
-                                    </div>
-                                    <p class="text-muted small mt-2" id="detailTargetDate"></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Allocation Comparison -->
-                        <div class="col-md-6">
-                            <div class="card mb-3">
-                                <div class="card-header bg-white">
-                                    <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Allocation Comparison</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="alloc-comparison">
-                                        <div class="alloc-column">
-                                            <strong>Target</strong>
-                                            <div id="targetAllocBars"></div>
-                                        </div>
-                                        <div class="alloc-column">
-                                            <strong>Actual</strong>
-                                            <div id="actualAllocBars"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Linked Assets Table -->
-                    <div class="card">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0"><i class="bi bi-briefcase"></i> Linked Assets</h6>
-                            <span class="badge bg-primary" id="detailLinkedCount">0 assets</span>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Scheme</th>
-                                        <th>Folio</th>
-                                        <th class="text-end">Units</th>
-                                        <th class="text-end">NAV</th>
-                                        <th class="text-end">Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="detailLinkedTable">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Goal Notes Modal -->
-    <div class="modal fade" id="notesModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-journal-text"></i> Goal Notes & Journal</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="notesGoalId">
-                    <h6 id="notesGoalName" class="text-muted mb-3">-</h6>
-
-                    <!-- Add New Note Form -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-white">
-                            <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add New Note</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label class="form-label small">Note Type</label>
-                                    <select class="form-select form-select-sm" id="newNoteType">
-                                        <option value="thought">Thought</option>
-                                        <option value="decision">Decision</option>
-                                        <option value="milestone">Milestone</option>
-                                        <option value="review">Review</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small">Mood (Optional)</label>
-                                    <select class="form-select form-select-sm" id="newNoteMood">
-                                        <option value="">-- Select --</option>
-                                        <option value="optimistic">Optimistic</option>
-                                        <option value="confident">Confident</option>
-                                        <option value="neutral">Neutral</option>
-                                        <option value="cautious">Cautious</option>
-                                        <option value="worried">Worried</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small">Title (Optional)</label>
-                                <input type="text" class="form-control form-control-sm" id="newNoteTitle" placeholder="Brief title for this note">
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small">Content <span class="text-danger">*</span></label>
-                                <textarea class="form-control" id="newNoteContent" rows="3" placeholder="What are you thinking about this goal? Any decisions made? Market observations?"></textarea>
-                            </div>
-                            <button class="btn btn-primary btn-sm" onclick="saveNote()">
-                                <i class="bi bi-save"></i> Save Note
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Notes List -->
-                    <h6 class="text-muted"><i class="bi bi-clock-history"></i> Previous Notes</h6>
-                    <div id="notesList">
-                        <p class="text-muted">No notes yet</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Note Modal -->
+    <!-- Edit Note Modal (opens on top of goal modal) -->
     <div class="modal fade" id="editNoteModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -527,21 +651,23 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Mask amounts functionality
-        function isMaskEnabled() {
-            return localStorage.getItem('maskAmounts') === 'true';
-        }
+        // ==================== Constants & State ====================
+        const investorId = {{ investor.id }};
+        let allGoals = [];
+        let currentGoalId = null;
+        let currentGoalData = null;
+        let phasesData = [];
+        let goalTabModalInstance, linkModalInstance, editNoteModalInstance;
 
+        // ==================== Mask Amounts ====================
+        function isMaskEnabled() { return localStorage.getItem('maskAmounts') === 'true'; }
         function toggleMask() {
-            const currentState = isMaskEnabled();
-            localStorage.setItem('maskAmounts', !currentState);
+            localStorage.setItem('maskAmounts', !isMaskEnabled());
             applyMask();
         }
-
         function applyMask() {
             const masked = isMaskEnabled();
             const icon = document.getElementById('maskIcon');
-
             if (masked) {
                 document.body.classList.add('mask-amounts');
                 if (icon) icon.className = 'bi bi-eye-slash';
@@ -550,101 +676,64 @@
                 if (icon) icon.className = 'bi bi-eye';
             }
         }
-
-        // Apply mask on page load
         applyMask();
 
-        const investorId = {{ investor.id }};
-        let allGoals = [];
-        let goalModal, linkModal, detailModal, notesModal, editNoteModal;
-        let currentView = 'goals';
-
-        // Check if user has dismissed the guide
+        // ==================== Guide ====================
         function checkGuideVisibility() {
-            const dismissed = localStorage.getItem('goalsGuideDismissed');
-            if (dismissed === 'true') {
+            if (localStorage.getItem('goalsGuideDismissed') === 'true')
                 document.getElementById('userGuide').style.display = 'none';
-            }
         }
-
         function hideGuide() {
             localStorage.setItem('goalsGuideDismissed', 'true');
             document.getElementById('userGuide').style.display = 'none';
         }
-
-        // Call on page load
         checkGuideVisibility();
 
+        // ==================== Load & Display Goals ====================
         async function loadGoals() {
             try {
                 const res = await fetch(`/api/investors/${investorId}/goals`);
                 allGoals = await res.json();
                 displayGoals();
             } catch (error) {
-                console.error('Failed to load goals:', error);
-                document.getElementById('goalsList').innerHTML = `
-                    <div class="alert alert-danger">Failed to load goals: ${error.message}</div>
-                `;
+                document.getElementById('goalsList').innerHTML =
+                    `<div class="alert alert-danger">Failed to load goals: ${error.message}</div>`;
             }
         }
 
         function displayGoals() {
             const container = document.getElementById('goalsList');
-
             if (allGoals.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-5">
                         <i class="bi bi-flag" style="font-size:4rem;color:#ccc;"></i>
                         <h5 class="mt-3 text-muted">No Goals Yet</h5>
                         <p class="text-muted">Create your first investment goal to start tracking progress</p>
-                        <button class="btn btn-primary" onclick="openCreateModal()">
+                        <button class="btn btn-primary" onclick="openGoalModal(null)">
                             <i class="bi bi-plus-lg"></i> Create Goal
                         </button>
-                    </div>
-                `;
+                    </div>`;
                 return;
             }
-
             container.innerHTML = allGoals.map(g => renderGoalCard(g)).join('');
         }
 
         function renderGoalCard(goal) {
             const progress = goal.target_amount > 0
-                ? Math.min(100, (goal.current_value / goal.target_amount * 100))
-                : 0;
+                ? Math.min(100, (goal.current_value / goal.target_amount * 100)) : 0;
             const progressClass = progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning');
-
-            const targetDate = goal.target_date
-                ? `Target: ${goal.target_date}`
-                : '';
+            const targetDate = goal.target_date ? `Target: ${goal.target_date}` : '';
 
             return `
-            <div class="card goal-card shadow-sm mb-3">
+            <div class="card goal-card shadow-sm mb-3" onclick="openGoalModal(${goal.id})">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h5 class="mb-1">${goal.name}</h5>
                             <p class="text-muted small mb-0">${goal.description || ''} ${targetDate}</p>
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="openDetailModal(${goal.id})" title="View Details">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-info" onclick="openNotesModal(${goal.id})" title="Notes & Journal">
-                                <i class="bi bi-journal-text"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="openLinkModal(${goal.id})" title="Manage Assets">
-                                <i class="bi bi-link"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="openEditModal(${goal.id})" title="Edit">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteGoal(${goal.id})" title="Delete">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
+                        <span class="badge bg-secondary">${goal.linked_count} linked</span>
                     </div>
-
                     <div class="row mb-2">
                         <div class="col-md-4">
                             <small class="text-muted">Current Value</small>
@@ -655,180 +744,1638 @@
                             <h4 class="text-secondary mb-0 mask-amount">${formatCurrency(goal.target_amount)}</h4>
                         </div>
                         <div class="col-md-4">
-                            <small class="text-muted">Linked Assets</small>
-                            <h4 class="mb-0">${goal.linked_count}</h4>
+                            <small class="text-muted">Progress</small>
+                            <h4 class="mb-0">${progress.toFixed(0)}%</h4>
                         </div>
                     </div>
-
                     <div class="progress progress-thick mb-2">
                         <div class="progress-bar ${progressClass}" role="progressbar"
-                             style="width: ${progress}%"
-                             aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                             style="width: ${progress}%" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
                             ${progress.toFixed(0)}%
                         </div>
                     </div>
-
                     <div class="d-flex justify-content-between small">
-                        <span>
-                            ${renderMiniAllocation('Target', goal.target_equity_pct, goal.target_debt_pct, goal.target_commodity_pct)}
-                        </span>
-                        <span>
-                            ${renderMiniAllocation('Actual', goal.actual_allocation_pct?.equity || 0, goal.actual_allocation_pct?.debt || 0, goal.actual_allocation_pct?.commodity || 0)}
-                        </span>
+                        <span>${renderMiniAllocation('Target', goal.target_equity_pct, goal.target_debt_pct, goal.target_commodity_pct)}</span>
+                        <span>${renderMiniAllocation('Actual', goal.actual_allocation_pct?.equity || 0, goal.actual_allocation_pct?.debt || 0, goal.actual_allocation_pct?.commodity || 0)}</span>
                     </div>
                 </div>
-            </div>
-            `;
+            </div>`;
         }
 
         function renderMiniAllocation(label, equity, debt, commodity) {
             if (equity === 0 && debt === 0 && commodity === 0) return '';
-            return `
-                <span class="text-muted">${label}:</span>
+            return `<span class="text-muted">${label}:</span>
                 <span class="badge badge-equity">E:${equity.toFixed(0)}%</span>
                 <span class="badge badge-debt">D:${debt.toFixed(0)}%</span>
-                ${commodity > 0 ? `<span class="badge badge-commodity">C:${commodity.toFixed(0)}%</span>` : ''}
-            `;
+                ${commodity > 0 ? `<span class="badge badge-commodity">C:${commodity.toFixed(0)}%</span>` : ''}`;
         }
 
-        function openCreateModal() {
-            document.getElementById('goalModalTitle').textContent = 'Create New Goal';
-            document.getElementById('editGoalId').value = '';
-            document.getElementById('goalName').value = '';
-            document.getElementById('goalDescription').value = '';
-            document.getElementById('goalTargetAmount').value = '';
-            document.getElementById('goalTargetDate').value = '';
-            document.getElementById('goalEquity').value = 0;
-            document.getElementById('goalDebt').value = 0;
-            document.getElementById('goalCommodity').value = 0;
-            document.getElementById('goalCash').value = 0;
-            document.getElementById('goalOthers').value = 0;
-            updateGoalAllocTotal();
+        // ==================== MAIN GOAL MODAL ====================
 
-            goalModal = new bootstrap.Modal(document.getElementById('goalModal'));
-            goalModal.show();
+        async function openGoalModal(goalId) {
+            currentGoalId = goalId;
+            currentGoalData = null;
+            phasesData = [];
+
+            // Reset to first tab
+            const firstTab = document.getElementById('tab-details');
+            bootstrap.Tab.getOrCreateInstance(firstTab).show();
+
+            if (goalId) {
+                // Existing goal — load data
+                document.getElementById('goalTabName').textContent = 'Loading...';
+                document.getElementById('btnDeleteGoal').style.display = 'inline-block';
+                document.getElementById('detailProgressSection').style.display = 'block';
+                document.getElementById('detailLinkedSection').style.display = 'block';
+
+                try {
+                    const [goalRes, phasesRes] = await Promise.all([
+                        fetch(`/api/goals/${goalId}`),
+                        fetch(`/api/goals/${goalId}/phases`)
+                    ]);
+                    currentGoalData = await goalRes.json();
+                    phasesData = await phasesRes.json();
+
+                    populateDetailsTab(currentGoalData);
+                    renderPhases();
+                    populateSipTab(currentGoalData);
+                    populateAnalysisTab(currentGoalData, phasesData);
+                    loadModalNotes(goalId);
+                } catch (error) {
+                    alert('Failed to load goal: ' + error.message);
+                    return;
+                }
+            } else {
+                // New goal
+                document.getElementById('goalTabName').textContent = 'New Goal';
+                document.getElementById('modalGoalId').value = '';
+                document.getElementById('btnDeleteGoal').style.display = 'none';
+                document.getElementById('detailProgressSection').style.display = 'none';
+                document.getElementById('detailLinkedSection').style.display = 'none';
+
+                // Clear form
+                document.getElementById('goalName').value = '';
+                document.getElementById('goalDescription').value = '';
+                document.getElementById('goalTargetAmount').value = '';
+                document.getElementById('goalTargetDate').value = '';
+
+                phasesData = [];
+                renderPhases();
+                clearSipCalc();
+                document.getElementById('analysisContent').innerHTML = '<p class="text-muted">Save the goal and link investments to see analysis.</p>';
+                document.getElementById('modalNotesList').innerHTML = '<p class="text-muted">Save the goal first to add notes.</p>';
+            }
+
+            goalTabModalInstance = new bootstrap.Modal(document.getElementById('goalTabModal'));
+            goalTabModalInstance.show();
         }
 
-        function openEditModal(goalId) {
-            const goal = allGoals.find(g => g.id === goalId);
-            if (!goal) return;
-
-            document.getElementById('goalModalTitle').textContent = 'Edit Goal';
-            document.getElementById('editGoalId').value = goal.id;
+        function populateDetailsTab(goal) {
+            document.getElementById('goalTabName').textContent = goal.name;
+            document.getElementById('modalGoalId').value = goal.id;
             document.getElementById('goalName').value = goal.name;
             document.getElementById('goalDescription').value = goal.description || '';
             document.getElementById('goalTargetAmount').value = goal.target_amount || '';
             document.getElementById('goalTargetDate').value = goal.target_date || '';
-            document.getElementById('goalEquity').value = goal.target_equity_pct || 0;
-            document.getElementById('goalDebt').value = goal.target_debt_pct || 0;
-            document.getElementById('goalCommodity').value = goal.target_commodity_pct || 0;
-            document.getElementById('goalCash').value = goal.target_cash_pct || 0;
-            document.getElementById('goalOthers').value = goal.target_others_pct || 0;
-            updateGoalAllocTotal();
 
-            goalModal = new bootstrap.Modal(document.getElementById('goalModal'));
-            goalModal.show();
-        }
+            // Progress
+            const progress = goal.target_amount > 0
+                ? Math.min(100, (goal.current_value / goal.target_amount * 100)) : 0;
+            document.getElementById('dtlCurrentVal').textContent = formatCurrency(goal.current_value);
+            document.getElementById('dtlTargetVal').textContent = formatCurrency(goal.target_amount);
+            document.getElementById('dtlProgress').textContent = progress.toFixed(1) + '%';
+            document.getElementById('dtlProgress').className = progress >= 100 ? 'text-success' : 'text-primary';
 
-        function updateGoalAllocTotal() {
-            const equity = parseFloat(document.getElementById('goalEquity').value) || 0;
-            const debt = parseFloat(document.getElementById('goalDebt').value) || 0;
-            const commodity = parseFloat(document.getElementById('goalCommodity').value) || 0;
-            const cash = parseFloat(document.getElementById('goalCash').value) || 0;
-            const others = parseFloat(document.getElementById('goalOthers').value) || 0;
+            const bar = document.getElementById('dtlProgressBar');
+            bar.style.width = progress + '%';
+            bar.className = 'progress-bar ' + (progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning'));
 
-            const total = equity + debt + commodity + cash + others;
-            const totalEl = document.getElementById('goalAllocTotal');
-            const errorEl = document.getElementById('goalAllocError');
-
-            totalEl.textContent = `Total: ${total}%`;
-
-            if (total === 0 || total === 100) {
-                totalEl.classList.remove('bg-danger');
-                totalEl.classList.add('bg-secondary');
-                errorEl.style.display = 'none';
+            // Linked assets
+            const linkedList = document.getElementById('dtlLinkedList');
+            if (goal.linked_folios && goal.linked_folios.length > 0) {
+                linkedList.innerHTML = `<table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>Scheme</th><th>Folio</th><th class="text-end">Value</th></tr></thead>
+                    <tbody>${goal.linked_folios.map(f => `
+                        <tr>
+                            <td>${f.scheme_name}</td>
+                            <td><code>${f.folio_number}</code></td>
+                            <td class="text-end mask-amount">${formatCurrency(f.value || 0)}</td>
+                        </tr>`).join('')}
+                    </tbody></table>`;
             } else {
-                totalEl.classList.remove('bg-secondary');
-                totalEl.classList.add('bg-danger');
-                errorEl.style.display = 'inline';
+                linkedList.innerHTML = '<p class="text-muted small">No assets linked. Click "Manage" to link investments.</p>';
             }
         }
 
-        async function saveGoal() {
-            const goalId = document.getElementById('editGoalId').value;
-            const name = document.getElementById('goalName').value.trim();
+        // ==================== PHASES TAB ====================
 
-            if (!name) {
-                alert('Goal name is required');
+        function renderPhases() {
+            const container = document.getElementById('phasesContainer');
+            if (phasesData.length === 0) {
+                container.innerHTML = `<div class="text-center text-muted py-4">
+                    <i class="bi bi-layers" style="font-size:2rem;"></i>
+                    <p class="mt-2">No phases defined yet. Click "Add Phase" to create your first allocation phase.</p>
+                </div>`;
                 return;
             }
 
-            const data = {
-                name: name,
+            container.innerHTML = phasesData.map((phase, idx) => renderPhaseCard(phase, idx)).join('');
+        }
+
+        function renderPhaseCard(phase, idx) {
+            const sub = phase.equity_sub || {};
+            const subTotal = (parseFloat(sub.india_large_cap_pct) || 0) + (parseFloat(sub.india_mid_small_pct) || 0) +
+                (parseFloat(sub.india_flexi_pct) || 0) + (parseFloat(sub.intl_us_global_pct) || 0) +
+                (parseFloat(sub.intl_emerging_pct) || 0) + (parseFloat(sub.sectoral_thematic_pct) || 0);
+            const indiaTotal = (parseFloat(sub.india_large_cap_pct) || 0) + (parseFloat(sub.india_mid_small_pct) || 0) +
+                (parseFloat(sub.india_flexi_pct) || 0);
+            const intlTotal = (parseFloat(sub.intl_us_global_pct) || 0) + (parseFloat(sub.intl_emerging_pct) || 0) +
+                (parseFloat(sub.sectoral_thematic_pct) || 0);
+
+            const allocTotal = (parseFloat(phase.equity_pct) || 0) + (parseFloat(phase.debt_pct) || 0) + (parseFloat(phase.commodity_pct) || 0);
+            const allocBadge = allocTotal === 100 ? 'bg-success' : (allocTotal === 0 ? 'bg-secondary' : 'bg-danger');
+            const subBadge = subTotal === 100 ? 'bg-success' : (subTotal === 0 ? 'bg-secondary' : 'bg-danger');
+
+            return `
+            <div class="phase-card" data-phase-idx="${idx}">
+                <div class="phase-header">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1">
+                        <input type="text" class="form-control form-control-sm" style="max-width:200px;"
+                               value="${phase.phase_name || ''}" onchange="phasesData[${idx}].phase_name=this.value"
+                               placeholder="Phase name">
+                        <input type="date" class="form-control form-control-sm" style="max-width:160px;"
+                               value="${phase.start_date || ''}" onchange="phasesData[${idx}].start_date=this.value"
+                               title="Start date">
+                        <span class="text-muted">to</span>
+                        <input type="date" class="form-control form-control-sm" style="max-width:160px;"
+                               value="${phase.end_date || ''}" onchange="phasesData[${idx}].end_date=this.value"
+                               title="End date">
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="removePhase(${idx})" title="Remove phase">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+
+                <!-- Asset Allocation -->
+                <div class="row mb-2">
+                    <div class="col-auto">
+                        <label class="form-label small mb-0">Equity %</label>
+                        <input type="number" class="form-control form-control-sm" style="width:80px;" min="0" max="100"
+                               value="${phase.equity_pct || 0}" onchange="updatePhaseAlloc(${idx})" data-field="equity_pct">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label small mb-0">Debt %</label>
+                        <input type="number" class="form-control form-control-sm" style="width:80px;" min="0" max="100"
+                               value="${phase.debt_pct || 0}" onchange="updatePhaseAlloc(${idx})" data-field="debt_pct">
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label small mb-0">Commodity %</label>
+                        <input type="number" class="form-control form-control-sm" style="width:80px;" min="0" max="100"
+                               value="${phase.commodity_pct || 0}" onchange="updatePhaseAlloc(${idx})" data-field="commodity_pct">
+                    </div>
+                    <div class="col-auto d-flex align-items-end">
+                        <span class="badge alloc-total-badge ${allocBadge}" id="allocTotal_${idx}">${allocTotal}%</span>
+                    </div>
+                </div>
+
+                <!-- Equity Sub-Allocation (collapsible) -->
+                <div class="mt-2">
+                    <a class="small text-decoration-none" data-bs-toggle="collapse" href="#eqSub_${idx}">
+                        <i class="bi bi-chevron-down"></i> Equity Sub-Allocation
+                        <span class="badge ${subBadge} ms-1" id="subTotal_${idx}">${subTotal}%</span>
+                    </a>
+                    <div class="collapse ${subTotal > 0 ? 'show' : ''}" id="eqSub_${idx}">
+                        <table class="equity-sub-table table table-sm mt-2 mb-0">
+                            <tbody>
+                                ${renderSubRow('India Large Cap', 'india_large_cap_pct', idx, sub)}
+                                ${renderSubRow('India Mid/Small Cap', 'india_mid_small_pct', idx, sub)}
+                                ${renderSubRow('India Flexi Cap', 'india_flexi_pct', idx, sub)}
+                                ${renderSubRow('International (US/Global)', 'intl_us_global_pct', idx, sub)}
+                                ${renderSubRow('International (Emerging)', 'intl_emerging_pct', idx, sub)}
+                                ${renderSubRow('Sectoral/Thematic', 'sectoral_thematic_pct', idx, sub)}
+                                <tr class="total-row">
+                                    <td><strong>TOTAL EQUITY WITHIN</strong></td>
+                                    <td class="text-end"><strong id="subTotalVal_${idx}">${subTotal.toFixed(0)}%</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">India Equity Total</td>
+                                    <td class="text-end" id="indiaTotal_${idx}">${indiaTotal.toFixed(0)}%</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">International Equity Total</td>
+                                    <td class="text-end" id="intlTotal_${idx}">${intlTotal.toFixed(0)}%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderSubRow(label, field, phaseIdx, sub) {
+            return `<tr>
+                <td>${label}</td>
+                <td class="text-end">
+                    <input type="number" class="form-control form-control-sm" style="width:80px;display:inline-block;"
+                           min="0" max="100" value="${sub[field] || 0}"
+                           onchange="updateEquitySub(${phaseIdx}, '${field}', this.value)">
+                </td>
+            </tr>`;
+        }
+
+        function addPhase() {
+            phasesData.push({
+                phase_name: `Phase ${phasesData.length + 1}`,
+                start_date: '', end_date: '',
+                equity_pct: 0, debt_pct: 0, commodity_pct: 0,
+                equity_sub: {
+                    india_large_cap_pct: 0, india_mid_small_pct: 0, india_flexi_pct: 0,
+                    intl_us_global_pct: 0, intl_emerging_pct: 0, sectoral_thematic_pct: 0
+                }
+            });
+            renderPhases();
+        }
+
+        function removePhase(idx) {
+            phasesData.splice(idx, 1);
+            renderPhases();
+        }
+
+        function updatePhaseAlloc(idx) {
+            const card = document.querySelector(`[data-phase-idx="${idx}"]`);
+            const inputs = card.querySelectorAll('[data-field]');
+            inputs.forEach(inp => {
+                phasesData[idx][inp.dataset.field] = parseFloat(inp.value) || 0;
+            });
+            renderPhases();
+        }
+
+        function updateEquitySub(phaseIdx, field, value) {
+            if (!phasesData[phaseIdx].equity_sub) phasesData[phaseIdx].equity_sub = {};
+            phasesData[phaseIdx].equity_sub[field] = parseFloat(value) || 0;
+
+            // Recalculate totals
+            const sub = phasesData[phaseIdx].equity_sub;
+            const india = (sub.india_large_cap_pct || 0) + (sub.india_mid_small_pct || 0) + (sub.india_flexi_pct || 0);
+            const intl = (sub.intl_us_global_pct || 0) + (sub.intl_emerging_pct || 0) + (sub.sectoral_thematic_pct || 0);
+            const total = india + intl;
+
+            const totalEl = document.getElementById(`subTotalVal_${phaseIdx}`);
+            const badgeEl = document.getElementById(`subTotal_${phaseIdx}`);
+            if (totalEl) totalEl.textContent = total.toFixed(0) + '%';
+            if (badgeEl) {
+                badgeEl.textContent = total.toFixed(0) + '%';
+                badgeEl.className = 'badge ms-1 ' + (total === 100 ? 'bg-success' : (total === 0 ? 'bg-secondary' : 'bg-danger'));
+            }
+            const indiaEl = document.getElementById(`indiaTotal_${phaseIdx}`);
+            const intlEl = document.getElementById(`intlTotal_${phaseIdx}`);
+            if (indiaEl) indiaEl.textContent = india.toFixed(0) + '%';
+            if (intlEl) intlEl.textContent = intl.toFixed(0) + '%';
+        }
+
+        // ==================== SIP CALCULATOR ====================
+
+        function populateSipTab(goal) {
+            document.getElementById('sipTarget').value = goal.target_amount || 0;
+            document.getElementById('sipCurrent').value = goal.current_value || 0;
+
+            if (goal.target_date) {
+                const now = new Date();
+                const target = new Date(goal.target_date);
+                const years = Math.max(0.5, (target - now) / (365.25 * 24 * 60 * 60 * 1000));
+                document.getElementById('sipYears').value = years.toFixed(1);
+            } else {
+                document.getElementById('sipYears').value = '';
+            }
+            updateSipCalc();
+        }
+
+        function clearSipCalc() {
+            document.getElementById('sipTarget').value = '';
+            document.getElementById('sipCurrent').value = '';
+            document.getElementById('sipYears').value = '';
+            document.getElementById('sipReturn').value = 12;
+            document.getElementById('sipStepUp').value = 10;
+            document.getElementById('sipFvCurrent').textContent = '-';
+            document.getElementById('sipRemaining').textContent = '-';
+            document.getElementById('sipFlat').textContent = '-';
+            document.getElementById('sipStepUpResult').textContent = '-';
+        }
+
+        function updateSipCalc() {
+            const target = parseFloat(document.getElementById('sipTarget').value) || 0;
+            const current = parseFloat(document.getElementById('sipCurrent').value) || 0;
+            const annualReturn = parseFloat(document.getElementById('sipReturn').value) || 0;
+            const years = parseFloat(document.getElementById('sipYears').value) || 0;
+            const stepUpPct = parseFloat(document.getElementById('sipStepUp').value) || 0;
+
+            if (target <= 0 || years <= 0 || annualReturn <= 0) {
+                document.getElementById('sipFvCurrent').textContent = '-';
+                document.getElementById('sipRemaining').textContent = '-';
+                document.getElementById('sipFlat').textContent = '-';
+                document.getElementById('sipStepUpResult').textContent = '-';
+                return;
+            }
+
+            const r = annualReturn / 100;
+            const r_m = Math.pow(1 + r, 1/12) - 1;
+            const n_m = Math.round(years * 12);
+
+            // Future value of current corpus
+            const fvCurrent = current * Math.pow(1 + r, years);
+            const remaining = Math.max(0, target - fvCurrent);
+
+            document.getElementById('sipFvCurrent').textContent = formatCurrency(fvCurrent);
+            document.getElementById('sipRemaining').textContent = formatCurrency(remaining);
+
+            if (remaining <= 0) {
+                document.getElementById('sipFlat').textContent = formatCurrency(0);
+                document.getElementById('sipStepUpResult').textContent = formatCurrency(0);
+                return;
+            }
+
+            // Flat SIP: FV = PMT * [((1+r_m)^n - 1) / r_m] * (1+r_m)
+            const sipFactor = ((Math.pow(1 + r_m, n_m) - 1) / r_m) * (1 + r_m);
+            const flatSip = remaining / sipFactor;
+            document.getElementById('sipFlat').textContent = formatCurrency(flatSip);
+
+            // Step-up SIP: bisection to find starting SIP
+            const stepUpSip = solveStepUpSip(remaining, r_m, years, stepUpPct / 100);
+            document.getElementById('sipStepUpResult').textContent = formatCurrency(stepUpSip);
+        }
+
+        function solveStepUpSip(target, r_m, years, stepUpRate) {
+            // Calculate FV for a given starting monthly SIP with annual step-up
+            function calcFV(startingSip) {
+                let fv = 0;
+                const totalYears = Math.ceil(years);
+                let monthsLeft = Math.round(years * 12);
+
+                for (let yr = 0; yr < totalYears && monthsLeft > 0; yr++) {
+                    const monthlySip = startingSip * Math.pow(1 + stepUpRate, yr);
+                    const monthsThisYear = Math.min(12, monthsLeft);
+
+                    for (let m = 0; m < monthsThisYear; m++) {
+                        monthsLeft--;
+                        // Each contribution compounds for remaining months
+                        fv += monthlySip * Math.pow(1 + r_m, monthsLeft);
+                    }
+                }
+                return fv;
+            }
+
+            // Bisection method
+            let lo = 0, hi = target;
+            for (let i = 0; i < 100; i++) {
+                const mid = (lo + hi) / 2;
+                const fv = calcFV(mid);
+                if (fv < target) lo = mid;
+                else hi = mid;
+                if (Math.abs(fv - target) < 1) break;
+            }
+            return (lo + hi) / 2;
+        }
+
+        // ==================== ANALYSIS TAB ====================
+
+        let allocDetailData = null;
+        let xirrData = null;
+        let sipAnalysisState = null; // stored by populateAnalysisTab for SIP planner
+
+        async function populateAnalysisTab(goal, phases) {
+            const container = document.getElementById('analysisContent');
+
+            if (!goal || goal.current_value === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-muted">
+                    <i class="bi bi-bar-chart-line" style="font-size:2.5rem;"></i>
+                    <p class="mt-2">Link investments to this goal to see allocation drift analysis.</p>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Loading analysis...</div>';
+
+            // Fetch allocation detail and XIRR in parallel
+            try {
+                const [allocRes, xirrRes] = await Promise.all([
+                    fetch(`/api/goals/${goal.id}/allocation-detail`),
+                    fetch(`/api/goals/${goal.id}/xirr`)
+                ]);
+                allocDetailData = await allocRes.json();
+                xirrData = await xirrRes.json();
+            } catch (error) {
+                container.innerHTML = `<div class="alert alert-danger">Failed to load analysis: ${error.message}</div>`;
+                return;
+            }
+
+            const actual = goal.actual_allocation_pct || {};
+            const actualAmt = goal.actual_allocation || {};
+
+            // Determine current phase target (match by today's date)
+            let currentPhase = null;
+            const today = new Date().toISOString().slice(0, 10);
+            if (phases && phases.length > 0) {
+                currentPhase = phases.find(p => {
+                    const start = p.start_date || '0000-01-01';
+                    const end = p.end_date || '9999-12-31';
+                    return today >= start && today <= end;
+                });
+                if (!currentPhase) currentPhase = phases[0];
+            }
+
+            // Target allocation
+            const target = {
+                equity: currentPhase ? (currentPhase.equity_pct || 0) : (goal.target_equity_pct || 0),
+                debt: currentPhase ? (currentPhase.debt_pct || 0) : (goal.target_debt_pct || 0),
+                commodity: currentPhase ? (currentPhase.commodity_pct || 0) : (goal.target_commodity_pct || 0),
+                cash: currentPhase ? 0 : (goal.target_cash_pct || 0),
+                others: currentPhase ? 0 : (goal.target_others_pct || 0)
+            };
+
+            // Asset classes for drift table
+            const assetClasses = [
+                { label: 'Equity', key: 'equity', color: '#28a745', icon: 'bi-graph-up' },
+                { label: 'Debt', key: 'debt', color: '#17a2b8', icon: 'bi-shield' },
+                { label: 'Commodity', key: 'commodity', color: '#ffc107', icon: 'bi-gem' },
+                { label: 'Cash', key: 'cash', color: '#6c757d', icon: 'bi-cash-stack' },
+                { label: 'Others', key: 'others', color: '#6f42c1', icon: 'bi-three-dots' }
+            ].filter(ac => (target[ac.key] || 0) > 0 || (actual[ac.key] || 0) > 0.5);
+
+            const maxPct = Math.max(...assetClasses.map(ac => Math.max(target[ac.key] || 0, actual[ac.key] || 0)), 1);
+
+            // Drift health score
+            let totalAbsDrift = 0;
+            assetClasses.forEach(ac => totalAbsDrift += Math.abs((actual[ac.key] || 0) - (target[ac.key] || 0)));
+            const driftScore = totalAbsDrift / 2;
+
+            let driftHealthLabel, driftHealthClass, driftHealthIcon;
+            if (driftScore <= 5) {
+                driftHealthLabel = 'Well Aligned'; driftHealthClass = 'aligned'; driftHealthIcon = 'bi-check-circle-fill';
+            } else if (driftScore <= 15) {
+                driftHealthLabel = 'Minor Drift'; driftHealthClass = 'underweight'; driftHealthIcon = 'bi-exclamation-triangle-fill';
+            } else {
+                driftHealthLabel = 'Significant Drift'; driftHealthClass = 'overweight'; driftHealthIcon = 'bi-exclamation-octagon-fill';
+            }
+
+            // Phase indicator
+            let phaseHtml = '';
+            if (currentPhase) {
+                phaseHtml = `<div class="phase-indicator mb-3">
+                    <i class="bi bi-clock-history"></i>
+                    <strong>Current Phase:</strong> ${currentPhase.phase_name}
+                    ${currentPhase.start_date ? `<span class="text-muted ms-1">(${currentPhase.start_date} to ${currentPhase.end_date || '...'})</span>` : ''}
+                </div>`;
+            }
+
+            // Build drift rows with expandable fund details
+            const driftRows = assetClasses.map(ac => {
+                const tgt = target[ac.key] || 0;
+                const act = actual[ac.key] || 0;
+                const amt = actualAmt[ac.key] || 0;
+                const drift = act - tgt;
+                const absDrift = Math.abs(drift);
+                let statusClass = absDrift <= 2 ? 'aligned' : (drift > 0 ? 'overweight' : 'underweight');
+                const tgtWidth = (tgt / maxPct) * 100;
+                const actWidth = (act / maxPct) * 100;
+
+                const acFunds = allocDetailData.asset_classes[ac.key]?.funds || [];
+                const fundRowsId = `ac_funds_${ac.key}`;
+                const hasFunds = acFunds.length > 0;
+
+                let fundRows = '';
+                if (hasFunds) {
+                    fundRows = `<tr class="collapse" id="${fundRowsId}">
+                        <td colspan="6" class="p-0">
+                            <div class="bg-light p-2">
+                                <table class="table table-sm table-borderless mb-0 small">
+                                    <thead><tr class="text-muted">
+                                        <th>Fund</th><th>Folio</th>
+                                        <th class="text-end">Fund Value</th>
+                                        <th class="text-end">${ac.label} %</th>
+                                        <th class="text-end">${ac.label} Contribution</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        ${acFunds.map(f => `<tr>
+                                            <td>${f.scheme_name}</td>
+                                            <td><code>${f.folio_number}</code></td>
+                                            <td class="text-end mask-amount">${formatCurrency(f.total_value)}</td>
+                                            <td class="text-end">${f.fund_alloc_pct.toFixed(1)}%</td>
+                                            <td class="text-end mask-amount">${formatCurrency(f.contribution)}</td>
+                                        </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>`;
+                }
+
+                return `<tr class="${hasFunds ? 'cursor-pointer' : ''}" ${hasFunds ? `data-bs-toggle="collapse" data-bs-target="#${fundRowsId}" role="button"` : ''}>
+                    <td>
+                        <i class="bi ${ac.icon}" style="color:${ac.color}"></i>
+                        <strong>${ac.label}</strong>
+                        ${hasFunds ? `<i class="bi bi-chevron-down small text-muted ms-1"></i>` : ''}
+                    </td>
+                    <td class="text-end">${tgt.toFixed(1)}%</td>
+                    <td class="text-end">${act.toFixed(1)}%</td>
+                    <td class="text-end mask-amount">${formatCurrency(amt)}</td>
+                    <td class="text-center">
+                        <span class="drift-badge ${statusClass}">${drift >= 0 ? '+' : ''}${drift.toFixed(1)}%</span>
+                    </td>
+                    <td style="width:25%;">
+                        <div class="drift-bar-container">
+                            <div class="drift-bar-target" style="width:${tgtWidth}%;" title="Target: ${tgt.toFixed(1)}%"></div>
+                            <div class="drift-bar-actual ${statusClass}" style="width:${actWidth}%;" title="Actual: ${act.toFixed(1)}%"></div>
+                        </div>
+                    </td>
+                </tr>${fundRows}`;
+            }).join('');
+
+            // Rebalance suggestions
+            const rebalanceSuggestions = assetClasses
+                .map(ac => {
+                    const tgt = target[ac.key] || 0;
+                    const act = actual[ac.key] || 0;
+                    const drift = act - tgt;
+                    if (Math.abs(drift) <= 2) return null;
+                    const diff = goal.current_value * (tgt - act) / 100;
+                    return {
+                        label: ac.label, action: diff > 0 ? 'Increase' : 'Decrease',
+                        amount: Math.abs(diff),
+                        icon: diff > 0 ? 'bi-arrow-up-circle text-success' : 'bi-arrow-down-circle text-danger'
+                    };
+                })
+                .filter(Boolean);
+
+            let rebalanceHtml = '';
+            if (rebalanceSuggestions.length > 0) {
+                rebalanceHtml = `
+                <div class="card drift-summary-card mt-3">
+                    <div class="card-header bg-white py-2">
+                        <h6 class="mb-0"><i class="bi bi-arrow-repeat"></i> Rebalance Suggestions</h6>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="text-muted small mb-2">To align at current portfolio value of <strong class="mask-amount">${formatCurrency(goal.current_value)}</strong>:</p>
+                        ${rebalanceSuggestions.map(s => `
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi ${s.icon} me-2"></i>
+                                <span>${s.action} <strong>${s.label}</strong> by <span class="mask-amount">${formatCurrency(s.amount)}</span></span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+            }
+
+            // Equity breakdown — actual market cap exposure per fund
+            const totalEquity = allocDetailData.total_equity || 0;
+            const indiaEqTotal = allocDetailData.india_equity_total || 0;
+            const intlEqTotal = allocDetailData.intl_equity_total || 0;
+            const capBreakdown = allocDetailData.cap_breakdown || {};
+            const indiaFunds = allocDetailData.india_equity_funds || [];
+            const intlFunds = allocDetailData.intl_equity_funds || [];
+            const subTargets = currentPhase?.equity_sub || {};
+            const eqPct = currentPhase ? (currentPhase.equity_pct || 0) : (goal.target_equity_pct || 0);
+            const hasSubTargets = Object.values(subTargets).some(v => (v || 0) > 0);
+            const hasEquityFunds = indiaFunds.length > 0 || intlFunds.length > 0;
+
+            // Store state for SIP planner
+            sipAnalysisState = { target, actualAmt, goal, subTargets, hasSubTargets, eqPct };
+
+            let equitySubHtml = '';
+            if (hasEquityFunds) {
+                // Build India fund table with per-fund cap breakdown
+                let indiaFundsHtml = '';
+                if (indiaFunds.length > 0) {
+                    const fundRows = indiaFunds.map(f => `<tr>
+                        <td>
+                            ${f.scheme_name}
+                            <br><small class="text-muted">Folio: ${f.folio_number}</small>
+                        </td>
+                        <td class="text-end mask-amount">${formatCurrency(f.equity_value)}</td>
+                        <td class="text-end">${f.large_cap_pct.toFixed(0)}%</td>
+                        <td class="text-end mask-amount">${formatCurrency(f.large_cap_value)}</td>
+                        <td class="text-end">${f.mid_cap_pct.toFixed(0)}%</td>
+                        <td class="text-end mask-amount">${formatCurrency(f.mid_cap_value)}</td>
+                        <td class="text-end">${f.small_cap_pct.toFixed(0)}%</td>
+                        <td class="text-end mask-amount">${formatCurrency(f.small_cap_value)}</td>
+                    </tr>`).join('');
+
+                    indiaFundsHtml = `
+                    <div class="px-3 pt-2">
+                        <a class="small text-decoration-none fw-bold" data-bs-toggle="collapse" href="#indiaFundsList" role="button">
+                            <i class="bi bi-chevron-down"></i> India Equity Funds (${indiaFunds.length})
+                            <span class="text-muted fw-normal ms-1">— click to see per-fund breakdown</span>
+                        </a>
+                    </div>
+                    <div class="collapse" id="indiaFundsList">
+                        <div class="px-3 pt-2 pb-1">
+                            <table class="table table-sm table-borderless mb-0 small">
+                                <thead><tr class="text-muted">
+                                    <th>Fund</th>
+                                    <th class="text-end">Equity Value</th>
+                                    <th class="text-end">LC %</th>
+                                    <th class="text-end">LC Amount</th>
+                                    <th class="text-end">MC %</th>
+                                    <th class="text-end">MC Amount</th>
+                                    <th class="text-end">SC %</th>
+                                    <th class="text-end">SC Amount</th>
+                                </tr></thead>
+                                <tbody>
+                                    ${fundRows}
+                                    <tr class="border-top fw-bold">
+                                        <td>Total India Equity</td>
+                                        <td class="text-end mask-amount">${formatCurrency(indiaEqTotal)}</td>
+                                        <td></td>
+                                        <td class="text-end mask-amount">${formatCurrency(capBreakdown.large_cap?.total || 0)}</td>
+                                        <td></td>
+                                        <td class="text-end mask-amount">${formatCurrency(capBreakdown.mid_cap?.total || 0)}</td>
+                                        <td></td>
+                                        <td class="text-end mask-amount">${formatCurrency(capBreakdown.small_cap?.total || 0)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                }
+
+                // Cap tier summary with targets and drift
+                const capTiers = [
+                    { key: 'large_cap', label: 'Large Cap', icon: 'bi-building', targetKey: 'india_large_cap_pct', color: '#0d6efd' },
+                    { key: 'mid_cap', label: 'Mid Cap', icon: 'bi-bar-chart-steps', targetKey: 'india_mid_small_pct', color: '#6610f2' },
+                    { key: 'small_cap', label: 'Small Cap', icon: 'bi-graph-up-arrow', targetKey: null, color: '#d63384' },
+                ];
+
+                // For targets: large_cap_pct maps to large cap, mid_small_pct we split as combined mid+small target
+                const lcTarget = subTargets.india_large_cap_pct || 0;
+                const msTarget = subTargets.india_mid_small_pct || 0;
+                // Flexi doesn't map to a specific cap tier
+                const flexiTarget = subTargets.india_flexi_pct || 0;
+
+                const lcActual = capBreakdown.large_cap?.pct_of_equity || 0;
+                const mcActual = capBreakdown.mid_cap?.pct_of_equity || 0;
+                const scActual = capBreakdown.small_cap?.pct_of_equity || 0;
+                const mcScActual = mcActual + scActual;
+
+                const capSummaryRows = `
+                    <tr class="cursor-pointer" data-bs-toggle="collapse" data-bs-target="#capFunds_large" role="button">
+                        <td>
+                            <i class="bi bi-building text-primary"></i> <strong>Large Cap</strong>
+                            <i class="bi bi-chevron-down small text-muted ms-1"></i>
+                        </td>
+                        <td class="text-end mask-amount">${formatCurrency(capBreakdown.large_cap?.total || 0)}</td>
+                        <td class="text-end">${lcActual.toFixed(1)}%</td>
+                        <td class="text-end">${hasSubTargets ? lcTarget.toFixed(1) + '%' : '-'}</td>
+                        <td class="text-center">${hasSubTargets ? renderDriftBadge(lcActual - lcTarget) : '-'}</td>
+                    </tr>
+                    <tr class="collapse" id="capFunds_large">
+                        <td colspan="5" class="p-0">
+                            <div class="bg-light p-2 small">
+                                ${renderCapFundList(capBreakdown.large_cap?.funds || [], 'large_cap')}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="cursor-pointer" data-bs-toggle="collapse" data-bs-target="#capFunds_midsmall" role="button">
+                        <td>
+                            <i class="bi bi-bar-chart-steps" style="color:#6610f2"></i> <strong>Mid + Small Cap</strong>
+                            <i class="bi bi-chevron-down small text-muted ms-1"></i>
+                        </td>
+                        <td class="text-end mask-amount">${formatCurrency((capBreakdown.mid_cap?.total || 0) + (capBreakdown.small_cap?.total || 0))}</td>
+                        <td class="text-end">${mcScActual.toFixed(1)}%</td>
+                        <td class="text-end">${hasSubTargets ? msTarget.toFixed(1) + '%' : '-'}</td>
+                        <td class="text-center">${hasSubTargets ? renderDriftBadge(mcScActual - msTarget) : '-'}</td>
+                    </tr>
+                    <tr class="collapse" id="capFunds_midsmall">
+                        <td colspan="5" class="p-0">
+                            <div class="bg-light p-2 small">
+                                <p class="fw-bold mb-1 text-muted">Mid Cap — ${formatCurrency(capBreakdown.mid_cap?.total || 0)} (${mcActual.toFixed(1)}% of equity)</p>
+                                ${renderCapFundList(capBreakdown.mid_cap?.funds || [], 'mid_cap')}
+                                <p class="fw-bold mb-1 mt-2 text-muted">Small Cap — ${formatCurrency(capBreakdown.small_cap?.total || 0)} (${scActual.toFixed(1)}% of equity)</p>
+                                ${renderCapFundList(capBreakdown.small_cap?.funds || [], 'small_cap')}
+                            </div>
+                        </td>
+                    </tr>`;
+
+                // Flexi target row (if set)
+                let flexiRow = '';
+                if (flexiTarget > 0) {
+                    flexiRow = `<tr class="table-light">
+                        <td><i class="bi bi-arrows-angle-expand text-secondary"></i> <em>Flexi/Multi Cap (target only)</em></td>
+                        <td class="text-end text-muted">—</td>
+                        <td class="text-end text-muted">—</td>
+                        <td class="text-end">${flexiTarget.toFixed(1)}%</td>
+                        <td class="text-center text-muted small">Distributed across cap tiers</td>
+                    </tr>`;
+                }
+
+                // International section
+                let intlRow = '';
+                const intlTarget = (subTargets.intl_us_global_pct || 0) + (subTargets.intl_emerging_pct || 0);
+                const intlActualPct = totalEquity > 0 ? (intlEqTotal / totalEquity * 100) : 0;
+                if (intlTarget > 0 || intlFunds.length > 0) {
+                    const intlFundDetails = intlFunds.length > 0 ?
+                        `<tr class="collapse" id="capFunds_intl">
+                            <td colspan="5" class="p-0">
+                                <div class="bg-light p-2 small">
+                                    ${renderCapFundList(intlFunds.map(f => ({...f, contribution: f.equity_value})), 'intl')}
+                                </div>
+                            </td>
+                        </tr>` : '';
+
+                    intlRow = `<tr class="${intlFunds.length ? 'cursor-pointer' : ''}" ${intlFunds.length ? 'data-bs-toggle="collapse" data-bs-target="#capFunds_intl" role="button"' : ''}>
+                        <td>
+                            <i class="bi bi-globe-americas text-info"></i> <strong>International</strong>
+                            ${intlFunds.length ? `<i class="bi bi-chevron-down small text-muted ms-1"></i>` : ''}
+                        </td>
+                        <td class="text-end mask-amount">${formatCurrency(intlEqTotal)}</td>
+                        <td class="text-end">${intlActualPct.toFixed(1)}%</td>
+                        <td class="text-end">${hasSubTargets ? intlTarget.toFixed(1) + '%' : '-'}</td>
+                        <td class="text-center">${hasSubTargets ? renderDriftBadge(intlActualPct - intlTarget) : '-'}</td>
+                    </tr>${intlFundDetails}`;
+                }
+
+                equitySubHtml = `
+                <div class="card drift-summary-card mt-3">
+                    <div class="card-header bg-white py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-diagram-3"></i> Equity Breakdown</h6>
+                            <span class="text-muted small">Total Equity: <strong class="mask-amount">${formatCurrency(totalEquity)}</strong> (${(allocDetailData.asset_classes?.equity?.pct || 0).toFixed(1)}% of portfolio)</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr class="table-light">
+                                    <th>Market Cap Tier</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Actual % of Equity</th>
+                                    <th class="text-end">Target % of Equity</th>
+                                    <th class="text-center">Drift</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${capSummaryRows}
+                                ${flexiRow}
+                                ${intlRow}
+                            </tbody>
+                        </table>
+                        ${indiaFundsHtml}
+                    </div>
+                </div>`;
+            }
+
+            // Build XIRR section
+            let xirrHtml = '';
+            if (xirrData && xirrData.funds && xirrData.funds.length > 0) {
+                const goalXirr = xirrData.goal_xirr;
+                const matureXirr = xirrData.goal_xirr_mature_only;
+                const youngCount = xirrData.young_fund_count || 0;
+
+                // XIRR color coding
+                const xirrColor = (v) => {
+                    if (v === null || v === undefined) return 'text-muted';
+                    if (v >= 15) return 'text-success';
+                    if (v >= 8) return 'text-primary';
+                    if (v >= 0) return 'text-warning';
+                    return 'text-danger';
+                };
+
+                const fundRows = xirrData.funds.map(f => {
+                    const tenureLabel = f.tenure_years < 1
+                        ? `${f.tenure_days}d`
+                        : `${f.tenure_years.toFixed(1)}y`;
+                    const xirrDisplay = f.xirr !== null ? `${f.xirr.toFixed(1)}%` : 'N/A';
+                    const rowClass = f.is_young ? 'table-warning' : '';
+
+                    return `<tr class="${rowClass}">
+                        <td>
+                            ${f.scheme_name}
+                            <br><small class="text-muted">Folio: ${f.folio_number}</small>
+                        </td>
+                        <td class="text-end mask-amount">${formatCurrency(f.current_value)}</td>
+                        <td class="text-end">${tenureLabel}${f.is_young ? ' <i class="bi bi-exclamation-triangle-fill text-warning" title="< 1 year"></i>' : ''}</td>
+                        <td class="text-end fw-bold ${xirrColor(f.xirr)}">${xirrDisplay}</td>
+                    </tr>`;
+                }).join('');
+
+                xirrHtml = `
+                <div class="card drift-summary-card mb-3">
+                    <div class="card-header bg-white py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-percent"></i> Goal XIRR</h6>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="text-center">
+                                    <div class="fw-bold fs-5 ${xirrColor(goalXirr)}">${goalXirr !== null ? goalXirr.toFixed(2) + '%' : 'N/A'}</div>
+                                    <small class="text-muted">All Funds</small>
+                                </div>
+                                ${youngCount > 0 && matureXirr !== null ? `
+                                <div class="text-center border-start ps-3">
+                                    <div class="fw-bold fs-5 ${xirrColor(matureXirr)}">${matureXirr.toFixed(2)}%</div>
+                                    <small class="text-muted">Mature Only (&ge;1yr)</small>
+                                </div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        ${youngCount > 0 ? `<p class="text-muted small px-3 pt-2 mb-2">
+                            <i class="bi bi-info-circle"></i>
+                            ${youngCount} fund${youngCount > 1 ? 's' : ''} held for less than 1 year (highlighted). XIRR for short-tenure funds can be volatile.
+                        </p>` : ''}
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr class="table-light">
+                                    <th>Fund</th>
+                                    <th class="text-end">Current Value</th>
+                                    <th class="text-end">Tenure</th>
+                                    <th class="text-end">XIRR</th>
+                                </tr>
+                            </thead>
+                            <tbody>${fundRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+            }
+
+            container.innerHTML = `
+                ${phaseHtml}
+                ${xirrHtml}
+
+                <div class="card sip-planner-card mb-3" id="sipPlannerCard">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Smart SIP Planner</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">How much do you want to invest next?</p>
+                        <div class="d-flex align-items-center gap-2 mb-0" style="max-width:400px;">
+                            <div class="input-group">
+                                <span class="input-group-text">\u20B9</span>
+                                <input type="number" class="form-control" id="sipAmountInput"
+                                    placeholder="e.g. 50000" min="0" step="1000"
+                                    oninput="debounceSipRecommendation()">
+                            </div>
+                            <button class="btn btn-primary text-nowrap" onclick="runSipRecommendation()">
+                                Recommend
+                            </button>
+                        </div>
+                        <div id="sipResultsContainer"></div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center mb-3 gap-3">
+                    <div class="drift-badge ${driftHealthClass}" style="font-size:1rem; padding:6px 16px;">
+                        <i class="bi ${driftHealthIcon}"></i> ${driftHealthLabel}
+                    </div>
+                    <span class="text-muted small">Overall drift score: ${driftScore.toFixed(1)}%</span>
+                </div>
+
+                <div class="card drift-summary-card">
+                    <div class="card-header bg-white py-2">
+                        <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> Allocation Drift</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <p class="text-muted small px-3 pt-2 mb-2"><i class="bi bi-info-circle"></i> Click any row to see contributing funds.</p>
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr class="table-light">
+                                    <th>Asset Class</th>
+                                    <th class="text-end">Target %</th>
+                                    <th class="text-end">Actual %</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-center">Drift</th>
+                                    <th>Target vs Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody>${driftRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                ${rebalanceHtml}
+                ${equitySubHtml}
+            `;
+        }
+
+        function renderDriftBadge(drift) {
+            const absDrift = Math.abs(drift);
+            const cls = absDrift <= 3 ? 'aligned' : (drift > 0 ? 'overweight' : 'underweight');
+            return `<span class="drift-badge ${cls}">${drift >= 0 ? '+' : ''}${drift.toFixed(1)}%</span>`;
+        }
+
+        function renderCapFundList(funds, capKey) {
+            if (!funds || funds.length === 0) return '<p class="text-muted mb-0">No funds</p>';
+            const capLabel = capKey === 'large_cap' ? 'LC' : capKey === 'mid_cap' ? 'MC' : capKey === 'small_cap' ? 'SC' : 'Eq';
+            const pctField = capKey === 'large_cap' ? 'large_cap_pct' : capKey === 'mid_cap' ? 'mid_cap_pct' : capKey === 'small_cap' ? 'small_cap_pct' : 'equity_pct';
+            return `<table class="table table-sm table-borderless mb-0">
+                <thead><tr class="text-muted">
+                    <th>Fund</th>
+                    <th class="text-end">Equity Value</th>
+                    <th class="text-end">${capLabel} %</th>
+                    <th class="text-end">${capLabel} Amount</th>
+                </tr></thead>
+                <tbody>
+                    ${funds.map(f => `<tr>
+                        <td>${f.scheme_name}<br><small class="text-muted">Folio: ${f.folio_number}</small></td>
+                        <td class="text-end mask-amount">${formatCurrency(f.equity_value)}</td>
+                        <td class="text-end">${(f[pctField] || 0).toFixed(1)}%</td>
+                        <td class="text-end mask-amount">${formatCurrency(f.contribution)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // ==================== SIP PLANNER ====================
+
+        let sipDebounceTimer = null;
+        function debounceSipRecommendation() {
+            clearTimeout(sipDebounceTimer);
+            sipDebounceTimer = setTimeout(runSipRecommendation, 300);
+        }
+
+        function runSipRecommendation() {
+            const input = document.getElementById('sipAmountInput');
+            const container = document.getElementById('sipResultsContainer');
+            if (!input || !container) return;
+
+            const amount = parseFloat(input.value) || 0;
+            if (amount <= 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const result = computeSipRecommendation(amount);
+            if (!result) {
+                container.innerHTML = '<p class="text-muted small mt-2">Unable to compute — link investments and set targets first.</p>';
+                return;
+            }
+            container.innerHTML = renderSipRecommendation(result, amount);
+        }
+
+        function scoreFund(fund, xirrMap) {
+            let score = 1.0;
+            const fi = xirrMap[fund.folio_id];
+            if (fi) {
+                // Performance bonus: up to 2 points
+                if (fi.xirr !== null && fi.xirr !== undefined) {
+                    score += Math.min(2, Math.max(0, fi.xirr / 10));
+                }
+                // Tenure bonus: up to 1 point
+                const tenure = fi.tenure_years || 0;
+                if (tenure >= 3) score += 1.0;
+                else if (tenure >= 1) score += 0.5;
+            }
+            return score;
+        }
+
+        function formatSubCategoryLabel(key) {
+            const labels = {
+                'india_large_cap': 'Large Cap',
+                'india_mid_small': 'Mid/Small Cap',
+                'india_flexi': 'Flexi/Multi',
+                'intl_us_global': 'Intl (US/Global)',
+                'intl_emerging': 'Intl (Emerging)',
+                'sectoral_thematic': 'Sectoral/Thematic'
+            };
+            return labels[key] || key;
+        }
+
+        function buildFundReasoning(subKey, subData, fund, xirrMap) {
+            const parts = [];
+            if (subData && subData.targetPct > 0 && subData.deficit > 0) {
+                parts.push(formatSubCategoryLabel(subKey) + ' underweight');
+            }
+            const fi = xirrMap[fund.folio_id];
+            if (fi && fi.xirr !== null && fi.xirr !== undefined) {
+                parts.push(fi.xirr.toFixed(1) + '% XIRR');
+            }
+            if (fi && fi.is_young) {
+                parts.push('< 1yr tenure');
+            }
+            return parts.join(', ') || 'Target allocation';
+        }
+
+        function buildAssetClassReasoning(acKey, acSplit, fund, xirrMap) {
+            const parts = [];
+            if (acSplit && acSplit.deficit > 0) {
+                const label = acKey.charAt(0).toUpperCase() + acKey.slice(1);
+                parts.push(label + ' underweight');
+            }
+            const fi = xirrMap[fund.folio_id];
+            if (fi && fi.xirr !== null && fi.xirr !== undefined) {
+                parts.push(fi.xirr.toFixed(1) + '% XIRR');
+            }
+            if (fi && fi.is_young) {
+                parts.push('< 1yr tenure');
+            }
+            return parts.join(', ') || 'Target allocation';
+        }
+
+        function computeSipRecommendation(sipAmount) {
+            if (!allocDetailData || !sipAnalysisState || sipAmount <= 0) return null;
+
+            const { target, actualAmt, goal, subTargets, hasSubTargets } = sipAnalysisState;
+            const currentTotal = goal.current_value || 0;
+            const newTotal = currentTotal + sipAmount;
+
+            // Step 1: Asset class split
+            const assetKeys = ['equity', 'debt', 'commodity', 'cash', 'others']
+                .filter(k => (target[k] || 0) > 0 || (actualAmt[k] || 0) > 0);
+            const assetSplit = {};
+            let totalDeficit = 0;
+
+            for (const key of assetKeys) {
+                const targetPct = target[key] || 0;
+                const currentAmt = actualAmt[key] || 0;
+                const ideal = newTotal * targetPct / 100;
+                const deficit = Math.max(0, ideal - currentAmt);
+                assetSplit[key] = { targetPct, currentAmt, deficit };
+                totalDeficit += deficit;
+            }
+
+            // Normalize deficits to sum = sipAmount
+            if (totalDeficit > 0) {
+                for (const key of assetKeys) {
+                    assetSplit[key].sipAlloc = sipAmount * assetSplit[key].deficit / totalDeficit;
+                }
+            } else {
+                // Already at/above target everywhere — distribute proportionally to targets
+                const totalTarget = assetKeys.reduce((s, k) => s + (target[k] || 0), 0);
+                for (const key of assetKeys) {
+                    assetSplit[key].sipAlloc = totalTarget > 0
+                        ? sipAmount * (target[key] || 0) / totalTarget
+                        : 0;
+                }
+            }
+
+            // Post-SIP percentages
+            for (const key of assetKeys) {
+                const newAmt = assetSplit[key].currentAmt + assetSplit[key].sipAlloc;
+                assetSplit[key].postSipPct = newTotal > 0 ? (newAmt / newTotal * 100) : 0;
+                assetSplit[key].postSipDrift = assetSplit[key].postSipPct - assetSplit[key].targetPct;
+            }
+
+            // Build XIRR map
+            const xirrMap = {};
+            if (xirrData && xirrData.funds) {
+                xirrData.funds.forEach(f => {
+                    xirrMap[f.folio_id] = { xirr: f.xirr, tenure_years: f.tenure_years, is_young: f.is_young };
+                });
+            }
+
+            const fundAllocations = [];
+            const gaps = [];
+
+            // Step 2 & 3: Equity allocation
+            const sipEquity = assetSplit.equity?.sipAlloc || 0;
+            if (sipEquity > 0) {
+                const eqSubCategories = allocDetailData.equity_sub_categories || {};
+                const subKeys = ['india_large_cap', 'india_mid_small', 'india_flexi',
+                                 'intl_us_global', 'intl_emerging', 'sectoral_thematic'];
+
+                if (hasSubTargets) {
+                    // Use sub-category deficit-based split
+                    const currentEquity = allocDetailData.total_equity || 0;
+                    const newEquity = currentEquity + sipEquity;
+                    const subSplit = {};
+                    let subTotalDeficit = 0;
+
+                    for (const key of subKeys) {
+                        const targetKey = key + '_pct';
+                        const subTargetPct = subTargets[targetKey] || 0;
+                        const currentAmt = eqSubCategories[key]?.total || 0;
+                        const ideal = newEquity * subTargetPct / 100;
+                        const deficit = Math.max(0, ideal - currentAmt);
+                        subSplit[key] = { targetPct: subTargetPct, currentAmt, deficit };
+                        subTotalDeficit += deficit;
+                    }
+
+                    // Normalize
+                    if (subTotalDeficit > 0) {
+                        for (const key of subKeys) {
+                            subSplit[key].sipAlloc = sipEquity * subSplit[key].deficit / subTotalDeficit;
+                        }
+                    } else {
+                        const totalSubTarget = subKeys.reduce((s, k) => s + subSplit[k].targetPct, 0);
+                        for (const key of subKeys) {
+                            subSplit[key].sipAlloc = totalSubTarget > 0
+                                ? sipEquity * subSplit[key].targetPct / totalSubTarget
+                                : 0;
+                        }
+                    }
+
+                    // Allocate to funds within each sub-category
+                    let unallocatedEquity = 0;
+                    for (const key of subKeys) {
+                        const subAlloc = subSplit[key]?.sipAlloc || 0;
+                        if (subAlloc <= 0) continue;
+
+                        const subFunds = eqSubCategories[key]?.funds || [];
+                        if (subFunds.length === 0) {
+                            if (subSplit[key].targetPct > 0) {
+                                gaps.push({ category: formatSubCategoryLabel(key), targetPct: subSplit[key].targetPct });
+                            }
+                            unallocatedEquity += subAlloc;
+                            continue;
+                        }
+
+                        let totalScore = 0;
+                        const scored = subFunds.map(f => {
+                            const score = scoreFund(f, xirrMap);
+                            totalScore += score;
+                            return { fund: f, score };
+                        });
+
+                        for (const { fund, score } of scored) {
+                            const amount = totalScore > 0 ? subAlloc * score / totalScore : subAlloc / scored.length;
+                            if (amount >= 1) {
+                                fundAllocations.push({
+                                    scheme_name: fund.scheme_name,
+                                    folio_number: fund.folio_number,
+                                    folio_id: fund.folio_id,
+                                    category: formatSubCategoryLabel(key),
+                                    assetClass: 'equity',
+                                    amount,
+                                    reasoning: buildFundReasoning(key, subSplit[key], fund, xirrMap)
+                                });
+                            }
+                        }
+                    }
+
+                    // Redistribute unallocated equity to existing equity funds
+                    if (unallocatedEquity > 0) {
+                        const eqFunds = fundAllocations.filter(f => f.assetClass === 'equity');
+                        const totalEqAlloc = eqFunds.reduce((s, f) => s + f.amount, 0);
+                        if (totalEqAlloc > 0) {
+                            for (const f of eqFunds) {
+                                f.amount += unallocatedEquity * f.amount / totalEqAlloc;
+                            }
+                        }
+                    }
+                } else {
+                    // No sub-targets: distribute equity SIP across all equity funds by score
+                    const allEqFunds = [
+                        ...(allocDetailData.india_equity_funds || []),
+                        ...(allocDetailData.intl_equity_funds || [])
+                    ];
+                    if (allEqFunds.length > 0) {
+                        let totalScore = 0;
+                        const scored = allEqFunds.map(f => {
+                            const score = scoreFund(f, xirrMap);
+                            totalScore += score;
+                            return { fund: f, score };
+                        });
+                        for (const { fund, score } of scored) {
+                            const amount = totalScore > 0 ? sipEquity * score / totalScore : sipEquity / scored.length;
+                            if (amount >= 1) {
+                                fundAllocations.push({
+                                    scheme_name: fund.scheme_name,
+                                    folio_number: fund.folio_number,
+                                    folio_id: fund.folio_id,
+                                    category: fund.equity_sub_category ? formatSubCategoryLabel(fund.equity_sub_category) : 'Equity',
+                                    assetClass: 'equity',
+                                    amount,
+                                    reasoning: buildAssetClassReasoning('equity', assetSplit.equity, fund, xirrMap)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Debt funds
+            const debtAlloc = assetSplit.debt?.sipAlloc || 0;
+            if (debtAlloc > 0) {
+                const debtFunds = allocDetailData.asset_classes?.debt?.funds || [];
+                if (debtFunds.length === 0) {
+                    if ((target.debt || 0) > 0) {
+                        gaps.push({ category: 'Debt', targetPct: target.debt });
+                    }
+                } else {
+                    let totalScore = 0;
+                    const scored = debtFunds.map(f => {
+                        const score = scoreFund(f, xirrMap);
+                        totalScore += score;
+                        return { fund: f, score };
+                    });
+                    for (const { fund, score } of scored) {
+                        const amount = totalScore > 0 ? debtAlloc * score / totalScore : debtAlloc / scored.length;
+                        if (amount >= 1) {
+                            fundAllocations.push({
+                                scheme_name: fund.scheme_name,
+                                folio_number: fund.folio_number,
+                                folio_id: fund.folio_id,
+                                category: 'Debt',
+                                assetClass: 'debt',
+                                amount,
+                                reasoning: buildAssetClassReasoning('debt', assetSplit.debt, fund, xirrMap)
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Commodity funds
+            const commodityAlloc = assetSplit.commodity?.sipAlloc || 0;
+            if (commodityAlloc > 0) {
+                const commodityFunds = allocDetailData.asset_classes?.commodity?.funds || [];
+                if (commodityFunds.length === 0) {
+                    if ((target.commodity || 0) > 0) {
+                        gaps.push({ category: 'Commodity', targetPct: target.commodity });
+                    }
+                } else {
+                    let totalScore = 0;
+                    const scored = commodityFunds.map(f => {
+                        const score = scoreFund(f, xirrMap);
+                        totalScore += score;
+                        return { fund: f, score };
+                    });
+                    for (const { fund, score } of scored) {
+                        const amount = totalScore > 0 ? commodityAlloc * score / totalScore : commodityAlloc / scored.length;
+                        if (amount >= 1) {
+                            fundAllocations.push({
+                                scheme_name: fund.scheme_name,
+                                folio_number: fund.folio_number,
+                                folio_id: fund.folio_id,
+                                category: 'Commodity',
+                                assetClass: 'commodity',
+                                amount,
+                                reasoning: buildAssetClassReasoning('commodity', assetSplit.commodity, fund, xirrMap)
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Sort by amount descending
+            fundAllocations.sort((a, b) => b.amount - a.amount);
+
+            // Drift scores
+            const preSipDrift = assetKeys.reduce((s, k) => {
+                const act = goal.actual_allocation_pct?.[k] || 0;
+                const tgt = target[k] || 0;
+                return s + Math.abs(act - tgt);
+            }, 0) / 2;
+
+            const postSipDrift = assetKeys.reduce((s, k) => {
+                return s + Math.abs(assetSplit[k]?.postSipDrift || 0);
+            }, 0) / 2;
+
+            return { assetSplit, assetKeys, fundAllocations, gaps, preSipDrift, postSipDrift, currentTotal, newTotal };
+        }
+
+        function renderSipRecommendation(result, sipAmount) {
+            const { assetSplit, assetKeys, fundAllocations, gaps, preSipDrift, postSipDrift, currentTotal, newTotal } = result;
+
+            // Asset class split table
+            const assetClassLabels = { equity: 'Equity', debt: 'Debt', commodity: 'Commodity', cash: 'Cash', others: 'Others' };
+            const assetClassIcons = { equity: 'bi-graph-up', debt: 'bi-shield', commodity: 'bi-gem', cash: 'bi-cash-stack', others: 'bi-three-dots' };
+
+            const assetRows = assetKeys
+                .filter(k => (assetSplit[k]?.targetPct || 0) > 0 || (assetSplit[k]?.sipAlloc || 0) > 0)
+                .map(key => {
+                    const s = assetSplit[key];
+                    const currentPct = currentTotal > 0 ? (s.currentAmt / currentTotal * 100) : 0;
+                    const driftDir = Math.abs(s.postSipDrift) < Math.abs(currentPct - s.targetPct) ? 'text-success' : 'text-muted';
+                    const driftArrow = Math.abs(s.postSipDrift) < Math.abs(currentPct - s.targetPct) ? '<i class="bi bi-arrow-down-short"></i>drift' :
+                        (Math.abs(s.postSipDrift) <= 2 ? '<i class="bi bi-check"></i>' : '');
+                    return `<tr>
+                        <td><i class="bi ${assetClassIcons[key] || 'bi-circle'}"></i> <strong>${assetClassLabels[key] || key}</strong></td>
+                        <td class="text-end">${currentPct.toFixed(1)}%</td>
+                        <td class="text-end">${s.targetPct.toFixed(1)}%</td>
+                        <td class="text-end mask-amount fw-bold">${formatCurrency(Math.round(s.sipAlloc))}</td>
+                        <td class="text-end">${s.postSipPct.toFixed(1)}%</td>
+                        <td class="text-center small ${driftDir}">${driftArrow}</td>
+                    </tr>`;
+                }).join('');
+
+            // Fund-level recommendation table
+            let fundTableHtml = '';
+            if (fundAllocations.length > 0) {
+                const fundRows = fundAllocations.map(f => `<tr class="sip-fund-row">
+                    <td>
+                        ${f.scheme_name}
+                        <br><small class="text-muted">Folio: ${f.folio_number}</small>
+                    </td>
+                    <td><span class="badge bg-secondary bg-opacity-10 text-dark">${f.category}</span></td>
+                    <td class="text-end mask-amount fw-bold">${formatCurrency(Math.round(f.amount))}</td>
+                    <td class="small text-muted">${f.reasoning}</td>
+                </tr>`).join('');
+
+                fundTableHtml = `
+                <h6 class="mt-3 mb-2"><i class="bi bi-list-check"></i> Fund-Level Recommendation</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr class="table-light">
+                                <th>Fund</th>
+                                <th>Category</th>
+                                <th class="text-end">SIP Amount</th>
+                                <th>Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody>${fundRows}</tbody>
+                    </table>
+                </div>`;
+            }
+
+            // Gaps
+            let gapsHtml = '';
+            if (gaps.length > 0) {
+                const gapItems = gaps.map(g =>
+                    `<i class="bi bi-exclamation-triangle text-warning me-1"></i> No <strong>${g.category}</strong> fund linked (target: ${g.targetPct.toFixed(0)}%). Consider adding one.`
+                ).join('<br>');
+                gapsHtml = `<div class="sip-gap-alert mt-3 small">${gapItems}</div>`;
+            }
+
+            // Drift improvement
+            const driftImproved = postSipDrift < preSipDrift;
+            const driftIcon = driftImproved ? 'bi-arrow-down-circle-fill text-success' : 'bi-dash-circle text-muted';
+            const driftHtml = `
+            <div class="sip-drift-improvement mt-3 d-flex align-items-center gap-2${driftImproved ? '' : ' bg-light border-secondary'}">
+                <i class="bi ${driftIcon} fs-5"></i>
+                <div>
+                    <strong>Post-SIP Drift:</strong>
+                    ${preSipDrift.toFixed(1)}% <i class="bi bi-arrow-right"></i> ${postSipDrift.toFixed(1)}%
+                    ${driftImproved ? '<span class="text-success fw-bold ms-1">(improved)</span>' : '<span class="text-muted ms-1">(no change)</span>'}
+                </div>
+            </div>`;
+
+            return `
+                <hr class="my-3">
+                <h6 class="mb-2"><i class="bi bi-pie-chart"></i> Asset Class Split</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr class="table-light">
+                                <th>Class</th>
+                                <th class="text-end">Current %</th>
+                                <th class="text-end">Target %</th>
+                                <th class="text-end">SIP Alloc</th>
+                                <th class="text-end">Post-SIP %</th>
+                                <th class="text-center">Drift</th>
+                            </tr>
+                        </thead>
+                        <tbody>${assetRows}</tbody>
+                        <tfoot>
+                            <tr class="table-light fw-bold">
+                                <td>Total</td>
+                                <td></td>
+                                <td></td>
+                                <td class="text-end mask-amount">${formatCurrency(sipAmount)}</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                ${fundTableHtml}
+                ${gapsHtml}
+                ${driftHtml}
+            `;
+        }
+
+        // ==================== REVIEW LOG TAB ====================
+
+        async function loadModalNotes(goalId) {
+            const container = document.getElementById('modalNotesList');
+            container.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
+
+            try {
+                const res = await fetch(`/api/goals/${goalId}/notes`);
+                const notes = await res.json();
+
+                if (notes.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No notes yet. Add your first note above!</p>';
+                    return;
+                }
+                container.innerHTML = notes.map(note => renderNoteCard(note)).join('');
+            } catch (error) {
+                container.innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+            }
+        }
+
+        function renderNoteCard(note) {
+            const typeIcon = { 'thought': 'bi-lightbulb', 'decision': 'bi-check-circle',
+                'milestone': 'bi-trophy', 'review': 'bi-clipboard-check' }[note.note_type] || 'bi-sticky';
+            const moodHtml = note.mood ? `<span class="mood-badge mood-${note.mood} ms-2">${note.mood}</span>` : '';
+
+            return `
+            <div class="card note-card type-${note.note_type}">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-secondary"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
+                            ${moodHtml}
+                            <span class="timeline-date ms-2">${formatDate(note.created_at)}</span>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="openEditNoteModal(${note.id}, ${note.goal_id})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteNote(${note.id}, ${note.goal_id})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${note.title ? `<h6 class="mt-2 mb-1">${note.title}</h6>` : ''}
+                    <p class="mb-0 mt-1">${note.content}</p>
+                </div>
+            </div>`;
+        }
+
+        async function saveNote() {
+            const goalId = currentGoalId;
+            if (!goalId) { alert('Save the goal first before adding notes.'); return; }
+
+            const content = document.getElementById('newNoteContent').value.trim();
+            if (!content) { alert('Note content is required'); return; }
+
+            try {
+                const res = await fetch(`/api/goals/${goalId}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content,
+                        title: document.getElementById('newNoteTitle').value.trim(),
+                        note_type: document.getElementById('newNoteType').value,
+                        mood: document.getElementById('newNoteMood').value || null
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('newNoteContent').value = '';
+                    document.getElementById('newNoteTitle').value = '';
+                    document.getElementById('newNoteType').value = 'thought';
+                    document.getElementById('newNoteMood').value = '';
+                    await loadModalNotes(goalId);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) { alert('Failed to save note: ' + error.message); }
+        }
+
+        async function openEditNoteModal(noteId, goalId) {
+            try {
+                const res = await fetch(`/api/notes/${noteId}`);
+                const note = await res.json();
+                if (note.error) { alert('Error: ' + note.error); return; }
+
+                document.getElementById('editNoteId').value = note.id;
+                document.getElementById('editNoteGoalId').value = goalId;
+                document.getElementById('editNoteType').value = note.note_type || 'thought';
+                document.getElementById('editNoteMood').value = note.mood || '';
+                document.getElementById('editNoteTitle').value = note.title || '';
+                document.getElementById('editNoteContent').value = note.content || '';
+
+                editNoteModalInstance = new bootstrap.Modal(document.getElementById('editNoteModal'));
+                editNoteModalInstance.show();
+            } catch (error) { alert('Failed to load note: ' + error.message); }
+        }
+
+        async function updateNote() {
+            const noteId = document.getElementById('editNoteId').value;
+            const goalId = document.getElementById('editNoteGoalId').value;
+            const content = document.getElementById('editNoteContent').value.trim();
+            if (!content) { alert('Note content is required'); return; }
+
+            try {
+                const res = await fetch(`/api/notes/${noteId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content,
+                        title: document.getElementById('editNoteTitle').value.trim() || null,
+                        note_type: document.getElementById('editNoteType').value,
+                        mood: document.getElementById('editNoteMood').value || null
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    editNoteModalInstance.hide();
+                    await loadModalNotes(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to update note: ' + error.message); }
+        }
+
+        async function deleteNote(noteId, goalId) {
+            if (!confirm('Delete this note?')) return;
+            try {
+                const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.success) await loadModalNotes(goalId);
+                else alert('Error: ' + (result.error || 'Unknown error'));
+            } catch (error) { alert('Failed to delete: ' + error.message); }
+        }
+
+        // ==================== SAVE GOAL + PHASES ====================
+
+        async function saveGoalAndPhases() {
+            const goalId = currentGoalId;
+            const name = document.getElementById('goalName').value.trim();
+            if (!name) { alert('Goal name is required'); return; }
+
+            const goalData = {
+                name,
                 description: document.getElementById('goalDescription').value.trim(),
                 target_amount: parseFloat(document.getElementById('goalTargetAmount').value) || 0,
                 target_date: document.getElementById('goalTargetDate').value || null,
-                target_equity_pct: parseFloat(document.getElementById('goalEquity').value) || 0,
-                target_debt_pct: parseFloat(document.getElementById('goalDebt').value) || 0,
-                target_commodity_pct: parseFloat(document.getElementById('goalCommodity').value) || 0,
-                target_cash_pct: parseFloat(document.getElementById('goalCash').value) || 0,
-                target_others_pct: parseFloat(document.getElementById('goalOthers').value) || 0
+                target_equity_pct: 0, target_debt_pct: 0, target_commodity_pct: 0,
+                target_cash_pct: 0, target_others_pct: 0
             };
 
-            try {
-                let url, method;
-                if (goalId) {
-                    url = `/api/goals/${goalId}`;
-                    method = 'PUT';
-                } else {
-                    url = `/api/investors/${investorId}/goals`;
-                    method = 'POST';
-                }
-
-                const res = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await res.json();
-
-                if (result.success || result.goal_id) {
-                    goalModal.hide();
-                    await loadGoals();
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to save: ' + error.message);
+            // Use first phase allocation as the goal's overall target allocation
+            if (phasesData.length > 0) {
+                goalData.target_equity_pct = phasesData[0].equity_pct || 0;
+                goalData.target_debt_pct = phasesData[0].debt_pct || 0;
+                goalData.target_commodity_pct = phasesData[0].commodity_pct || 0;
             }
+
+            try {
+                let savedGoalId = goalId;
+
+                if (goalId) {
+                    // Update existing goal
+                    const res = await fetch(`/api/goals/${goalId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(goalData)
+                    });
+                    const result = await res.json();
+                    if (!result.success) { alert('Error: ' + (result.error || 'Unknown error')); return; }
+                } else {
+                    // Create new goal
+                    const res = await fetch(`/api/investors/${investorId}/goals`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(goalData)
+                    });
+                    const result = await res.json();
+                    if (!result.goal_id) { alert('Error: ' + (result.error || 'Unknown error')); return; }
+                    savedGoalId = result.goal_id;
+                    currentGoalId = savedGoalId;
+                }
+
+                // Save phases
+                if (phasesData.length > 0) {
+                    // Collect latest values from DOM
+                    collectPhasesFromDom();
+
+                    await fetch(`/api/goals/${savedGoalId}/phases`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phases: phasesData })
+                    });
+                } else {
+                    // Clear phases if none
+                    await fetch(`/api/goals/${savedGoalId}/phases`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phases: [] })
+                    });
+                }
+
+                goalTabModalInstance.hide();
+                await loadGoals();
+            } catch (error) { alert('Failed to save: ' + error.message); }
         }
 
-        async function deleteGoal(goalId) {
+        function collectPhasesFromDom() {
+            // Phase names and dates are already updated via onchange handlers
+            // Just ensure equity_sub values are captured
+            document.querySelectorAll('.phase-card').forEach((card, idx) => {
+                if (idx >= phasesData.length) return;
+                const inputs = card.querySelectorAll('[data-field]');
+                inputs.forEach(inp => {
+                    phasesData[idx][inp.dataset.field] = parseFloat(inp.value) || 0;
+                });
+            });
+        }
+
+        async function deleteGoalFromModal() {
+            if (!currentGoalId) return;
             if (!confirm('Are you sure you want to delete this goal?')) return;
 
             try {
-                const res = await fetch(`/api/goals/${goalId}`, { method: 'DELETE' });
+                const res = await fetch(`/api/goals/${currentGoalId}`, { method: 'DELETE' });
                 const result = await res.json();
-
                 if (result.success) {
+                    goalTabModalInstance.hide();
                     await loadGoals();
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to delete: ' + error.message);
-            }
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to delete: ' + error.message); }
+        }
+
+        // ==================== LINK MODAL ====================
+
+        function openLinkModalFromTab() {
+            if (!currentGoalId) return;
+            openLinkModal(currentGoalId);
         }
 
         async function openLinkModal(goalId) {
-            const goal = allGoals.find(g => g.id === goalId);
+            const goal = allGoals.find(g => g.id === goalId) || currentGoalData;
             if (!goal) return;
 
             document.getElementById('linkGoalId').value = goalId;
             document.getElementById('linkGoalName').textContent = goal.name;
 
-            // Show currently linked
             const linkedContainer = document.getElementById('linkedFolios');
             if (goal.linked_folios && goal.linked_folios.length > 0) {
                 linkedContainer.innerHTML = goal.linked_folios.map(f => `
@@ -840,17 +2387,14 @@
                         <button class="btn btn-sm btn-outline-danger" onclick="unlinkFolio(${goalId}, ${f.folio_id})">
                             <i class="bi bi-x-lg"></i> Unlink
                         </button>
-                    </div>
-                `).join('');
+                    </div>`).join('');
             } else {
                 linkedContainer.innerHTML = '<p class="text-muted">No assets linked yet</p>';
             }
 
-            // Load available folios
             try {
                 const res = await fetch(`/api/goals/${goalId}/available-folios`);
                 const available = await res.json();
-
                 const availableContainer = document.getElementById('availableFolios');
                 if (available.length > 0) {
                     availableContainer.innerHTML = available.map(f => `
@@ -862,17 +2406,16 @@
                             <button class="btn btn-sm btn-outline-success" onclick="linkFolio(${goalId}, ${f.folio_id})">
                                 <i class="bi bi-plus-lg"></i> Link
                             </button>
-                        </div>
-                    `).join('');
+                        </div>`).join('');
                 } else {
-                    availableContainer.innerHTML = '<p class="text-muted">All assets are already linked to this goal</p>';
+                    availableContainer.innerHTML = '<p class="text-muted">All assets already linked</p>';
                 }
             } catch (error) {
                 document.getElementById('availableFolios').innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
             }
 
-            linkModal = new bootstrap.Modal(document.getElementById('linkModal'));
-            linkModal.show();
+            linkModalInstance = new bootstrap.Modal(document.getElementById('linkModal'));
+            linkModalInstance.show();
         }
 
         async function linkFolio(goalId, folioId) {
@@ -882,17 +2425,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ folio_id: folioId })
                 });
-
                 const result = await res.json();
                 if (result.success) {
                     await loadGoals();
-                    await openLinkModal(goalId);
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to link: ' + error.message);
-            }
+                    linkModalInstance.hide();
+                    // Refresh main modal
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to link: ' + error.message); }
         }
 
         async function unlinkFolio(goalId, folioId) {
@@ -902,131 +2443,20 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ folio_id: folioId })
                 });
-
                 const result = await res.json();
                 if (result.success) {
                     await loadGoals();
-                    await openLinkModal(goalId);
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to unlink: ' + error.message);
-            }
+                    linkModalInstance.hide();
+                    await openGoalModal(goalId);
+                    openLinkModal(goalId);
+                } else { alert('Error: ' + (result.error || 'Unknown error')); }
+            } catch (error) { alert('Failed to unlink: ' + error.message); }
         }
 
-        async function openDetailModal(goalId) {
-            try {
-                const res = await fetch(`/api/goals/${goalId}`);
-                const goal = await res.json();
-
-                if (goal.error) {
-                    alert('Error: ' + goal.error);
-                    return;
-                }
-
-                document.getElementById('detailGoalName').textContent = goal.name;
-                document.getElementById('detailCurrentValue').textContent = formatCurrency(goal.current_value);
-                document.getElementById('detailTargetAmount').textContent = formatCurrency(goal.target_amount);
-
-                const progress = goal.target_amount > 0
-                    ? Math.min(100, (goal.current_value / goal.target_amount * 100))
-                    : 0;
-                document.getElementById('detailProgress').textContent = progress.toFixed(1) + '%';
-                document.getElementById('detailProgress').className = progress >= 100 ? 'text-success' : 'text-primary';
-
-                const progressBar = document.getElementById('detailProgressBar');
-                progressBar.style.width = progress + '%';
-                progressBar.className = 'progress-bar ' + (progress >= 100 ? 'bg-success' : (progress >= 50 ? 'bg-primary' : 'bg-warning'));
-
-                document.getElementById('detailTargetDate').textContent = goal.target_date
-                    ? `Target date: ${goal.target_date}`
-                    : '';
-
-                // Allocation comparison
-                renderAllocationBars('targetAllocBars', {
-                    equity: goal.target_equity_pct,
-                    debt: goal.target_debt_pct,
-                    commodity: goal.target_commodity_pct,
-                    cash: goal.target_cash_pct,
-                    others: goal.target_others_pct
-                });
-
-                renderAllocationBars('actualAllocBars', goal.actual_allocation_pct || {});
-
-                // Linked assets table
-                document.getElementById('detailLinkedCount').textContent = `${goal.linked_count} assets`;
-                const tbody = document.getElementById('detailLinkedTable');
-                if (goal.linked_folios && goal.linked_folios.length > 0) {
-                    tbody.innerHTML = goal.linked_folios.map(f => `
-                        <tr>
-                            <td>${f.scheme_name}</td>
-                            <td><code>${f.folio_number}</code></td>
-                            <td class="text-end">${(f.units || 0).toFixed(3)}</td>
-                            <td class="text-end">${(f.nav || 0).toFixed(4)}</td>
-                            <td class="text-end">${formatCurrency(f.value || 0)}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No assets linked</td></tr>';
-                }
-
-                detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
-                detailModal.show();
-
-            } catch (error) {
-                alert('Failed to load goal details: ' + error.message);
-            }
-        }
-
-        function renderAllocationBars(containerId, alloc) {
-            const container = document.getElementById(containerId);
-            const classes = ['equity', 'debt', 'commodity', 'cash', 'others'];
-            const colors = {
-                'equity': '#28a745',
-                'debt': '#17a2b8',
-                'commodity': '#ffc107',
-                'cash': '#6c757d',
-                'others': '#6f42c1'
-            };
-
-            let html = '';
-            classes.forEach(cls => {
-                const pct = alloc[cls] || 0;
-                if (pct > 0) {
-                    html += `
-                        <div class="d-flex align-items-center mb-1">
-                            <span class="small" style="width:70px;">${cls.charAt(0).toUpperCase() + cls.slice(1)}</span>
-                            <div class="progress allocation-bar flex-grow-1">
-                                <div class="progress-bar" style="width:${pct}%;background-color:${colors[cls]}"></div>
-                            </div>
-                            <span class="small ms-2" style="width:40px;">${pct.toFixed(0)}%</span>
-                        </div>
-                    `;
-                }
-            });
-
-            container.innerHTML = html || '<p class="text-muted small">Not defined</p>';
-        }
-
-        function formatCurrency(value) {
-            if (value === undefined || value === null) return '₹0';
-            return new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                maximumFractionDigits: 0
-            }).format(value);
-        }
-
-        // ==================== View Switching ====================
+        // ==================== VIEW SWITCHING ====================
 
         function switchView(view) {
-            currentView = view;
-
-            // Update tab active states
-            document.querySelectorAll('#viewTabs .nav-link').forEach(tab => {
-                tab.classList.remove('active');
-            });
+            document.querySelectorAll('#viewTabs .nav-link').forEach(tab => tab.classList.remove('active'));
             event.target.classList.add('active');
 
             if (view === 'goals') {
@@ -1050,16 +2480,13 @@
                 const notes = await res.json();
 
                 if (notes.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-5">
-                            <i class="bi bi-journal" style="font-size:3rem;color:#ccc;"></i>
-                            <h5 class="mt-3 text-muted">No Notes Yet</h5>
-                            <p class="text-muted">Start journaling your investment thoughts by adding notes to your goals</p>
-                        </div>
-                    `;
+                    container.innerHTML = `<div class="text-center py-5">
+                        <i class="bi bi-journal" style="font-size:3rem;color:#ccc;"></i>
+                        <h5 class="mt-3 text-muted">No Notes Yet</h5>
+                        <p class="text-muted">Start journaling by adding notes to your goals</p>
+                    </div>`;
                     return;
                 }
-
                 container.innerHTML = notes.map(note => renderTimelineNote(note)).join('');
             } catch (error) {
                 container.innerHTML = `<div class="alert alert-danger">Failed to load timeline: ${error.message}</div>`;
@@ -1067,243 +2494,46 @@
         }
 
         function renderTimelineNote(note) {
-            const typeIcon = {
-                'thought': 'bi-lightbulb',
-                'decision': 'bi-check-circle',
-                'milestone': 'bi-trophy',
-                'review': 'bi-clipboard-check'
-            }[note.note_type] || 'bi-sticky';
-
-            const moodHtml = note.mood
-                ? `<span class="mood-badge mood-${note.mood}">${note.mood}</span>`
-                : '';
+            const typeIcon = { 'thought': 'bi-lightbulb', 'decision': 'bi-check-circle',
+                'milestone': 'bi-trophy', 'review': 'bi-clipboard-check' }[note.note_type] || 'bi-sticky';
+            const moodHtml = note.mood ? `<span class="mood-badge mood-${note.mood}">${note.mood}</span>` : '';
 
             return `
-                <div class="card note-card type-${note.note_type} mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="badge bg-secondary me-2"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
-                                <span class="badge bg-primary">${note.goal_name}</span>
-                                ${moodHtml}
-                            </div>
-                            <span class="timeline-date">${formatDate(note.created_at)}</span>
+            <div class="card note-card type-${note.note_type} mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="badge bg-secondary me-2"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
+                            <span class="badge bg-primary">${note.goal_name}</span>
+                            ${moodHtml}
                         </div>
-                        ${note.title ? `<h6>${note.title}</h6>` : ''}
-                        <p class="mb-0">${note.content}</p>
+                        <span class="timeline-date">${formatDate(note.created_at)}</span>
                     </div>
+                    ${note.title ? `<h6>${note.title}</h6>` : ''}
+                    <p class="mb-0">${note.content}</p>
                 </div>
-            `;
+            </div>`;
         }
 
-        // ==================== Notes Modal Functions ====================
+        // ==================== UTILITIES ====================
 
-        async function openNotesModal(goalId) {
-            const goal = allGoals.find(g => g.id === goalId);
-            if (!goal) return;
-
-            document.getElementById('notesGoalId').value = goalId;
-            document.getElementById('notesGoalName').textContent = goal.name;
-
-            // Reset form
-            document.getElementById('newNoteType').value = 'thought';
-            document.getElementById('newNoteMood').value = '';
-            document.getElementById('newNoteTitle').value = '';
-            document.getElementById('newNoteContent').value = '';
-
-            // Load notes
-            await loadGoalNotes(goalId);
-
-            notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
-            notesModal.show();
-        }
-
-        async function loadGoalNotes(goalId) {
-            const container = document.getElementById('notesList');
-            container.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
-
-            try {
-                const res = await fetch(`/api/goals/${goalId}/notes`);
-                const notes = await res.json();
-
-                if (notes.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No notes yet. Add your first note above!</p>';
-                    return;
-                }
-
-                container.innerHTML = notes.map(note => renderNoteCard(note)).join('');
-            } catch (error) {
-                container.innerHTML = `<p class="text-danger">Error loading notes: ${error.message}</p>`;
-            }
-        }
-
-        function renderNoteCard(note) {
-            const typeIcon = {
-                'thought': 'bi-lightbulb',
-                'decision': 'bi-check-circle',
-                'milestone': 'bi-trophy',
-                'review': 'bi-clipboard-check'
-            }[note.note_type] || 'bi-sticky';
-
-            const moodHtml = note.mood
-                ? `<span class="mood-badge mood-${note.mood} ms-2">${note.mood}</span>`
-                : '';
-
-            return `
-                <div class="card note-card type-${note.note_type}">
-                    <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <span class="badge bg-secondary"><i class="bi ${typeIcon}"></i> ${note.note_type}</span>
-                                ${moodHtml}
-                                <span class="timeline-date ms-2">${formatDate(note.created_at)}</span>
-                            </div>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-secondary btn-sm" onclick="openEditNoteModal(${note.id}, ${note.goal_id})" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-outline-danger btn-sm" onclick="deleteNote(${note.id}, ${note.goal_id})" title="Delete">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        ${note.title ? `<h6 class="mt-2 mb-1">${note.title}</h6>` : ''}
-                        <p class="mb-0 mt-1">${note.content}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        async function saveNote() {
-            const goalId = document.getElementById('notesGoalId').value;
-            const content = document.getElementById('newNoteContent').value.trim();
-
-            if (!content) {
-                alert('Note content is required');
-                return;
-            }
-
-            const data = {
-                content: content,
-                title: document.getElementById('newNoteTitle').value.trim(),
-                note_type: document.getElementById('newNoteType').value,
-                mood: document.getElementById('newNoteMood').value || null
-            };
-
-            try {
-                const res = await fetch(`/api/goals/${goalId}/notes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await res.json();
-                if (result.success) {
-                    // Clear form
-                    document.getElementById('newNoteContent').value = '';
-                    document.getElementById('newNoteTitle').value = '';
-                    document.getElementById('newNoteType').value = 'thought';
-                    document.getElementById('newNoteMood').value = '';
-                    // Reload notes
-                    await loadGoalNotes(goalId);
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to save note: ' + error.message);
-            }
-        }
-
-        async function openEditNoteModal(noteId, goalId) {
-            try {
-                const res = await fetch(`/api/notes/${noteId}`);
-                const note = await res.json();
-
-                if (note.error) {
-                    alert('Error: ' + note.error);
-                    return;
-                }
-
-                document.getElementById('editNoteId').value = note.id;
-                document.getElementById('editNoteGoalId').value = goalId;
-                document.getElementById('editNoteType').value = note.note_type || 'thought';
-                document.getElementById('editNoteMood').value = note.mood || '';
-                document.getElementById('editNoteTitle').value = note.title || '';
-                document.getElementById('editNoteContent').value = note.content || '';
-
-                editNoteModal = new bootstrap.Modal(document.getElementById('editNoteModal'));
-                editNoteModal.show();
-            } catch (error) {
-                alert('Failed to load note: ' + error.message);
-            }
-        }
-
-        async function updateNote() {
-            const noteId = document.getElementById('editNoteId').value;
-            const goalId = document.getElementById('editNoteGoalId').value;
-            const content = document.getElementById('editNoteContent').value.trim();
-
-            if (!content) {
-                alert('Note content is required');
-                return;
-            }
-
-            const data = {
-                content: content,
-                title: document.getElementById('editNoteTitle').value.trim() || null,
-                note_type: document.getElementById('editNoteType').value,
-                mood: document.getElementById('editNoteMood').value || null
-            };
-
-            try {
-                const res = await fetch(`/api/notes/${noteId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await res.json();
-                if (result.success) {
-                    editNoteModal.hide();
-                    await loadGoalNotes(goalId);
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to update note: ' + error.message);
-            }
-        }
-
-        async function deleteNote(noteId, goalId) {
-            if (!confirm('Are you sure you want to delete this note?')) return;
-
-            try {
-                const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
-                const result = await res.json();
-
-                if (result.success) {
-                    await loadGoalNotes(goalId);
-                } else {
-                    alert('Error: ' + (result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                alert('Failed to delete note: ' + error.message);
-            }
+        function formatCurrency(value) {
+            if (value === undefined || value === null) return '\u20B90';
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency', currency: 'INR', maximumFractionDigits: 0
+            }).format(value);
         }
 
         function formatDate(dateStr) {
             if (!dateStr) return '';
             const date = new Date(dateStr);
             return date.toLocaleDateString('en-IN', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
             });
         }
 
-        // Load goals on page load
+        // ==================== INIT ====================
         loadGoals();
     </script>
     {% include '_feature_request_widget.html' %}

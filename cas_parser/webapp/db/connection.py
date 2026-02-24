@@ -1,6 +1,7 @@
 """Database connection, schema initialization, and context manager."""
 
 import logging
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -9,9 +10,10 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['DB_PATH', 'BACKUP_DIR', 'get_connection', 'get_db', 'init_db']
 
-# Database file path
-DB_PATH = Path(__file__).parent.parent / "data.db"
-BACKUP_DIR = Path(__file__).parent.parent / "backups"
+# Database file path — override with FAMFOLIOZ_DATA_DIR env var (used by Docker)
+_data_dir = Path(os.environ.get('FAMFOLIOZ_DATA_DIR', str(Path(__file__).parent.parent)))
+DB_PATH = _data_dir / "data.db"
+BACKUP_DIR = _data_dir / "backups"
 
 
 def get_connection() -> sqlite3.Connection:
@@ -129,6 +131,12 @@ def init_db():
         # Add exit load column for tax-loss harvesting cost computation
         try:
             cursor.execute("ALTER TABLE mutual_fund_master ADD COLUMN exit_load_pct REAL DEFAULT 1.0")
+        except sqlite3.OperationalError:
+            pass
+
+        # Add equity sub-category for goal-level sub-allocation analysis
+        try:
+            cursor.execute("ALTER TABLE mutual_fund_master ADD COLUMN equity_sub_category TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -337,6 +345,39 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Goal Phases table - phased asset allocation targets over time
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goal_phases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                phase_name TEXT NOT NULL,
+                start_date DATE,
+                end_date DATE,
+                equity_pct REAL DEFAULT 0,
+                debt_pct REAL DEFAULT 0,
+                commodity_pct REAL DEFAULT 0,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Goal Phase Equity Sub-Allocation table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goal_phase_equity_sub (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phase_id INTEGER NOT NULL,
+                india_large_cap_pct REAL DEFAULT 0,
+                india_mid_small_pct REAL DEFAULT 0,
+                india_flexi_pct REAL DEFAULT 0,
+                intl_us_global_pct REAL DEFAULT 0,
+                intl_emerging_pct REAL DEFAULT 0,
+                sectoral_thematic_pct REAL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (phase_id) REFERENCES goal_phases(id) ON DELETE CASCADE
             )
         """)
 
@@ -598,6 +639,8 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_folios_folio ON goal_folios(folio_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_notes_goal ON goal_notes(goal_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_notes_created ON goal_notes(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_phases_goal ON goal_phases(goal_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_goal_phase_equity_sub_phase ON goal_phase_equity_sub(phase_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_quarantine_status ON quarantine(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_quarantine_partial_isin ON quarantine(partial_isin)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_validation_issues_folio ON validation_issues(folio_id)")

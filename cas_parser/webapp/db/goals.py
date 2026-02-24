@@ -23,6 +23,10 @@ __all__ = [
     "update_goal_note",
     "delete_goal_note",
     "get_goal_notes_timeline",
+    "get_goal_phases",
+    "save_goal_phases",
+    "delete_goal_phase",
+    "get_goal_allocation_detail",
 ]
 
 
@@ -391,3 +395,296 @@ def get_goal_notes_timeline(investor_id: int, limit: int = 100) -> List[dict]:
             LIMIT ?
         """, (investor_id, limit))
         return [dict(row) for row in cursor.fetchall()]
+
+
+def get_goal_phases(goal_id: int) -> List[dict]:
+    """Get all phases for a goal with their equity sub-allocations."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, phase_name, start_date, end_date,
+                   equity_pct, debt_pct, commodity_pct, sort_order
+            FROM goal_phases
+            WHERE goal_id = ?
+            ORDER BY sort_order, start_date
+        """, (goal_id,))
+        phases = [dict(row) for row in cursor.fetchall()]
+
+        for phase in phases:
+            cursor.execute("""
+                SELECT india_large_cap_pct, india_mid_small_pct, india_flexi_pct,
+                       intl_us_global_pct, intl_emerging_pct, sectoral_thematic_pct
+                FROM goal_phase_equity_sub
+                WHERE phase_id = ?
+            """, (phase['id'],))
+            sub = cursor.fetchone()
+            phase['equity_sub'] = dict(sub) if sub else {
+                'india_large_cap_pct': 0, 'india_mid_small_pct': 0,
+                'india_flexi_pct': 0, 'intl_us_global_pct': 0,
+                'intl_emerging_pct': 0, 'sectoral_thematic_pct': 0
+            }
+
+        return phases
+
+
+def save_goal_phases(goal_id: int, phases_data: List[dict]) -> dict:
+    """Replace all phases for a goal (delete + re-insert)."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Delete existing phases (CASCADE deletes equity sub)
+        cursor.execute("DELETE FROM goal_phases WHERE goal_id = ?", (goal_id,))
+
+        for i, phase in enumerate(phases_data):
+            cursor.execute("""
+                INSERT INTO goal_phases
+                (goal_id, phase_name, start_date, end_date,
+                 equity_pct, debt_pct, commodity_pct, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                goal_id,
+                phase.get('phase_name', f'Phase {i + 1}'),
+                phase.get('start_date'),
+                phase.get('end_date'),
+                float(phase.get('equity_pct', 0) or 0),
+                float(phase.get('debt_pct', 0) or 0),
+                float(phase.get('commodity_pct', 0) or 0),
+                i
+            ))
+            phase_id = cursor.lastrowid
+
+            # Insert equity sub-allocation if provided
+            equity_sub = phase.get('equity_sub', {})
+            if equity_sub:
+                cursor.execute("""
+                    INSERT INTO goal_phase_equity_sub
+                    (phase_id, india_large_cap_pct, india_mid_small_pct,
+                     india_flexi_pct, intl_us_global_pct, intl_emerging_pct,
+                     sectoral_thematic_pct)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    phase_id,
+                    float(equity_sub.get('india_large_cap_pct', 0) or 0),
+                    float(equity_sub.get('india_mid_small_pct', 0) or 0),
+                    float(equity_sub.get('india_flexi_pct', 0) or 0),
+                    float(equity_sub.get('intl_us_global_pct', 0) or 0),
+                    float(equity_sub.get('intl_emerging_pct', 0) or 0),
+                    float(equity_sub.get('sectoral_thematic_pct', 0) or 0),
+                ))
+
+        return {'success': True, 'phases_saved': len(phases_data)}
+
+
+def delete_goal_phase(phase_id: int) -> dict:
+    """Delete a single phase (CASCADE deletes equity sub)."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM goal_phases WHERE id = ?", (phase_id,))
+        return {'success': cursor.rowcount > 0}
+
+
+def get_goal_allocation_detail(goal_id: int) -> dict:
+    """Return detailed per-fund allocation breakdown for a goal.
+
+    Groups funds by asset class and equity sub-category, showing each
+    fund's contribution with its value, allocation percentages, and
+    market cap split — so the user can see exactly how each number is derived.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                gf.folio_id,
+                f.scheme_name,
+                f.folio_number,
+                f.isin,
+                h.units,
+                COALESCE(mf.current_nav, h.nav) as nav,
+                h.units * COALESCE(mf.current_nav, h.nav) as value,
+                COALESCE(mf.equity_pct, 0) as equity_pct,
+                COALESCE(mf.debt_pct, 0) as debt_pct,
+                COALESCE(mf.commodity_pct, 0) as commodity_pct,
+                COALESCE(mf.cash_pct, 0) as cash_pct,
+                COALESCE(mf.others_pct, 0) as others_pct,
+                COALESCE(mf.large_cap_pct, 0) as large_cap_pct,
+                COALESCE(mf.mid_cap_pct, 0) as mid_cap_pct,
+                COALESCE(mf.small_cap_pct, 0) as small_cap_pct,
+                mf.fund_category,
+                mf.geography,
+                mf.equity_sub_category,
+                mf.id as mf_id
+            FROM goal_folios gf
+            JOIN folios f ON f.id = gf.folio_id
+            LEFT JOIN holdings h ON h.folio_id = f.id
+            LEFT JOIN mutual_fund_master mf ON mf.isin = f.isin
+            WHERE gf.goal_id = ?
+        """, (goal_id,))
+
+        total_value = 0
+        funds = []
+
+        for row in cursor.fetchall():
+            fund = dict(row)
+            value = fund['value'] or 0
+            total_value += value
+
+            alloc_sum = fund['equity_pct'] + fund['debt_pct'] + fund['commodity_pct'] + fund['cash_pct'] + fund['others_pct']
+            has_alloc = alloc_sum >= 1
+
+            # Calculate each fund's contribution to asset classes (in absolute ₹)
+            fund['equity_value'] = value * fund['equity_pct'] / 100 if has_alloc else 0
+            fund['debt_value'] = value * fund['debt_pct'] / 100 if has_alloc else 0
+            fund['commodity_value'] = value * fund['commodity_pct'] / 100 if has_alloc else 0
+            fund['cash_value'] = value * fund['cash_pct'] / 100 if has_alloc else 0
+            fund['others_value'] = value * fund['others_pct'] / 100 if has_alloc else 0
+
+            funds.append(fund)
+
+        # Build per-category summaries
+        # 1. Asset class breakdown (equity / debt / commodity / cash / others)
+        asset_classes = {}
+        for ac in ['equity', 'debt', 'commodity', 'cash', 'others']:
+            ac_funds = []
+            ac_total = 0
+            for f in funds:
+                contrib = f[f'{ac}_value']
+                if contrib > 0.01:
+                    ac_total += contrib
+                    ac_funds.append({
+                        'scheme_name': f['scheme_name'],
+                        'folio_number': f['folio_number'],
+                        'folio_id': f['folio_id'],
+                        'mf_id': f['mf_id'],
+                        'total_value': f['value'] or 0,
+                        'contribution': contrib,
+                        'fund_alloc_pct': f[f'{ac}_pct'],
+                        'fund_category': f['fund_category'],
+                        'geography': f['geography'],
+                        'equity_sub_category': f['equity_sub_category'],
+                    })
+            asset_classes[ac] = {
+                'total': ac_total,
+                'pct': (ac_total / total_value * 100) if total_value > 0 else 0,
+                'funds': sorted(ac_funds, key=lambda x: x['contribution'], reverse=True)
+            }
+
+        # 2. Equity sub-category breakdown
+        sub_categories = {}
+        for sub_cat in ['india_large_cap', 'india_mid_small', 'india_flexi',
+                        'intl_us_global', 'intl_emerging', 'sectoral_thematic']:
+            sub_categories[sub_cat] = {'total': 0, 'pct_of_equity': 0, 'pct_of_total': 0, 'funds': []}
+
+        total_equity = asset_classes['equity']['total']
+
+        for f in funds:
+            eq_val = f['equity_value']
+            if eq_val <= 0.01:
+                continue
+
+            sub_cat = f['equity_sub_category']
+            if not sub_cat or sub_cat not in sub_categories:
+                sub_cat = 'india_flexi'  # fallback
+
+            sub_categories[sub_cat]['total'] += eq_val
+            sub_categories[sub_cat]['funds'].append({
+                'scheme_name': f['scheme_name'],
+                'folio_number': f['folio_number'],
+                'folio_id': f['folio_id'],
+                'mf_id': f['mf_id'],
+                'total_value': f['value'] or 0,
+                'equity_value': eq_val,
+                'equity_pct': f['equity_pct'],
+                'large_cap_pct': f['large_cap_pct'],
+                'mid_cap_pct': f['mid_cap_pct'],
+                'small_cap_pct': f['small_cap_pct'],
+                'fund_category': f['fund_category'],
+                'geography': f['geography'],
+                'equity_sub_category': f['equity_sub_category'],
+            })
+
+        # Calculate percentages
+        for sub_cat, data in sub_categories.items():
+            data['pct_of_equity'] = (data['total'] / total_equity * 100) if total_equity > 0 else 0
+            data['pct_of_total'] = (data['total'] / total_value * 100) if total_value > 0 else 0
+            data['funds'] = sorted(data['funds'], key=lambda x: x['equity_value'], reverse=True)
+
+        # 3. Market cap breakdown — actual large/mid/small exposure across all funds
+        cap_tiers = {
+            'large_cap': {'total': 0, 'funds': []},
+            'mid_cap': {'total': 0, 'funds': []},
+            'small_cap': {'total': 0, 'funds': []},
+        }
+        india_equity_total = 0
+        intl_equity_total = 0
+        india_equity_funds = []
+        intl_equity_funds = []
+
+        for f in funds:
+            eq_val = f['equity_value']
+            if eq_val <= 0.01:
+                continue
+
+            fund_info = {
+                'scheme_name': f['scheme_name'],
+                'folio_number': f['folio_number'],
+                'folio_id': f['folio_id'],
+                'mf_id': f['mf_id'],
+                'equity_value': eq_val,
+                'total_value': f['value'] or 0,
+                'equity_pct': f['equity_pct'],
+                'large_cap_pct': f['large_cap_pct'],
+                'mid_cap_pct': f['mid_cap_pct'],
+                'small_cap_pct': f['small_cap_pct'],
+                'fund_category': f['fund_category'],
+                'geography': f['geography'],
+                'equity_sub_category': f['equity_sub_category'],
+            }
+
+            lc_val = eq_val * f['large_cap_pct'] / 100
+            mc_val = eq_val * f['mid_cap_pct'] / 100
+            sc_val = eq_val * f['small_cap_pct'] / 100
+            fund_info['large_cap_value'] = lc_val
+            fund_info['mid_cap_value'] = mc_val
+            fund_info['small_cap_value'] = sc_val
+
+            if f['geography'] == 'international':
+                intl_equity_total += eq_val
+                intl_equity_funds.append(fund_info)
+            else:
+                india_equity_total += eq_val
+                india_equity_funds.append(fund_info)
+                cap_tiers['large_cap']['total'] += lc_val
+                cap_tiers['mid_cap']['total'] += mc_val
+                cap_tiers['small_cap']['total'] += sc_val
+
+                if lc_val > 0:
+                    cap_tiers['large_cap']['funds'].append({
+                        **fund_info, 'contribution': lc_val})
+                if mc_val > 0:
+                    cap_tiers['mid_cap']['funds'].append({
+                        **fund_info, 'contribution': mc_val})
+                if sc_val > 0:
+                    cap_tiers['small_cap']['funds'].append({
+                        **fund_info, 'contribution': sc_val})
+
+        # Percentages for cap tiers
+        for tier_data in cap_tiers.values():
+            tier_data['pct_of_equity'] = (tier_data['total'] / total_equity * 100) if total_equity > 0 else 0
+            tier_data['pct_of_india_equity'] = (tier_data['total'] / india_equity_total * 100) if india_equity_total > 0 else 0
+            tier_data['funds'] = sorted(tier_data['funds'], key=lambda x: x['contribution'], reverse=True)
+
+        # Sort fund lists
+        india_equity_funds.sort(key=lambda x: x['equity_value'], reverse=True)
+        intl_equity_funds.sort(key=lambda x: x['equity_value'], reverse=True)
+
+        return {
+            'total_value': total_value,
+            'total_equity': total_equity,
+            'india_equity_total': india_equity_total,
+            'intl_equity_total': intl_equity_total,
+            'asset_classes': asset_classes,
+            'equity_sub_categories': sub_categories,
+            'cap_breakdown': cap_tiers,
+            'india_equity_funds': india_equity_funds,
+            'intl_equity_funds': intl_equity_funds,
+        }

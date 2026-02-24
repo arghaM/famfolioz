@@ -29,6 +29,14 @@ __all__ = [
     'BUY_TX_TYPES',
     'SELL_TX_TYPES',
     'VALID_SECTORS',
+    'EQUITY_SUB_CATEGORIES',
+    'auto_classify_equity_sub',
+    'update_fund_equity_sub_category',
+]
+
+EQUITY_SUB_CATEGORIES = [
+    'india_large_cap', 'india_mid_small', 'india_flexi',
+    'intl_us_global', 'intl_emerging', 'sectoral_thematic',
 ]
 
 
@@ -445,3 +453,71 @@ def populate_mutual_fund_master_from_folios():
             """, (folio['scheme_name'], folio['isin'], folio['amc']))
 
         logger.info(f"Populated mutual fund master with {len(folios)} schemes from folios")
+
+
+def _derive_equity_sub_category(fund_category, geography, large_cap_pct, mid_cap_pct, small_cap_pct, equity_pct):
+    """Derive equity sub-category from existing fund classification data."""
+    if fund_category in ('debt', 'gold_commodity') or (equity_pct or 0) < 10:
+        return None  # Not an equity-bearing fund
+
+    if geography == 'international':
+        return 'intl_us_global'  # Default international to US/Global
+
+    # India equity funds
+    large = large_cap_pct or 0
+    mid = mid_cap_pct or 0
+    small = small_cap_pct or 0
+    cap_total = large + mid + small
+
+    if cap_total < 10:
+        # No market cap data available, classify as flexi
+        return 'india_flexi'
+
+    if large >= 65:
+        return 'india_large_cap'
+    if (mid + small) >= 65:
+        return 'india_mid_small'
+
+    return 'india_flexi'
+
+
+def auto_classify_equity_sub():
+    """Auto-classify funds that don't have an equity_sub_category yet."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, fund_category, geography, large_cap_pct, mid_cap_pct, small_cap_pct, equity_pct
+            FROM mutual_fund_master
+            WHERE equity_sub_category IS NULL
+              AND fund_category IS NOT NULL
+        """)
+        updated = 0
+        for row in cursor.fetchall():
+            sub_cat = _derive_equity_sub_category(
+                row['fund_category'], row['geography'],
+                row['large_cap_pct'], row['mid_cap_pct'], row['small_cap_pct'],
+                row['equity_pct']
+            )
+            if sub_cat:
+                conn.execute(
+                    "UPDATE mutual_fund_master SET equity_sub_category = ? WHERE id = ?",
+                    (sub_cat, row['id'])
+                )
+                updated += 1
+        if updated:
+            logger.info(f"Auto-classified {updated} funds with equity_sub_category")
+
+
+def update_fund_equity_sub_category(mf_id: int, equity_sub_category: Optional[str]) -> dict:
+    """Manually set a fund's equity sub-category (overrides auto-classification)."""
+    valid = {None} | set(EQUITY_SUB_CATEGORIES)
+    if equity_sub_category not in valid:
+        return {'success': False, 'error': f'Invalid equity_sub_category: {equity_sub_category}'}
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE mutual_fund_master SET equity_sub_category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (equity_sub_category, mf_id)
+        )
+        return {'success': cursor.rowcount > 0}

@@ -1,5 +1,8 @@
+from datetime import date, datetime
+
 from flask import Blueprint, jsonify, request
 from cas_parser.webapp import data as db
+from cas_parser.webapp.xirr import xirr, build_cashflows_for_folio
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -176,3 +179,117 @@ def api_delete_note(note_id):
     """Delete a note."""
     result = db.delete_goal_note(note_id)
     return jsonify(result)
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/allocation-detail', methods=['GET'])
+def api_get_goal_allocation_detail(goal_id):
+    """Get detailed per-fund allocation breakdown for a goal."""
+    goal = db.get_goal_by_id(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+    detail = db.get_goal_allocation_detail(goal_id)
+    return jsonify(detail)
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/phases', methods=['GET'])
+def api_get_goal_phases(goal_id):
+    """Get all phases with equity sub-allocations for a goal."""
+    phases = db.get_goal_phases(goal_id)
+    return jsonify(phases)
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/phases', methods=['PUT'])
+def api_save_goal_phases(goal_id):
+    """Save/replace all phases for a goal."""
+    data = request.json
+    phases_data = data.get('phases', [])
+    result = db.save_goal_phases(goal_id, phases_data)
+    if result.get('success'):
+        return jsonify(result)
+    return jsonify(result), 400
+
+
+@goals_bp.route('/api/goals/<int:goal_id>/xirr', methods=['GET'])
+def api_get_goal_xirr(goal_id):
+    """Compute XIRR for a goal — per-fund + goal-level aggregate."""
+    goal = db.get_goal_by_id(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+
+    linked_folios = goal.get('linked_folios', [])
+    if not linked_folios:
+        return jsonify({'goal_xirr': None, 'funds': [], 'message': 'No linked investments'})
+
+    today = date.today()
+    all_cashflows = []
+    funds = []
+
+    for lf in linked_folios:
+        folio_id = lf['folio_id']
+        data = db.get_xirr_data_for_folio(folio_id)
+        transactions = data['transactions']
+
+        if not transactions:
+            continue
+
+        cashflows = build_cashflows_for_folio(transactions, data['current_value'])
+        xirr_val = xirr(cashflows)
+
+        # Determine tenure from first transaction date
+        first_tx_date = None
+        for tx in transactions:
+            tx_date = tx['tx_date']
+            if isinstance(tx_date, str):
+                tx_date = datetime.strptime(tx_date, '%Y-%m-%d').date()
+            if first_tx_date is None or tx_date < first_tx_date:
+                first_tx_date = tx_date
+
+        tenure_days = (today - first_tx_date).days if first_tx_date else 0
+        tenure_years = tenure_days / 365.25
+        is_young = tenure_years < 1.0
+
+        fund_entry = {
+            'folio_id': folio_id,
+            'scheme_name': data['scheme_name'],
+            'folio_number': data['folio_number'],
+            'isin': data.get('isin'),
+            'current_value': data['current_value'],
+            'xirr': round(xirr_val * 100, 2) if xirr_val is not None else None,
+            'cashflow_count': len(cashflows),
+            'first_tx_date': str(first_tx_date) if first_tx_date else None,
+            'tenure_days': tenure_days,
+            'tenure_years': round(tenure_years, 1),
+            'is_young': is_young,
+        }
+        funds.append(fund_entry)
+
+        # Include in goal-level aggregate only if XIRR computed successfully
+        if xirr_val is not None:
+            all_cashflows.extend(cashflows)
+
+    # Goal-level XIRR from all cashflows combined
+    goal_xirr_val = xirr(all_cashflows) if all_cashflows else None
+
+    # Also compute XIRR excluding young funds (< 1 year)
+    mature_cashflows = []
+    for lf in linked_folios:
+        folio_id = lf['folio_id']
+        fund_entry = next((f for f in funds if f['folio_id'] == folio_id), None)
+        if fund_entry and not fund_entry['is_young'] and fund_entry['xirr'] is not None:
+            data = db.get_xirr_data_for_folio(folio_id)
+            cfs = build_cashflows_for_folio(data['transactions'], data['current_value'])
+            mature_cashflows.extend(cfs)
+
+    mature_xirr_val = xirr(mature_cashflows) if mature_cashflows else None
+
+    # Sort by current value descending
+    funds.sort(key=lambda f: f['current_value'] or 0, reverse=True)
+
+    return jsonify({
+        'goal_xirr': round(goal_xirr_val * 100, 2) if goal_xirr_val is not None else None,
+        'goal_xirr_mature_only': round(mature_xirr_val * 100, 2) if mature_xirr_val is not None else None,
+        'total_value': goal.get('current_value', 0),
+        'funds': funds,
+        'young_fund_count': sum(1 for f in funds if f['is_young']),
+        'mature_fund_count': sum(1 for f in funds if not f['is_young']),
+    })

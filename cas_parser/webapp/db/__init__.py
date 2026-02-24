@@ -31,6 +31,8 @@ __all__ = [
     "get_unlinked_folios_for_goal", "create_goal_note", "get_goal_notes",
     "get_goal_note_by_id", "update_goal_note", "delete_goal_note",
     "get_goal_notes_timeline",
+    "get_goal_phases", "save_goal_phases", "delete_goal_phase",
+    "get_goal_allocation_detail",
     # transactions
     "generate_tx_hash", "_compute_sequence_numbers", "insert_transaction",
     "get_pending_conflict_groups", "get_conflict_group_transactions",
@@ -45,6 +47,7 @@ __all__ = [
     "get_current_fy_dates", "get_similar_funds", "search_amfi_schemes",
     "get_mutual_fund_stats", "populate_mutual_fund_master_from_folios",
     "BUY_TX_TYPES", "SELL_TX_TYPES", "VALID_SECTORS",
+    "EQUITY_SUB_CATEGORIES", "auto_classify_equity_sub", "update_fund_equity_sub_category",
     # nps
     "generate_nps_tx_hash", "get_or_create_nps_subscriber", "get_nps_subscriber",
     "get_nps_subscribers_by_investor", "get_all_nps_subscribers", "upsert_nps_scheme",
@@ -113,3 +116,4 @@ from cas_parser.webapp.db.admin import *  # noqa: F401,F403
 # Initialize database on package import (same as original data.py lines 6514-6516)
 init_db()
 populate_mutual_fund_master_from_folios()
+auto_classify_equity_sub()
