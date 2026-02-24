@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "famfolioz"
 dynamic = ["version"]
-description = "Family portfolio tracker - Parse CDSL CAS PDFs, track mutual funds, NPS, FDs and more"
+description = "Self-hosted family portfolio tracker — parse CDSL CAS PDFs, track mutual funds, NPS, FDs with role-based access"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "CAS Parser Team"}
 ]
-keywords = ["famfolioz", "cas", "cdsl", "mutual fund", "portfolio", "nps", "finance"]
+keywords = ["famfolioz", "cas", "cdsl", "mutual fund", "portfolio", "nps", "finance", "family", "self-hosted"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -31,7 +31,9 @@ dependencies = [
     "pdfplumber>=0.10.0",
     "python-dateutil>=2.8.0",
     "flask>=3.0.0",
+    "werkzeug>=3.0.0",
     "requests>=2.28.0",
+    "openpyxl>=3.1.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +49,7 @@ dev = [
 
 [project.scripts]
 cas-parser = "cas_parser.main:main"
+famfolioz-manage = "cas_parser.webapp.manage:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "cas_parser.__version__"}

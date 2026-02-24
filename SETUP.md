@@ -68,34 +68,88 @@ To stop the app, press `Ctrl+C` in the terminal window.
 
 ---
 
-## Step 4: First-Time Usage
+## Step 4: First-Time Setup
 
-Once the app is running in your browser:
+### 1. Create Your Admin Account
 
-### 1. Upload your CAS PDF
-- Go to **Upload** page
+On first launch, you'll see the **Setup Wizard**. Create your admin account:
+- Choose a username (e.g., "admin" or your name)
+- Set a display name
+- Set a password
+
+This is the master account with full access to all features.
+
+### 2. Upload Your CAS PDF
+
+- Go to the **Upload** page
 - Select your CDSL Consolidated Account Statement PDF
-- Enter the PDF password if it's encrypted (usually your PAN + DOB)
-- Click Upload
+- Enter the PDF password (usually your PAN in uppercase)
+- Click **Upload & Parse**
 
-### 2. Create an Investor Profile
-- After upload, go to **Map Folios**
-- Click "Create New Investor" — enter a name (e.g., "Rahul")
-- Select all the folios and map them to this investor
+The upload page shows the last sync date per investor, so you know from what date to download your next CAS.
 
-### 3. View your Portfolio
+### 3. Create Investor Profiles and Map Folios
+
+- After upload, go to **Map Folios** (Settings menu)
+- Click **Create New Investor** — enter a name (e.g., "Rahul")
+- Select the folios that belong to this investor and map them
+
+### 4. View Your Portfolio
+
 - Go back to the **Dashboard**
-- Click on the investor name
-- You'll see the Home tab with portfolio summary, charts, and alerts
+- Click on the investor card
+- You'll see the Home tab with portfolio summary, growth chart, asset allocation, and alerts
 
-### 4. Get Live NAV Prices
+### 5. Get Live NAV Prices
+
 - On the investor page, click **Refresh NAV** (top right)
 - This fetches current prices from AMFI and updates your portfolio values
-- A portfolio snapshot is also taken for the growth chart
+- A portfolio snapshot is also saved for the growth chart
 
-### 5. Add Other Assets (optional)
+### 6. Add Other Assets (optional)
+
 - Click **Add Assets** to manually add FDs, SGBs, NPS, PPF, stocks
 - FDs can also be bulk-imported via CSV
+
+---
+
+## Adding Family Members
+
+You can create member accounts for family members so they can view their own portfolios:
+
+1. Go to **Settings** > **User Management**
+2. Click **Add User**
+3. Set username, display name, password, and role (`member`)
+4. Link their investor profile under "Own Portfolio"
+5. Optionally grant access to additional investor portfolios (custodian access)
+
+**Roles:**
+- **Admin** — full access to all investors, settings, backup, and user management
+- **Member** — access to own portfolio + any custodian-granted portfolios
+
+### CLI User Management
+
+If you get locked out, use the command-line tool:
+```bash
+source venv/bin/activate
+python -m cas_parser.webapp.manage list-users
+python -m cas_parser.webapp.manage reset-password <username>
+python -m cas_parser.webapp.manage create-admin <username>
+```
+
+---
+
+## Docker Setup (Alternative)
+
+If you prefer Docker over a local Python install:
+
+```bash
+docker compose up -d
+```
+
+Access at **http://localhost:5000**. Data persists in a Docker volume.
+
+To stop: `docker compose down`
 
 ---
 
@@ -115,11 +169,11 @@ Your data (the SQLite database) is preserved across updates.
 
 ## Backup & Restore
 
-Your data is stored in `cas_parser/webapp/data.db` (a single file).
+Your data is stored in `cas_parser/webapp/data.db` (a single SQLite file).
 
-- **From the app:** Go to **Settings** → click **Backup** to save a JSON backup
+- **From the app:** Go to **Settings** > **Backup** to save a JSON backup (includes users and all configuration)
 - **Manual backup:** Just copy `cas_parser/webapp/data.db` somewhere safe
-- **Restore:** Settings → Restore from a backup file, or replace `data.db` with your backup copy
+- **Restore:** Settings > Restore from a backup file, or replace `data.db` with your backup copy
 
 ---
 
@@ -142,6 +196,13 @@ Another app (sometimes macOS AirPlay) is using port 5000. Either:
 
 ### App starts but browser shows blank page
 Wait a few seconds and refresh. The server needs a moment to initialize the database on first run.
+
+### Locked out / forgot password
+Use the CLI management tool:
+```bash
+source venv/bin/activate
+python -m cas_parser.webapp.manage reset-password <username>
+```
 
 ---
 
